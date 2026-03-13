@@ -7,17 +7,14 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  /* モノクロ8割 + カラー2割 */
   --bg:#000;--c1:#0d0d0d;--c2:#171717;--c3:#212121;
   --b1:#2e2e2e;--b2:#444;--b3:#666;
   --t1:#f0f0f0;--t2:#aaa;--t3:#666;
   --acc:#888;
-  /* カラー部分（緑系＋オレンジ系） */
   --ok:#2ea87a;--ok2:#1a6e50;--ok-bg:#071a11;--ok-bdr:#134030;
   --warn:#c47c28;--warn-bg:#1a1000;--warn-bdr:#3a2800;
   --err:#c04040;
   --prog-bg:#061410;--prog-bdr:#0f3024;--prog-txt:#2ea87a;
-  --resume-bg:#040e09;
 }
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--t1);
   font-family:'Hiragino Sans','Yu Gothic UI',sans-serif;font-size:15px}
@@ -182,7 +179,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .sn.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bdr)}
 .sn.err{background:#160404;color:#d05050;border:1px solid #3a0c0c}
 
-/* 再開バナー（目立つ） */
+/* 再開バナー */
 .resume-banner{margin:8px 0;padding:13px 18px;background:var(--ok-bg);
   border:1px solid var(--ok);border-radius:8px;display:flex;align-items:center;gap:12px;cursor:pointer}
 .resume-banner:hover{background:#0a2218;border-color:#3ed898}
@@ -217,6 +214,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   min-height:46px;max-height:140px;line-height:1.65;outline:none}
 #inp:focus{border-color:var(--b3)}
 #inp::placeholder{color:var(--t3)}
+/* 停止/再開ボタン — display:noneをデフォルトにして busy時だけ表示 */
 #stop-btn{display:none;background:none;border:1px solid var(--b2);color:var(--t2);
   border-radius:6px;padding:0 13px;cursor:pointer;font-size:14px;height:46px;white-space:nowrap;font-weight:700}
 #stop-btn:hover{border-color:var(--err);color:var(--err)}
@@ -386,8 +384,8 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div id="msgs"></div>
       <div class="ia">
         <div class="chat-opts" id="chat-opts" style="display:none">
-          <label class="co-chk"><input type="checkbox" id="chk-img"  onchange="addImg()"> 画像</label>
-          <label class="co-chk"><input type="checkbox" id="chk-file" onchange="addFile()"> ファイル</label>
+          <label class="co-chk"><input type="checkbox" id="chk-img"> 画像</label>
+          <label class="co-chk"><input type="checkbox" id="chk-file"> ファイル</label>
           <label class="co-chk"><input type="checkbox" id="chk-deep"> 𓅱 調べる</label>
         </div>
         <div class="att-list" id="att-list"></div>
@@ -553,40 +551,30 @@ const A = window.api;
 function renderMd(src) {
   if (!src) return '';
   let s = src
-    // コードブロック(先に確保)
     .replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>`<pre><code class="lang-${lang||''}">${esc(code.trim())}</code></pre>`)
-    // インラインコード
     .replace(/`([^`]+)`/g, (_,c)=>`<code>${esc(c)}</code>`)
-    // 水平線
     .replace(/^(?:---|\*\*\*|___)\s*$/gm,'<hr>')
-    // 見出し
     .replace(/^######\s+(.+)$/gm,'<h6>$1</h6>')
     .replace(/^#####\s+(.+)$/gm,'<h5>$1</h5>')
     .replace(/^####\s+(.+)$/gm,'<h4>$1</h4>')
     .replace(/^###\s+(.+)$/gm,'<h3>$1</h3>')
     .replace(/^##\s+(.+)$/gm,'<h2>$1</h2>')
     .replace(/^#\s+(.+)$/gm,'<h1>$1</h1>')
-    // 引用
     .replace(/^>\s+(.+)$/gm,'<blockquote>$1</blockquote>')
-    // 太字・斜体
     .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
     .replace(/\*(.+?)\*/g,'<em>$1</em>')
     .replace(/___(.+?)___/g,'<strong><em>$1</em></strong>')
     .replace(/__(.+?)__/g,'<strong>$1</strong>')
     .replace(/_(.+?)_/g,'<em>$1</em>')
-    // 打消し線
     .replace(/~~(.+?)~~/g,'<del>$1</del>')
-    // リンク
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
-    // テーブル
     .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)+)/g,(_,h,rows)=>{
       const ths=h.split('|').filter(c=>c.trim()).map(c=>`<th>${c.trim()}</th>`).join('');
       const trs=rows.trim().split('\n').map(r=>`<tr>${r.split('|').filter(c=>c.trim()).map(c=>`<td>${c.trim()}</td>`).join('')}</tr>`).join('');
       return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
     });
 
-  // リスト処理
   s = s.replace(/((?:^[ \t]*[-*+]\s.+\n?)+)/gm, block=>{
     const items=block.trim().split('\n').map(l=>`<li>${l.replace(/^[ \t]*[-*+]\s/,'').trim()}</li>`).join('');
     return `<ul>${items}</ul>`;
@@ -596,7 +584,6 @@ function renderMd(src) {
     return `<ol>${items}</ol>`;
   });
 
-  // 段落: ブロック要素でない行をpで囲む
   s = s.split('\n').map(line=>{
     if (/^<(h[1-6]|ul|ol|li|pre|blockquote|hr|table|thead|tbody|tr|th|td)/.test(line)) return line;
     if (line.trim()==='') return '';
@@ -642,9 +629,6 @@ const ALL_LANGS=[
 
 // ── チャンク受信 ───────────────────────────────────────────
 A.onChunk(ev=>{
-  // セッション照合: 現在のプロジェクトと一致しない場合は無視しない
-  // (他プロジェクトへ切り替えても処理は継続、表示だけ現在のプロジェクトに合わせる)
-  // → チャンクのsessIdが現在と違う場合はサイドバーのプロジェクト名に通知だけ
   if (ev.sessId && ev.sessId !== curSid) {
     markProjBusy(ev.sessId, ev.type);
     return;
@@ -654,7 +638,7 @@ A.onChunk(ev=>{
     case 'text':
       curFull += ev.data;
       if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
-      // 常にMarkdown描画（dev/debugも含む）
+      // 常にMarkdown描画
       curBb.innerHTML = renderMd(curFull);
       curBb.classList.add('md-rendered');
       dn(); break;
@@ -687,6 +671,7 @@ A.onChunk(ev=>{
 
 // 別プロジェクトが処理中のことをサイドバーで示す
 function markProjBusy(sessId, evType){
+  // sessIdは "P" + projectId の形式
   const projId = sessId.startsWith('P') ? sessId.slice(1) : null;
   if (!projId) return;
   const el = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`);
@@ -700,12 +685,32 @@ function markProjBusy(sessId, evType){
 document.addEventListener('DOMContentLoaded',()=>{
   pollSt(); setInterval(pollSt,15000);
   loadPL(); setupInp(); buildLangs();
-  A.onWillQuit(async()=>{
-    // アプリ終了時、devモードなら再開ファイルを生成
-    if (cur && curMode==='dev' && cur.workDir && busy){
-      await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint:'アプリ終了による中断',state:'終了'});
+
+  // チェックボックスのchangeイベントをDOMContentLoaded後に設定
+  document.getElementById('chk-img').addEventListener('change', async function(){
+    if (!this.checked) return;
+    this.checked = false; // 先にリセット（キャンセルしても戻る）
+    const r = await A.pickImageFile();
+    if (r && !r.error) {
+      atts.push({type:'image', name:r.name, path:r.path});
+      renderAtts();
     }
-    if (cur) A.updateProject(cur.id,cur);
+  });
+  document.getElementById('chk-file').addEventListener('change', async function(){
+    if (!this.checked) return;
+    this.checked = false;
+    const r = await A.pickAnyFile();
+    if (r && !r.error) {
+      atts.push({type:'file', name:r.name, content:r.content});
+      renderAtts();
+    }
+  });
+
+  A.onWillQuit(async()=>{
+    if (cur && curMode==='dev' && cur.workDir && busy){
+      await A.saveResume({sessId:curSid, workDir:cur.workDir, history:cur.messages||[], checkpoint:'アプリ終了による中断', state:'終了'});
+    }
+    if (cur) A.updateProject(cur.id, cur);
   });
 });
 
@@ -715,7 +720,6 @@ async function pollSt(){
     const d=await A.getStatus();
     document.getElementById('dt').className='dot'+(d.online?' on':' err');
     document.getElementById('ml').textContent=d.online?(d.modelId||'model')+' :'+d.aiPort:'オフライン :'+d.aiPort;
-    // handsOff同期
     handsOff=d.handsOff||false;
     document.getElementById('ho-sw').classList.toggle('on',handsOff);
   }catch(e){ document.getElementById('ml').textContent='接続エラー'; }
@@ -770,16 +774,21 @@ async function openP(id){
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
+  document.getElementById('msgs').innerHTML='';
+  // 履歴を表示（問題⑧: 既存履歴をちゃんと表示）
   renderHist(p.messages||[]);
   loadPL(); updateModeUI();
-  // devモードで再開ファイルがあれば目立つ再開バナーを表示（問題⑦）
-  if(p.workDir&&curMode==='dev'){
+  // devモードで再開ファイルがあれば再開バナーを表示（問題⑦）
+  if(p.workDir&&(curMode==='dev'||curMode==='debug')){
     const r=await A.loadResume(p.workDir);
     if(r){ showResumeBanner(r); }
   }
 }
 
 function showResumeBanner(r){
+  // 既存バナーがあれば削除
+  const existing=document.getElementById('resume-banner');
+  if(existing) existing.remove();
   const savedAt=new Date(r.savedAt);
   const timeStr=savedAt.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const banner=document.createElement('div');
@@ -806,7 +815,7 @@ async function delP(e,id){
 }
 
 function renderHist(ms){
-  document.getElementById('msgs').innerHTML='';
+  // userとassistantのみ表示（toolロールは表示しない）
   ms.forEach((m,i)=>{
     if(m.role==='user') addUserBubble(m.content,i);
     else if(m.role==='assistant') addAI(m.content);
@@ -901,7 +910,6 @@ async function startDev(){
   taskN=0; taskTotal=0;
   document.getElementById('prog-bar').style.display='block';
   updateProgress(0,0);
-  // 開発時間計測開始
   startDevTimer();
   addSN('𓃭 開発を開始します。進捗はタスクカードで確認できます。','ok');
   const prompt=`【開発開始】\n設計図:\n${dDat.spec}\n${dDat.langs?'優先言語: '+dDat.langs+'\n':''}作業フォルダ: ${cur?cur.workDir:'未設定'}\n\n今すぐ開発を開始してください。まず「=== タスクリスト ===」を表示してから1つずつ実行してください。`;
@@ -914,7 +922,8 @@ async function startDev(){
 // ── 開発時間タイマー ───────────────────────────────────────
 function startDevTimer(){
   devStartTime=Date.now();
-  devElapsedBase=cur?.(cur._devElapsed||0):0;
+  // cur存在チェックを正しく行う（元のコードは構文エラーだった）
+  devElapsedBase=(cur && cur._devElapsed) ? cur._devElapsed : 0;
   if(devTimerInterval) clearInterval(devTimerInterval);
   devTimerInterval=setInterval(()=>{
     const total=devElapsedBase+Math.floor((Date.now()-devStartTime)/1000);
@@ -939,7 +948,6 @@ function addTaskCard(data){
   const d=document.createElement('div'); d.className='task-card';
   d.innerHTML=`<span class="task-num">タスク ${data.n}${taskTotal?'/'+taskTotal:''}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中...</span>`;
   msgs().appendChild(d); dn();
-  // 最後のタスクカードのstatを更新
   document.querySelectorAll('.task-card .task-stat').forEach(s=>s.textContent='');
   d.querySelector('.task-stat').textContent='処理中...';
   updateProgress(data.n-1, data.total||taskTotal);
@@ -950,7 +958,6 @@ function updateProgress(n, total){
   document.getElementById('prog-fill').style.width=pct+'%';
   document.getElementById('prog-pct').textContent=pct+'%';
   document.getElementById('prog-txt').textContent=total>0?`タスク ${n}/${total}`:'開発中...';
-  // 完了タスクカードのstatを更新
   document.querySelectorAll('.task-card').forEach((c,i)=>{
     if(i<n) c.querySelector('.task-stat').textContent='𓋹 完了';
   });
@@ -985,9 +992,7 @@ function updateModeUI(){
     bar.style.display='flex';
     const tabDebug=document.getElementById('tab-debug');
     const tabChat=document.getElementById('tab-chat');
-    // デバッグタブはdevDone時のみ表示
     tabDebug.style.display=cur.devDone?'':'none';
-    // アクティブ状態: debugモードならデバッグタブon、それ以外はチャットタブon
     tabChat.classList.toggle('on', curMode!=='debug');
     tabDebug.classList.toggle('on', curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
@@ -1001,7 +1006,8 @@ function updateModeUI(){
 }
 function switchMode(m){
   curMode=m; updateModeUI();
-  if(m==='debug'&&document.getElementById('msgs').children.length===0){
+  // デバッグモード初期化はメッセージが0の時だけ
+  if(m==='debug'&&msgs().children.length===0){
     addAI('𓃗 デバッグモードです。コードベースを調査します。');
     chatInternalDev('既存コードを調査して全体構造を把握し、問題点があれば指摘してください。','debug');
   }
@@ -1020,7 +1026,6 @@ async function doSend(){
   const msgIdx=cur.messages.length-1;
   addUserBubble(txt,msgIdx);
   busy=true; setBusy(true);
-  // 設計プロジェクトはdevモード（チャットと開発統合）、debugはそのまま
   const sendMode = cur.type==='design' ? (curMode==='debug'?'debug':'dev') : curMode;
   await chatInternal(txt, sendMode, attachments, deepSearch);
   if(cur) A.updateProject(cur.id,cur);
@@ -1040,11 +1045,11 @@ async function chatInternal(msg, mode, attachments, deepSearch){
   return curFull;
 }
 
-// devモード専用(progressバー付き)
 async function chatInternalDev(msg, mode){
   return chatInternal(msg, mode||'dev', [], false);
 }
 
+// ── 停止/再開ボタン ────────────────────────────────────────
 async function doStopOrResume(){
   const btn = document.getElementById('stop-btn');
   if(btn.classList.contains('resume')){
@@ -1070,50 +1075,56 @@ async function doStopOrResume(){
     btn.textContent='▷ 再開';
   }
 }
+
+// ── 再起動 ────────────────────────────────────────────────
 async function doRestart(){
   document.getElementById('res-btn').style.display='none';
-  addSN('↺ 再起動します...','ok'); await pollSt();
+  addSN('↺ 再起動します...','ok');
+  await pollSt();
   if(!cur) return;
-  // セッションhistoryを確認し、最後のユーザーメッセージから再送信（問題③）
-  const msgs2=cur.messages||[]; const last=msgs2.length>0?msgs2[msgs2.length-1]:null;
-  if(last&&last.role==='user'){
-    // 最後のassistant応答(途中)を削除して再送
-    const history=msgs2.filter((m,i)=>!(m.role==='assistant'&&i===msgs2.length-1));
-    cur.messages=history;
-    await A.clearHistory(curSid);
-    // historyをセッションに再構築
-    for(const m of history){
-      // sessionにpush（次のstartChatで使われる）
-    }
-    busy=true; setBusy(true);
-    const sendMode = cur.type==='design' ? (curMode==='debug'?'debug':'dev') : curMode;
-    if(sendMode==='dev') startDevTimer();
-    await chatInternal(last.content, sendMode);
-    if(sendMode==='dev') stopDevTimer();
-    if(cur) A.updateProject(cur.id,cur);
-  }
+  const history = cur.messages||[];
+  // 末尾のassistantメッセージ（途中で切れたもの）を取り除く
+  const cleanHistory = history[history.length-1]?.role==='assistant'
+    ? history.slice(0,-1) : [...history];
+  const lastUser = [...cleanHistory].reverse().find(m=>m.role==='user');
+  if(!lastUser) return;
+  // セッション側のhistoryを最新状態に設定（文脈引き継ぎ）
+  await A.setHistory({sessId:curSid, history:cleanHistory});
+  cur.messages = cleanHistory;
+  busy=true; setBusy(true);
+  const sendMode = cur.type==='design' ? (curMode==='debug'?'debug':'dev') : curMode;
+  if(sendMode==='dev') startDevTimer();
+  await chatInternal(lastUser.content, sendMode);
+  if(sendMode==='dev') stopDevTimer();
+  if(cur) A.updateProject(cur.id,cur);
 }
 
-// 再開ファイルからの続き再開（問題⑦）
+// ── 再開ファイルからの続き再開 ────────────────────────────
 async function doResumeFromFile(r){
   const banner=document.getElementById('resume-banner');
   if(banner) banner.remove();
   addSN('▶ 前回の続きから再開します...','ok');
-  // 再開ファイルのhistoryTailを使って文脈を復元
   const resumeMsg=`【再開指示】前回の作業を以下のチェックポイントから再開してください:\n${r.checkpoint}\n\n作業フォルダ: ${cur.workDir}\n\n前回の中断箇所から続きを実行してください。`;
   busy=true; setBusy(true);
   startDevTimer();
   await chatInternalDev(resumeMsg,'dev');
   stopDevTimer();
-  // 再開ファイルを削除
+  // 完了後に再開ファイルを削除
   if(cur.workDir) await A.deleteResume(cur.workDir);
   if(cur) A.updateProject(cur.id,cur);
 }
 
 // ── 添付 ──────────────────────────────────────────────────
-async function addImg(){ if(!document.getElementById('chk-img').checked)return; const r=await A.pickImageFile(); if(r&&!r.error){ atts.push({type:'image',name:r.name,path:r.path}); renderAtts(); } document.getElementById('chk-img').checked=false; }
-async function addFile(){ if(!document.getElementById('chk-file').checked)return; const r=await A.pickAnyFile(); if(r&&!r.error){ atts.push({type:'file',name:r.name,content:r.content}); renderAtts(); } document.getElementById('chk-file').checked=false; }
-function renderAtts(){ const el=document.getElementById('att-list'); el.innerHTML=''; atts.forEach((a,i)=>{ const d=document.createElement('div'); d.className='att-item'; d.innerHTML=(a.type==='image'?'[img] ':'[file] ')+esc(a.name)+`<button class="att-rm" onclick="rmAtt(${i})">×</button>`; el.appendChild(d); }); }
+// チェックボックスのchangeイベントはDOMContentLoadedで設定済み
+function renderAtts(){
+  const el=document.getElementById('att-list');
+  el.innerHTML='';
+  atts.forEach((a,i)=>{
+    const d=document.createElement('div'); d.className='att-item';
+    d.innerHTML=(a.type==='image'?'[img] ':'[file] ')+esc(a.name)+`<button class="att-rm" onclick="rmAtt(${i})">×</button>`;
+    el.appendChild(d);
+  });
+}
 function rmAtt(i){ atts.splice(i,1); renderAtts(); }
 
 // ── メッセージ編集 ─────────────────────────────────────────
@@ -1143,9 +1154,24 @@ async function commitEdit(idx,ta){
   if(cur&&cur.messages){ cur.messages=cur.messages.slice(0,idx+1); cur.messages[idx].content=newText; }
   const msgEl=document.getElementById('msgs');
   const all=Array.from(msgEl.children); let found=false;
-  for(const el of all){ if(el.dataset&&parseInt(el.dataset.idx)===idx){found=true;} if(found)el.remove(); }
-  addUserBubble(newText,idx);
+  for(const el of all){ if(el.dataset&&parseInt(el.dataset.idx)===idx){found=true;} if(found&&parseInt(el.dataset.idx)!==idx)el.remove(); }
+  // 編集後のバブルを作り直す
+  const existingBubble=document.querySelector(`.msg[data-idx="${idx}"] .mb`);
+  if(existingBubble){
+    existingBubble.innerHTML='';
+    existingBubble.textContent=newText;
+    const eb=document.createElement('button'); eb.className='edit-btn'; eb.textContent='編集';
+    eb.addEventListener('click',()=>startEdit(idx)); existingBubble.appendChild(eb);
+  }
+  // 編集後のメッセージ以降を削除してAI再送信
+  const allMsgs=Array.from(msgEl.children);
+  let afterEdit=false;
+  for(const el of allMsgs){
+    if(el.dataset&&parseInt(el.dataset.idx)===idx){ afterEdit=true; continue; }
+    if(afterEdit) el.remove();
+  }
   busy=true; setBusy(true);
+  // 編集後は正しいsendModeで再送信（問題②: commitEditもsendMode計算が必要）
   const sendMode = cur && cur.type==='design' ? (curMode==='debug'?'debug':'dev') : curMode;
   await chatInternal(newText, sendMode);
   if(cur) A.updateProject(cur.id,cur);
@@ -1167,7 +1193,7 @@ function addUserBubble(t,idx){
   d.appendChild(b); msgs().appendChild(d); dn(); return d;
 }
 
-function addAI(t, isHistory){
+function addAI(t){
   const {el,bb}=mkAI();
   bb.innerHTML=renderMd(t);
   bb.classList.add('md-rendered');
@@ -1185,8 +1211,10 @@ function addTool(par,td){
   const box=document.createElement('div'); box.className='tb';
   const args=td.args||{};
   const argStr=['command','path','url','query','reason'].filter(k=>args[k]).map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
-  const timeStr=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const dateStr=new Date().toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'});
+  // 日時を表示（問題⑥: ツール呼び出しに日時を付与）
+  const now=new Date();
+  const timeStr=now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const dateStr=now.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'});
   box.innerHTML=`<div class="th2"><span>${icons[td.name]||'·'}</span><span class="tn2">${esc(td.name)}</span><span class="tt2">${dateStr} ${timeStr}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
   par.appendChild(box);
 }
@@ -1229,10 +1257,19 @@ async function savSet(){
   if(!port||port<1||port>65535){ alert('有効なポートを入力してください'); return; }
   if(to<100||to>1000){ alert('タイムアウトは100〜1000秒で入力してください'); return; }
   if(cur){ cur.systemPrompt=document.getElementById('sySys').value.trim(); await A.updateProject(cur.id,cur); }
-  await A.saveCfg({aiHost:host,aiPort:port,searxngUrl:searx,timeout:to,logEnabled:document.getElementById('sLog').checked,logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,handsOff});
+  // handsOffはグローバル変数から取得（pollStで同期済み）
+  await A.saveCfg({aiHost:host, aiPort:port, searxngUrl:searx, timeout:to,
+    logEnabled:document.getElementById('sLog').checked,
+    logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,
+    handsOff});
   await pollSt(); closeM('mS');
 }
-async function viewLogs(){ const logs=await A.getLogs(7); const area=document.getElementById('logArea'), content=document.getElementById('logContent'); content.textContent=logs.length?logs.map(l=>`=== ${l.name} ===\n${l.content}`).join('\n'):'ログなし'; area.style.display='block'; content.scrollTop=content.scrollHeight; }
+async function viewLogs(){
+  const logs=await A.getLogs(7);
+  const area=document.getElementById('logArea'), content=document.getElementById('logContent');
+  content.textContent=logs.length?logs.map(l=>`=== ${l.name} ===\n${l.content}`).join('\n'):'ログなし';
+  area.style.display='block'; content.scrollTop=content.scrollHeight;
+}
 async function delLogs(){ if(!confirm('全ログを削除しますか？'))return; await A.deleteLogs(); document.getElementById('logArea').style.display='none'; }
 
 // ── モーダル ───────────────────────────────────────────────

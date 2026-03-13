@@ -1,5 +1,5 @@
 'use strict';
-// agent.js v4 — Pine Chat AI通信・ツール実行・ループ検知・ほったらかしモード
+// agent.js — Pine Chat AI通信・ツール実行・ループ検知・ほったらかしモード
 const http  = require('http');
 const https = require('https');
 const fs    = require('fs');
@@ -18,7 +18,7 @@ const DEFAULT_CFG = {
   aiHost: 'localhost', aiPort: 1234,
   searxngUrl: 'http://localhost:8080',
   timeout: 300, logEnabled: true, logMaxDays: 7,
-  handsOff: false  // ほったらかしモード
+  handsOff: false
 };
 
 function loadCfg() {
@@ -163,6 +163,50 @@ function resolvePath(p, workDir) {
   return p;
 }
 
+// fetch_url: リダイレクト無限ループを防ぐためdepth管理
+async function fetchUrl(urlStr, workDir, sessId, depth=0) {
+  if (depth > 5) return { error: 'リダイレクト上限超過' };
+  let u = (urlStr||'').trim();
+  if (!u.startsWith('http')) u = 'https://' + u;
+  let parsed;
+  try { parsed = new URL(u); } catch { return { error: '無効URL' }; }
+  const proto = parsed.protocol === 'https:' ? https : http;
+  return new Promise(resolve => {
+    const req = proto.request({
+      hostname: parsed.hostname,
+      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+      path: parsed.pathname + parsed.search,
+      method: 'GET', timeout: 15000,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html,*/*' }
+    }, res => {
+      if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
+        res.resume(); // bodyを消費してから
+        const loc = res.headers.location;
+        const nextUrl = loc.startsWith('http') ? loc : `${parsed.protocol}//${parsed.host}${loc}`;
+        resolve(fetchUrl(nextUrl, workDir, sessId, depth+1));
+        return;
+      }
+      let data = '';
+      res.setEncoding('utf-8');
+      res.on('data', c => { data += c; if (data.length > 50000) res.destroy(); });
+      res.on('end', () => resolve({
+        url: u,
+        content: data
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[\s\S]*?<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 10000)
+      }));
+      res.on('error', e => resolve({ error: e.message }));
+    });
+    req.on('timeout', () => { req.destroy(); resolve({ error: 'timeout' }); });
+    req.on('error', e => resolve({ error: e.message }));
+    req.end();
+  });
+}
+
 async function runTool(name, args, workDir, sessId) {
   logWrite(sessId,'TOOL',`${name} ${JSON.stringify(args).slice(0,150)}`);
   switch(name) {
@@ -188,24 +232,8 @@ async function runTool(name, args, workDir, sessId) {
         size:it.isFile()?(()=>{try{return fs.statSync(path.join(dp,it.name)).size;}catch{return null;}})():null
       }))};
     } catch(e) { return { error:e.message }; }
-    case 'fetch_url': return new Promise(resolve => {
-      let u=(args.url||'').trim(); if(!u.startsWith('http'))u='https://'+u;
-      let parsed; try{parsed=new URL(u);}catch{return resolve({error:'無効URL'});}
-      const proto=parsed.protocol==='https:'?https:http;
-      const req=proto.request({hostname:parsed.hostname,port:parsed.port||(parsed.protocol==='https:'?443:80),
-        path:parsed.pathname+parsed.search,method:'GET',timeout:15000,
-        headers:{'User-Agent':'Mozilla/5.0','Accept':'text/html,*/*'}},
-        res=>{if([301,302,303,307,308].includes(res.statusCode)&&res.headers.location)
-          return resolve(runTool('fetch_url',{url:res.headers.location},workDir,sessId));
-          let data='';res.setEncoding('utf-8');
-          res.on('data',c=>{data+=c;if(data.length>50000)res.destroy();});
-          res.on('end',()=>resolve({url:u,content:data.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,10000)}));
-          res.on('error',e=>resolve({error:e.message}));
-        });
-      req.on('timeout',()=>{req.destroy();resolve({error:'timeout'});});
-      req.on('error',e=>resolve({error:e.message}));
-      req.end();
-    });
+    case 'fetch_url':
+      return fetchUrl(args.url, workDir, sessId);
     case 'web_search': {
       const r = await searxSearch(args.query,5);
       return r.length ? { results:r } : { error:'SearXNG未設定または結果なし' };
@@ -215,23 +243,22 @@ async function runTool(name, args, workDir, sessId) {
 }
 
 // ── ループ検知 ────────────────────────────────────────────
-function detectLoop(msgs, win=6) {
+// win=8: ウィンドウを大きくして誤検知を低減
+function detectLoop(msgs, win=8) {
   if (msgs.length < win*2) return false;
   const r = msgs.slice(-win).map(m=>m.content||'').join('|');
   const p = msgs.slice(-win*2,-win).map(m=>m.content||'').join('|');
   if (r===p) return true;
-  const rs=new Set(r.split(/\s+/).slice(0,50)), ps=new Set(p.split(/\s+/).slice(0,50));
+  const rs=new Set(r.split(/\s+/).slice(0,80)), ps=new Set(p.split(/\s+/).slice(0,80));
   const inter=[...rs].filter(w=>ps.has(w)).length, uni=new Set([...rs,...ps]).size;
-  return uni>0 && inter/uni>0.85;
+  return uni>0 && inter/uni>0.88;
 }
 
 // ── ほったらかし: ループ打開 ──────────────────────────────
-// 戻り値: { resolved:bool, suggestion:string }
 async function handsOffBreakLoop(sessId, msgs, workDir, onEvent) {
   logWrite(sessId,'WARN','ループ検知 → ほったらかし打開開始');
   onEvent({ type:'system', data:'△ ループ検知。自動的に打開します...' });
 
-  // 1. 問題分析
   const recentText = msgs.slice(-8).map(m=>`[${m.role}]:${(m.content||'').slice(0,300)}`).join('\n');
   let problem = '';
   try {
@@ -243,9 +270,8 @@ async function handsOffBreakLoop(sessId, msgs, workDir, onEvent) {
     problem = d.choices?.[0]?.message?.content || '';
   } catch {}
 
-  // 2. Web検索
   let searchSuggestion = '';
-  if (problem) {
+  if (problem && cfg.searxngUrl) {
     const q = problem.split('\n')[0].slice(0,70)+' solution';
     const results = await Promise.race([searxSearch(q,3), new Promise(r=>setTimeout(()=>r([]),8000))]);
     if (results.length>0) {
@@ -261,25 +287,24 @@ async function handsOffBreakLoop(sessId, msgs, workDir, onEvent) {
     }
   }
 
-  // 3. ループレポート保存
   if (workDir) {
     try {
       fs.writeFileSync(path.join(workDir,'_pinechat_loop_report.json'),
-        JSON.stringify({ at:new Date().toISOString(), sessId, problem, searchSuggestion, history:msgs.slice(-6).map(m=>({role:m.role,content:(m.content||'').slice(0,400)})) }, null, 2));
+        JSON.stringify({ at:new Date().toISOString(), sessId, problem, searchSuggestion,
+          history:msgs.slice(-6).map(m=>({role:m.role,content:(m.content||'').slice(0,400)})) }, null, 2));
     } catch {}
   }
 
   if (searchSuggestion) {
-    onEvent({ type:'system', data:`𓂀 打開案: ${searchSuggestion.slice(0,100)}...` });
+    onEvent({ type:'system', data:`𓂀 打開案: ${searchSuggestion.slice(0,120)}...` });
     return { resolved:true, suggestion:searchSuggestion };
   }
 
-  // 4. 別アプローチを試みる（ほったらかしモード: ユーザーに聞かずスキップ）
   onEvent({ type:'system', data:'𓅭 打開策が見つかりませんでした。このステップをスキップして続行します。' });
   return { resolved:true, suggestion:'このステップをスキップして次のタスクに進んでください。' };
 }
 
-// ── 進捗報告プロンプト作成 ────────────────────────────────
+// ── 開発モード用システムプロンプト ───────────────────────
 function makeDevSysPrompt(workDir, customSys, langs) {
   const langNote = langs && langs.length > 0
     ? `\n優先言語: ${langs}\n※ 設計図の要件に応じて他の言語・ライブラリも適宜使用して良い。`
@@ -301,7 +326,7 @@ function makeDevSysPrompt(workDir, customSys, langs) {
 }
 
 // ── エージェントループ ────────────────────────────────────
-const abortMap = new Map(); // sessId → AbortController
+const abortMap = new Map();
 
 function stopAgent(sessId) { abortMap.get(sessId)?.abort(); abortMap.delete(sessId); }
 
@@ -317,14 +342,12 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
   abortMap.set(sessId, ac);
 
   const devMode = sysPrompt.includes('タスクリスト');
-
   const msgs = [{ role:'system', content:sysPrompt }, ...messages];
   let loopCount = 0, sameCount = 0, lastContent = '';
-  let taskCount = 0, totalTasks = 0;
 
   for (let turn = 0; turn < 60; turn++) {
     if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止しました。' }); break; }
-    // handsOffは毎ターン最新のcfgから読む（途中トグルに対応）
+    // handsOffは毎ターン最新cfgから読む（途中トグルに対応）
     const isHandsOff = cfg.handsOff;
 
     let data;
@@ -351,22 +374,19 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
       logWrite(sessId,'AI', msg.content.slice(0,200));
       onEvent({ type:'text', data:msg.content });
 
-      // 開発モード: タスク進捗をパース
       if (devMode) {
         const totMatch = msg.content.match(/タスクリスト[\s\S]*?(\d+)\./g);
-        if (totMatch && totalTasks===0) {
-          totalTasks = totMatch.length;
-          onEvent({ type:'progress', data:`タスクリスト: ${totalTasks}件のタスクを確認` });
+        if (totMatch && !msgs._totalTasksSet) {
+          msgs._totalTasksSet = true;
+          onEvent({ type:'progress', data:`タスクリスト: ${totMatch.length}件のタスクを確認` });
         }
         const startMatch = msg.content.match(/---\s*タスク(\d+)\/(\d+)[:\s]+(.+?)\s*---/);
         if (startMatch) {
-          taskCount = parseInt(startMatch[1]);
-          if (!totalTasks) totalTasks = parseInt(startMatch[2]);
-          onEvent({ type:'task_start', data:{ n:taskCount, total:totalTasks, name:startMatch[3].trim() } });
+          onEvent({ type:'task_start', data:{ n:parseInt(startMatch[1]), total:parseInt(startMatch[2]), name:startMatch[3].trim() } });
         }
-        const doneMatch = msg.content.match(/\[完\]\s*タスク(\d+)\s*完了/);
+        const doneMatch = msg.content.match(/\[完\]\s*タスク(\d+)\s*完了.*?(\d+)\/(\d+)/);
         if (doneMatch) {
-          onEvent({ type:'task_done', data:{ n:parseInt(doneMatch[1]), total:totalTasks } });
+          onEvent({ type:'task_done', data:{ n:parseInt(doneMatch[1]), total:parseInt(doneMatch[3]) } });
         }
         if (msg.content.includes('=== 開発完了 ===')) {
           onEvent({ type:'dev_complete', data:'' });
@@ -405,7 +425,7 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
   deleteOldLogs();
 }
 
-// ── 再開ファイル（一時停止/終了時のみ） ──────────────────
+// ── 再開ファイル ──────────────────────────────────────────
 function saveResumeFile(sessId, workDir, history, checkpoint, state) {
   if (!workDir) return null;
   const data = {
@@ -417,7 +437,10 @@ function saveResumeFile(sessId, workDir, history, checkpoint, state) {
 }
 function loadResumeFile(workDir) {
   if (!workDir) return null;
-  try { const fp=path.join(workDir,'_pinechat_resume.json'); if(fs.existsSync(fp)) return JSON.parse(fs.readFileSync(fp,'utf-8')); } catch {}
+  try {
+    const fp=path.join(workDir,'_pinechat_resume.json');
+    if(fs.existsSync(fp)) return JSON.parse(fs.readFileSync(fp,'utf-8'));
+  } catch {}
   return null;
 }
 function deleteResumeFile(workDir) {
@@ -437,7 +460,7 @@ function saveProj(p) { try{fs.writeFileSync(projPath(p.id),JSON.stringify(p,null
 const sessions = new Map();
 function getSession(id) { if(!sessions.has(id)) sessions.set(id,{history:[]}); return sessions.get(id); }
 
-// ── 通常チャット用システムプロンプト ─────────────────────
+// ── システムプロンプト ────────────────────────────────────
 function buildChatSysPrompt(workDir, customSys) {
   const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
   return `あなたは有能なAIアシスタントです。ユーザーの質問に丁寧に回答し、必要に応じてツールを使います。制約: sudo・インストール系コマンドは不可。\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;

@@ -26,7 +26,7 @@ function createWindow() {
   win.on('close', e=>{
     if (!app.isQuitting) {
       e.preventDefault();
-      // main側で確実に再開ファイルを保存してから終了
+      // 終了前に再開ファイルを確実に保存
       for (const [sessId, info] of activeSessions) {
         if (info.workDir && info.mode==='dev') {
           const sess = agent.getSession(sessId);
@@ -58,7 +58,6 @@ ipcMain.handle('pick-image-file', async()=>{
   const r=await dialog.showOpenDialog(win,{properties:['openFile'],title:'画像を選択',filters:[{name:'Images',extensions:['jpg','jpeg','png','gif','webp']}]});
   if(r.canceled||!r.filePaths[0]) return null;
   try{
-    // 画像はパスのみ返す(base64転送しない→IPC軽量化)
     return {path:r.filePaths[0], name:path.basename(r.filePaths[0])};
   }catch(e){ return {error:e.message}; }
 });
@@ -147,7 +146,6 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   }
 
   let fullText='';
-  // 実行中セッション登録
   activeSessions.set(sessId, {workDir, mode, lastText:''});
 
   try {
@@ -155,7 +153,6 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
       (ev)=>{
         if(ev.type==='text'){
           fullText+=ev.data;
-          // 最新テキストをactiveSessionsに更新（終了時の再開ファイル用）
           const info=activeSessions.get(sessId);
           if(info) info.lastText=fullText;
         }
@@ -165,7 +162,7 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
     );
   } finally {
     activeSessions.delete(sessId);
-    // 再開ファイルは正常完了後に削除（エラー終了時は残す）
+    // 正常完了後に再開ファイルを削除
     if(mode==='dev'&&workDir) agent.deleteResumeFile(workDir);
   }
 
@@ -189,6 +186,13 @@ ipcMain.handle('edit-message',(_,{sessId,msgIndex,newContent})=>{
     sess.history[msgIndex].content=newContent;
     sess.history=sess.history.slice(0,msgIndex+1);
   }
+  return {ok:true};
+});
+
+// セッション履歴を外部から設定するIPC（doRestart用）
+ipcMain.handle('set-history', (_,{sessId, history})=>{
+  const sess=agent.getSession(sessId);
+  sess.history = (history||[]).slice(-40);
   return {ok:true};
 });
 

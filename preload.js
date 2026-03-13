@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   startChat:     o     =>ipcRenderer.invoke('start-chat',o),
   stopChat:      sid   =>ipcRenderer.invoke('stop-chat',sid),
   clearHistory:  sid   =>ipcRenderer.invoke('clear-history',sid),
+  setHistory:    o     =>ipcRenderer.invoke('set-history',o),
   editMessage:   o     =>ipcRenderer.invoke('edit-message',o),
   // 再開ファイル
   loadResume:    wd    =>ipcRenderer.invoke('load-resume',wd),
