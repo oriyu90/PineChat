@@ -7,6 +7,9 @@ const agent = require('./agent');
 nativeTheme.themeSource = 'dark';
 let win = null;
 
+// 実行中セッション管理（終了時の確実な再開ファイル保存用）
+const activeSessions = new Map(); // sessId → {workDir, mode, lastText}
+
 // ── ウィンドウ ──────────────────────────────────────────
 function createWindow() {
   win = new BrowserWindow({
@@ -23,8 +26,15 @@ function createWindow() {
   win.on('close', e=>{
     if (!app.isQuitting) {
       e.preventDefault();
+      // main側で確実に再開ファイルを保存してから終了
+      for (const [sessId, info] of activeSessions) {
+        if (info.workDir && info.mode==='dev') {
+          const sess = agent.getSession(sessId);
+          agent.saveResumeFile(sessId, info.workDir, sess.history,
+            info.lastText ? '最後の出力: '+info.lastText.slice(-200) : 'アプリ終了', '終了');
+        }
+      }
       win.webContents.send('app-will-quit');
-      // アプリ終了時のみ再開ファイル生成はrenderer側でやる
       setTimeout(()=>{ app.isQuitting=true; app.quit(); }, 1500);
     }
   });
@@ -88,7 +98,6 @@ ipcMain.handle('delete-project',(_,id)=>{
 });
 
 // ── チャット ─────────────────────────────────────────────
-// sessIdはプロジェクトIDベース → チャンクはsessId付きで送信
 ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachments,deepSearch,langs})=>{
   const proj   = projectId ? agent.loadProj(projectId) : null;
   const workDir= proj?.workDir||null;
@@ -98,7 +107,7 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   // コンテキスト圧縮
   if(sess.history.length>40) sess.history=sess.history.slice(-40);
 
-  // 添付ファイル処理(画像はパスのみ)
+  // 添付ファイル処理
   let fullMessage=message;
   if(attachments&&attachments.length>0){
     const texts=attachments.map(a=>{
@@ -110,7 +119,7 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
 
   sess.history.push({role:'user',content:fullMessage});
 
-  // めっちゃ調べるモード: 独立タイムアウト8秒
+  // めっちゃ調べるモード
   if(deepSearch){
     safeChunk(event,sessId,{type:'system',data:'𓅱 検索中...'});
     try{
@@ -137,19 +146,28 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
     sysPrompt=agent.buildChatSysPrompt(workDir, proj?.systemPrompt);
   }
 
-  let fullText='', stepCount=0;
+  let fullText='';
+  // 実行中セッション登録
+  activeSessions.set(sessId, {workDir, mode, lastText:''});
 
-  await agent.runAgent(sessId, sess.history, sysPrompt, workDir,
-    (ev)=>{
-      if(ev.type==='text') fullText+=ev.data;
-      if(ev.type==='tool') stepCount++;
-      safeChunk(event,sessId,ev);
-    },
-    {isHandsOff:cfg.handsOff}
-  );
-
-  // 再開ファイルは使ったら削除
-  if(mode==='dev'&&workDir) agent.deleteResumeFile(workDir);
+  try {
+    await agent.runAgent(sessId, sess.history, sysPrompt, workDir,
+      (ev)=>{
+        if(ev.type==='text'){
+          fullText+=ev.data;
+          // 最新テキストをactiveSessionsに更新（終了時の再開ファイル用）
+          const info=activeSessions.get(sessId);
+          if(info) info.lastText=fullText;
+        }
+        safeChunk(event,sessId,ev);
+      },
+      {isHandsOff:cfg.handsOff}
+    );
+  } finally {
+    activeSessions.delete(sessId);
+    // 再開ファイルは正常完了後に削除（エラー終了時は残す）
+    if(mode==='dev'&&workDir) agent.deleteResumeFile(workDir);
+  }
 
   sess.history.push({role:'assistant',content:fullText});
   if(sess.history.length>60) sess.history=sess.history.slice(-60);

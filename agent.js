@@ -316,7 +316,6 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
   const ac = new AbortController();
   abortMap.set(sessId, ac);
 
-  const { isHandsOff=false } = opts;
   const devMode = sysPrompt.includes('タスクリスト');
 
   const msgs = [{ role:'system', content:sysPrompt }, ...messages];
@@ -325,6 +324,8 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
 
   for (let turn = 0; turn < 60; turn++) {
     if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止しました。' }); break; }
+    // handsOffは毎ターン最新のcfgから読む（途中トグルに対応）
+    const isHandsOff = cfg.handsOff;
 
     let data;
     try {
