@@ -302,7 +302,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .feed-hd{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--c2)}
 .feed-src{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
 .feed-src.discord{color:#7289da}.feed-src.telegram{color:#26a5e4}
-.feed-src.searx{color:var(--prog-txt)}.feed-src.searxurl{color:#c4882a}
+.feed-src.searx{color:var(--prog-txt)}.feed-src.searxurl{color:#c4882a}.feed-src.calendar{color:#a0c0ff}
 .feed-label{font-size:12px;font-weight:600;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .feed-ts{font-size:10px;color:var(--t3);font-family:'Menlo',monospace;flex-shrink:0}
 .feed-body{padding:10px 12px;font-size:13px;line-height:1.75;color:var(--t1);white-space:pre-wrap;word-break:break-word;background:var(--c1)}
@@ -343,6 +343,19 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   position:absolute;top:3px;left:3px;transition:left .2s}
 .sw-sm.on::after{left:15px}
 
+
+/* ③ 右クリックコンテキストメニュー */
+#ctx-menu{position:fixed;background:var(--c2);border:1px solid var(--b2);border-radius:6px;
+  padding:4px 0;z-index:9999;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,.4);display:none}
+.ctx-item{padding:7px 14px;font-size:13px;cursor:pointer;color:var(--t2);white-space:nowrap}
+.ctx-item:hover{background:var(--c3);color:var(--t1)}
+.ctx-item.danger{color:var(--err)}
+.ctx-item.danger:hover{background:#160404}
+/* プロジェクト名インライン編集 */
+.pi-edit-inp{background:var(--bg);border:1px solid var(--ok);border-radius:3px;
+  color:var(--t1);font-size:13px;font-weight:600;padding:2px 6px;
+  width:100%;outline:none}
+
 </style>
 </head>
 <body>
@@ -353,15 +366,21 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <span class="sb-ttl">𓂀 PROJECTS</span>
     <button class="sb-add" onclick="openNew()">+ 新規</button>
   </div>
-  <!-- エージェントビューボタン -->
-  <button id="sb-agent-btn" onclick="openAgentView()">
-    <span class="sb-agent-icon">𓅱</span>
-    <div class="sb-agent-info">
-      <div class="sb-agent-nm">エージェント</div>
-      <div class="sb-agent-st" id="sb-agent-status">停止中</div>
-    </div>
-    <span class="sb-agent-dot" id="sb-agent-dot"></span>
-  </button>
+  <!-- ⑤ エージェントサイドバーボタン+スライドスイッチ -->
+  <div style="display:flex;align-items:center;border-bottom:1px solid var(--b1)">
+    <button id="sb-agent-btn" onclick="openAgentView()" style="flex:1;min-width:0">
+      <span class="sb-agent-icon">𓅱</span>
+      <div class="sb-agent-info">
+        <div class="sb-agent-nm">エージェント</div>
+        <div class="sb-agent-st" id="sb-agent-status">停止中</div>
+      </div>
+      <span class="sb-agent-dot" id="sb-agent-dot"></span>
+    </button>
+    <!-- ⑤ スライドスイッチ: スケジュール動作ON/OFF -->
+    <div id="sb-agent-sw" onclick="toggleAgentSchedule(event)"
+      style="width:32px;height:18px;background:var(--b2);border-radius:9px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;margin-right:12px"
+      title="スケジュール動作 ON/OFF"></div>
+  </div>
   <div id="pl"></div>
 </div>
 
@@ -426,18 +445,31 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <div class="ih">Enter で送信 · Shift+Enter で改行 · 変換中は送信されません</div>
       </div>
 
-    <!-- エージェントビュー -->
+    <!-- エージェントビュー ⑦ -->
     <div id="agent-view">
       <div class="agent-ctrl">
         <span class="agent-ctrl-title">𓅱 エージェント</span>
         <span class="agent-running-dot" id="agent-dot"></span>
+        <!-- ⑬ 次回実行タイマー -->
+        <span id="agent-next-timer" style="font-size:11px;color:var(--t3);font-family:'Menlo',monospace"></span>
         <button class="acbtn run"      onclick="agentCmdRunNow()">▶ 今すぐ実行</button>
         <button class="acbtn stop"     onclick="agentCmdStop()">■ 停止</button>
         <button class="acbtn schedule" onclick="agentCmdSchedule()">⏱ スケジュール動作</button>
         <button class="acbtn"          onclick="openWatcherSet()" style="margin-left:auto">⚙ 設定</button>
+        <button class="acbtn"          onclick="clearAgentFeedAndHistory()" style="border-color:var(--b3)">クリア</button>
       </div>
-      <div id="agent-feed">
-        <div class="feed-empty">フィードはまだありません<br><small>設定からソースを有効化してください</small></div>
+      <!-- ⑧⑨ エージェントフィード+チャット統合ビュー -->
+      <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px">
+        <div class="feed-empty" id="agent-feed-empty">フィードはまだありません<br><small>設定からソースを有効化するか、チャットで質問してください</small></div>
+      </div>
+      <!-- ⑧ エージェントチャット入力 -->
+      <div style="padding:10px 18px;border-top:1px solid var(--b1);background:var(--c1);flex-shrink:0">
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <textarea id="agent-inp" placeholder="エージェントに質問... (例: 今日の予定は? / AIニュースを調べて)" rows="1"
+            style="flex:1;background:#0a0a0a;border:1px solid var(--b2);border-radius:6px;color:var(--t1);font-size:13px;padding:8px 12px;resize:none;min-height:38px;max-height:100px;line-height:1.6;outline:none"></textarea>
+          <button onclick="sendAgentChat()" style="background:var(--c3);color:var(--t1);border:1px solid var(--b2);border-radius:6px;padding:0 14px;height:38px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">送信</button>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:4px">Enter で送信 · Shift+Enter で改行 · ⑨ 処理状況はポップアップのみ表示</div>
       </div>
       <div class="agent-status-bar" id="agent-status-bar">待機中</div>
     </div>
@@ -449,18 +481,28 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 <div class="ov h" id="mN">
   <div class="md">
     <div class="mt2">新規プロジェクト</div>
-    <div class="ms2">名前・種類・作業フォルダを設定します</div>
-    <div class="lbl">プロジェクト名</div>
-    <input class="inp2" id="nNm" type="text" placeholder="例: マイアプリ" oninput="valNew()">
+    <div class="ms2">種類を選択してください</div>
     <div class="lbl">種類</div>
     <div class="mcs">
       <div class="mc" id="mCC" onclick="selT('chat')"><div class="mc-g">𓃰</div><div class="mc-l">チャット</div><div class="mc-d">会話・調査</div></div>
       <div class="mc" id="mCD" onclick="selT('design')"><div class="mc-g">𓃭</div><div class="mc-l">アプリ設計</div><div class="mc-d">設計図から開発</div></div>
     </div>
-    <div class="lbl">作業フォルダ</div>
-    <div class="mf"><div class="mfd" id="fD">未選択</div><button class="mfb" onclick="pickF()">選択...</button></div>
-    <div class="lbl">システムプロンプト（任意）</div>
-    <textarea class="ta2" id="nSys" placeholder="このプロジェクト専用の指示..."></textarea>
+    <!-- チャット用: 名前は任意（省略で自動生成） -->
+    <div id="nChatOpts" style="display:none">
+      <div class="lbl">プロジェクト名（省略で自動生成）</div>
+      <input class="inp2" id="nNm" type="text" placeholder="省略すると最初のメッセージから自動生成">
+      <div class="lbl">システムプロンプト（任意）</div>
+      <textarea class="ta2" id="nSys" placeholder="このプロジェクト専用の指示..."></textarea>
+    </div>
+    <!-- アプリ設計用: 名前・フォルダ必須 -->
+    <div id="nDesignOpts" style="display:none">
+      <div class="lbl">プロジェクト名</div>
+      <input class="inp2" id="nNmDesign" type="text" placeholder="例: マイアプリ" oninput="valNew()">
+      <div class="lbl">作業フォルダ</div>
+      <div class="mf"><div class="mfd" id="fD">未選択</div><button class="mfb" onclick="pickF()">選択...</button></div>
+      <div class="lbl">システムプロンプト（任意）</div>
+      <textarea class="ta2" id="nSysDesign" placeholder="このプロジェクト専用の指示..."></textarea>
+    </div>
     <div class="mft">
       <button class="bc" onclick="closeM('mN')">キャンセル</button>
       <button class="bok" id="bCr" onclick="doCreate()" disabled>作成</button>
@@ -609,10 +651,54 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
           <input class="set-inp" id="wSearxInterval" type="number" min="1" max="60" style="width:65px">
           <span style="font-size:12px;color:var(--t3);margin-left:6px">1〜60分</span>
         </div>
+        <!-- ③ 件数設定 -->
+        <div class="set-row"><span class="set-lbl">取得件数</span>
+          <input class="set-inp" id="wSearxMaxResults" type="number" min="10" max="30" style="width:65px" value="15">
+          <span style="font-size:12px;color:var(--t3);margin-left:6px">10〜30件</span>
+        </div>
         <div class="lbl" style="margin-top:4px">タスク一覧</div>
         <div id="wSearxTaskList" class="task-list"></div>
         <button class="task-add-btn" onclick="addSearxTask('search')">＋ 検索タスクを追加</button>
         <button class="task-add-btn" onclick="addSearxTask('url')" style="margin-top:-4px">＋ URL監視タスクを追加</button>
+      </div>
+    </div>
+
+    <!-- ⑥ カレンダー設定 -->
+    <div class="set-sec">
+      <div class="set-stl" style="display:flex;align-items:center;gap:10px">
+        <span style="flex:1">カレンダー</span>
+        <input type="checkbox" id="wCalEn" style="accent-color:var(--ok);cursor:pointer">
+      </div>
+      <!-- Google Calendar -->
+      <div style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--t2);font-weight:600">Google Calendar</span>
+          <input type="checkbox" id="wGCalEn" style="accent-color:var(--ok);cursor:pointer">
+        </div>
+        <div class="set-row"><span class="set-lbl" style="min-width:115px">Client ID</span>
+          <input class="set-inp" id="wGCalClientId" type="text" placeholder="OAuth2 Client ID" style="width:220px">
+        </div>
+        <div class="set-row"><span class="set-lbl" style="min-width:115px">Client Secret</span>
+          <input class="set-inp" id="wGCalClientSecret" type="password" placeholder="OAuth2 Client Secret" style="width:220px">
+        </div>
+        <div class="set-row"><span class="set-lbl" style="min-width:115px">Refresh Token</span>
+          <input class="set-inp" id="wGCalRefreshToken" type="password" placeholder="Refresh Token" style="width:220px">
+        </div>
+        <div class="set-hint" style="margin-left:0">Google Cloud ConsoleでOAuth2認証情報を作成し、Refresh Tokenを取得してください</div>
+      </div>
+      <!-- iCloud Calendar -->
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--t2);font-weight:600">iCloud Calendar</span>
+          <input type="checkbox" id="wICalEn" style="accent-color:var(--ok);cursor:pointer">
+        </div>
+        <div class="set-row"><span class="set-lbl" style="min-width:115px">Apple ID</span>
+          <input class="set-inp" id="wICalAppleId" type="text" placeholder="example@icloud.com" style="width:220px">
+        </div>
+        <div class="set-row"><span class="set-lbl" style="min-width:115px">App Password</span>
+          <input class="set-inp" id="wICalPassword" type="password" placeholder="App-specific password" style="width:220px">
+        </div>
+        <div class="set-hint" style="margin-left:0">Apple IDの設定からApp用パスワードを生成してください</div>
       </div>
     </div>
 
@@ -636,6 +722,47 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="set-row"><span class="set-lbl">タイムアウト (秒)</span><input class="set-inp" id="sTO" type="number" min="100" max="1000" step="50" style="width:80px"></div>
       <div class="set-hint">100〜1000秒 (デフォルト: 300秒)</div>
     </div>
+    <!-- ⑤ チャット用AI選択 -->
+    <div class="set-sec">
+      <div class="set-stl">チャット・アプリ設計用 AI</div>
+      <div class="set-hint" style="margin:0 0 8px">省略時はAI接続のデフォルトを使用</div>
+      <div class="set-row">
+        <span class="set-lbl">ホスト</span>
+        <input class="set-inp" id="sChatHost" type="text" placeholder="(デフォルト)" style="width:140px">
+        <span style="font-size:12px;color:var(--t3);margin:0 4px">:</span>
+        <input class="set-inp" id="sChatPort" type="number" min="1" max="65535" placeholder="(デフォルト)" style="width:75px">
+        <button class="mfb" onclick="fetchChatModels()" style="margin-left:8px;font-size:11px;padding:5px 10px">モデル取得</button>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl">モデル</span>
+        <select class="set-inp" id="sChatModel" style="width:220px;cursor:pointer;background:var(--bg)">
+          <option value="">デフォルト（自動検出）</option>
+        </select>
+      </div>
+    </div>
+    <!-- ⑤ エージェント用AI選択（ウォッチャー設定を統合） -->
+    <div class="set-sec">
+      <div class="set-stl">エージェント用 AI</div>
+      <div class="set-hint" style="margin:0 0 8px">省略時はAI接続のデフォルトを使用</div>
+      <div class="set-row">
+        <span class="set-lbl">ホスト</span>
+        <input class="set-inp" id="sAgentHost" type="text" placeholder="(デフォルト)" style="width:140px">
+        <span style="font-size:12px;color:var(--t3);margin:0 4px">:</span>
+        <input class="set-inp" id="sAgentPort" type="number" min="1" max="65535" placeholder="(デフォルト)" style="width:75px">
+        <button class="mfb" onclick="fetchAgentModels()" style="margin-left:8px;font-size:11px;padding:5px 10px">モデル取得</button>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl">モデル</span>
+        <select class="set-inp" id="sAgentModel" style="width:220px;cursor:pointer;background:var(--bg)">
+          <option value="">デフォルト（自動検出）</option>
+        </select>
+      </div>
+    </div>
+    <!-- ⑤ エージェント詳細設定（ウォッチャーボタン） -->
+    <div class="set-sec">
+      <div class="set-stl">エージェント詳細設定</div>
+      <button class="bc" onclick="closeM('mS');openWatcherSet()" style="font-size:12px;padding:6px 14px">𓅱 ソース設定（Discord/Telegram/SearXNG）</button>
+    </div>
     <div class="set-sec" id="projSetSec" style="display:none">
       <div class="set-stl">プロジェクト設定</div>
       <div class="lbl">システムプロンプト</div>
@@ -656,6 +783,11 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   </div>
 </div>
 
+<!-- ③ 右クリックコンテキストメニュー -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxRename()">✏ 名前を変更</div>
+  <div class="ctx-item danger" onclick="ctxDelete()">× 削除</div>
+</div>
 <script>
 'use strict';
 const A = window.api;
@@ -805,7 +937,17 @@ function markProjBusy(sessId, evType){
   if (!projId) return;
   const el = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`);
   if (!el) return;
-  el.style.opacity = ['dev_complete','timeout','user_input_required'].includes(evType) ? '' : '0.6';
+  const finished = ['dev_complete','timeout','user_input_required'].includes(evType);
+  el.style.opacity = finished ? '' : '0.6';
+  // ⑭ ほったらかしOFF + user_input_required → サイドバーに「操作待ち」表示
+  const mtEl = document.querySelector(`.pi[data-id="${projId}"] .pi-mt`);
+  if(mtEl){
+    if(evType==='user_input_required'){
+      mtEl.textContent='⚠ 操作待ち'; mtEl.style.color='var(--warn)';
+    } else if(finished){
+      mtEl.style.color='';
+    }
+  }
 }
 
 // ── 起動 ────────────────────────────────────────────────
@@ -836,6 +978,20 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     if (cur) A.updateProject(cur.id,cur);
   });
+
+  // エージェント初期化
+  initWatcher().catch(e=>console.error('[watcher init]',e));
+
+  // エージェントチャット入力のEnterキー
+  const aInp = document.getElementById('agent-inp');
+  if(aInp){
+    aInp.addEventListener('compositionstart',()=>agentComposing=true);
+    aInp.addEventListener('compositionend',  ()=>agentComposing=false);
+    aInp.addEventListener('input',()=>{ aInp.style.height='auto'; aInp.style.height=Math.min(aInp.scrollHeight,100)+'px'; });
+    aInp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&!e.shiftKey&&!agentComposing){ e.preventDefault(); sendAgentChat(); }
+    });
+  }
 });
 
 // スリープ復帰: 確実にAIを止めて再開ボタンを表示
@@ -900,11 +1056,14 @@ async function loadPL(){
     const g=p.type==='design'?'𓃭':'𓃰';
     d.innerHTML=`<span class="pi-g">${g}</span><div class="pi-info"><div class="pi-nm">${esc(p.name)}</div><div class="pi-mt">${fmt(p.updatedAt)}</div></div><button class="pi-del" onclick="delP(event,'${p.id}')">×</button>`;
     d.addEventListener('click',()=>openP(p.id));
+    d.addEventListener('contextmenu', e=>{ e.preventDefault(); showCtxMenu(e, p.id, p.name); });
     el.appendChild(d);
   });
 }
 
 async function openP(id){
+  // ② エージェントビューを閉じてプロジェクト表示に切り替え
+  if(agentViewOpen) closeAgentView();
   // 別PJへ切り替え: 現在の状態を保存
   if (cur && cur.id !== id) {
     await A.updateProject(cur.id, cur);
@@ -966,18 +1125,56 @@ function renderHist(ms){
 // ── 新規プロジェクト ─────────────────────────────────────
 function openNew(){
   sT=null; sF=null;
-  document.getElementById('nNm').value=''; document.getElementById('fD').textContent='未選択';
-  document.getElementById('nSys').value=''; document.getElementById('bCr').disabled=true;
+  document.getElementById('nNm').value='';
+  document.getElementById('nNmDesign').value='';
+  document.getElementById('fD').textContent='未選択';
+  document.getElementById('nSys').value='';
+  document.getElementById('nSysDesign').value='';
+  document.getElementById('bCr').disabled=true;
   document.getElementById('mCC').classList.remove('s'); document.getElementById('mCD').classList.remove('s');
-  openM('mN'); setTimeout(()=>document.getElementById('nNm').focus(),80);
+  document.getElementById('nChatOpts').style.display='none';
+  document.getElementById('nDesignOpts').style.display='none';
+  openM('mN');
 }
-function selT(t){ sT=t; document.getElementById('mCC').classList.toggle('s',t==='chat'); document.getElementById('mCD').classList.toggle('s',t==='design'); valNew(); }
-function valNew(){ document.getElementById('bCr').disabled=!(document.getElementById('nNm').value.trim()&&sT&&sF); }
+function selT(t){
+  sT=t;
+  document.getElementById('mCC').classList.toggle('s',t==='chat');
+  document.getElementById('mCD').classList.toggle('s',t==='design');
+  // チャット: 名前/フォルダは任意
+  document.getElementById('nChatOpts').style.display   = t==='chat'   ? '' : 'none';
+  document.getElementById('nDesignOpts').style.display = t==='design' ? '' : 'none';
+  // チャットは名前なしでもOKなのでボタンを即有効化
+  if(t==='chat') document.getElementById('bCr').disabled=false;
+  valNew();
+  setTimeout(()=>{ const f=t==='chat'?document.getElementById('nNm'):document.getElementById('nNmDesign'); if(f)f.focus(); },60);
+}
+function valNew(){
+  if(!sT){ document.getElementById('bCr').disabled=true; return; }
+  if(sT==='chat'){
+    document.getElementById('bCr').disabled=false; // チャットは常にOK
+  } else {
+    // アプリ設計: 名前とフォルダが必要
+    document.getElementById('bCr').disabled=!(document.getElementById('nNmDesign').value.trim()&&sF);
+  }
+}
 async function pickF(){ const f=await A.pickFolder(); if(f){ sF=f; document.getElementById('fD').textContent=f; valNew(); } }
 async function doCreate(){
-  const nm=document.getElementById('nNm').value.trim(), sys=document.getElementById('nSys').value.trim();
-  if(!nm||!sT||!sF) return;
-  const p=await A.createProject({name:nm,type:sT,workDir:sF,systemPrompt:sys});
+  if(!sT) return;
+  let nm, sys, workDir;
+  if(sT==='chat'){
+    nm      = document.getElementById('nNm').value.trim() || ''; // 空でもOK
+    sys     = document.getElementById('nSys').value.trim();
+    workDir = sF || null;
+  } else {
+    nm      = document.getElementById('nNmDesign').value.trim();
+    sys     = document.getElementById('nSysDesign').value.trim();
+    workDir = sF;
+    if(!nm||!sF) return;
+  }
+  // チャットでプロジェクト名未入力: 仮名で作成、後で自動生成
+  const isAutoName = sT==='chat' && !nm;
+  const tmpName = isAutoName ? '新規チャット' : nm;
+  const p=await A.createProject({name:tmpName, type:sT, workDir:workDir||'', systemPrompt:sys});
   closeM('mN'); cur=p; curSid='P'+p.id;
   curMode=sT==='design'?'dev':'chat';
   loadPL(); showChat();
@@ -985,7 +1182,7 @@ async function doCreate(){
   document.getElementById('msgs').innerHTML='';
   updateModeUI();
   if(sT==='design') setTimeout(openDes,120);
-  else addAI(`𓂀 プロジェクト「${esc(nm)}」を作成しました。\n作業フォルダ: ${sF}\n\nお気軽に話しかけてください。`);
+  else addAI('𓂀 こんにちは！何でも話しかけてください。');
 }
 
 // ── 設計フロー ───────────────────────────────────────────
@@ -1382,6 +1579,8 @@ function addTool(par,td){
 function addThk(){ const d=document.createElement('div'); d.className='thk'; d.innerHTML='<div class="ths"><span></span><span></span><span></span></div><span>処理中...</span>'; msgs().appendChild(d); dn(); return d; }
 
 function addSN(t,cls){
+  // ② エージェントビューが開いていてもプロジェクトのsystem通知は#msgsへ送る
+  // エージェントビュー中でもchat-chunk由来の通知はmsgに追加する必要がある
   const d=document.createElement('div'); d.className='sn'+(cls?' '+cls:'');
   const txt=document.createElement('span'); txt.textContent=t;
   const ts=document.createElement('span'); ts.className='sn-ts'; ts.textContent=nowTs();
@@ -1407,7 +1606,48 @@ async function openSet(){
   document.getElementById('logArea').style.display='none';
   const ps=document.getElementById('projSetSec');
   if(cur){ ps.style.display='block'; document.getElementById('sySys').value=cur.systemPrompt||''; } else ps.style.display='none';
+  // ⑤ チャット/エージェントAI設定
+  document.getElementById('sChatHost').value  = c.chatAiHost||'';
+  document.getElementById('sChatPort').value  = c.chatAiPort||'';
+  document.getElementById('sAgentHost').value = c.watcherAiHost||'';
+  document.getElementById('sAgentPort').value = c.watcherAiPort||'';
+  // モデル選択肢を非同期で取得
+  loadChatModelSelect(c.chatModelId||'');
+  loadAgentModelSelect(c.watcherModelId||'');
   openM('mS');
+}
+async function fetchChatModels(){
+  const h=document.getElementById('sChatHost').value||document.getElementById('sHost').value||'localhost';
+  const p=parseInt(document.getElementById('sChatPort').value||document.getElementById('sPort').value)||1234;
+  await loadChatModelSelect('', h, p);
+}
+async function fetchAgentModels(){
+  const h=document.getElementById('sAgentHost').value||document.getElementById('sHost').value||'localhost';
+  const p=parseInt(document.getElementById('sAgentPort').value||document.getElementById('sPort').value)||1234;
+  const wcfg=await A.getWatcherCfg();
+  await loadAgentModelSelect(wcfg.watcherModelId||'', h, p);
+}
+async function loadChatModelSelect(current, host, port){
+  const h=host||document.getElementById('sChatHost').value||document.getElementById('sHost').value||'localhost';
+  const p=port||parseInt(document.getElementById('sChatPort').value||document.getElementById('sPort').value)||1234;
+  const sel=document.getElementById('sChatModel');
+  const prev=current||sel.value;
+  sel.innerHTML='<option value="">デフォルト（自動検出）</option>';
+  try{
+    const models=await A.getChatModels(h,p);
+    models.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.name||m.id; if(m.id===prev)o.selected=true; sel.appendChild(o); });
+  }catch{}
+}
+async function loadAgentModelSelect(current, host, port){
+  const h=host||document.getElementById('sAgentHost').value||document.getElementById('sHost').value||'localhost';
+  const p=port||parseInt(document.getElementById('sAgentPort').value||document.getElementById('sPort').value)||1234;
+  const sel=document.getElementById('sAgentModel');
+  const prev=current||sel.value;
+  sel.innerHTML='<option value="">デフォルト（自動検出）</option>';
+  try{
+    const models=await A.getWatcherModels(h,p);
+    models.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.name||m.id; if(m.id===prev)o.selected=true; sel.appendChild(o); });
+  }catch{}
 }
 async function savSet(){
   const host=document.getElementById('sHost').value.trim()||'127.0.0.1';
@@ -1417,9 +1657,24 @@ async function savSet(){
   if(!port||port<1||port>65535){ alert('有効なポートを入力してください'); return; }
   if(to<100||to>1000){ alert('タイムアウトは100〜1000秒で入力してください'); return; }
   if(cur){ cur.systemPrompt=document.getElementById('sySys').value.trim(); await A.updateProject(cur.id,cur); }
+  // ⑤ チャット/エージェントAI設定を保存
+  const chatAiHost=document.getElementById('sChatHost').value.trim();
+  const chatAiPort=parseInt(document.getElementById('sChatPort').value)||0;
+  const chatModelId=document.getElementById('sChatModel').value;
+  const agentHost=document.getElementById('sAgentHost').value.trim();
+  const agentPort=parseInt(document.getElementById('sAgentPort').value)||0;
+  const agentModel=document.getElementById('sAgentModel').value;
+  // ④ エージェントAI設定を全体設定に保存
   await A.saveCfg({aiHost:host,aiPort:port,searxngUrl:searx,timeout:to,
     logEnabled:document.getElementById('sLog').checked,
-    logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,handsOff});
+    logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,handsOff,
+    chatAiHost, chatAiPort, chatModelId,
+    agentAiHost:agentHost, agentAiPort:agentPort, agentModelId:agentModel});
+  // ウォッチャー設定にも反映
+  const wcfg=await A.getWatcherCfg();
+  wcfg.agentAiHost=agentHost; wcfg.agentAiPort=agentPort; wcfg.agentModelId=agentModel;
+  wcfg.watcherAiHost=agentHost; wcfg.watcherAiPort=agentPort; wcfg.watcherModelId=agentModel;
+  await A.saveWatcherCfg(wcfg);
   await pollSt(); closeM('mS');
 }
 async function viewLogs(){
@@ -1429,6 +1684,57 @@ async function viewLogs(){
   area.style.display='block'; content.scrollTop=content.scrollHeight;
 }
 async function delLogs(){ if(!confirm('全ログを削除しますか？'))return; await A.deleteLogs(); document.getElementById('logArea').style.display='none'; }
+
+
+// ── ③ 右クリックコンテキストメニュー ────────────────────────────
+let ctxTargetId = null, ctxTargetName = '';
+function showCtxMenu(e, projId, projName){
+  ctxTargetId = projId; ctxTargetName = projName;
+  const m = document.getElementById('ctx-menu');
+  m.style.display = 'block';
+  m.style.left = Math.min(e.clientX, window.innerWidth-160)+'px';
+  m.style.top  = Math.min(e.clientY, window.innerHeight-80)+'px';
+}
+document.addEventListener('click', ()=>{ document.getElementById('ctx-menu').style.display='none'; });
+document.addEventListener('contextmenu', e=>{ if(!e.target.closest('.pi')) document.getElementById('ctx-menu').style.display='none'; });
+
+function ctxRename(){
+  document.getElementById('ctx-menu').style.display='none';
+  if(!ctxTargetId) return;
+  // インライン編集
+  const nmEl = document.querySelector(`.pi[data-id="${ctxTargetId}"] .pi-nm`);
+  if(!nmEl) return;
+  const orig = ctxTargetName;
+  const inp = document.createElement('input');
+  inp.className='pi-edit-inp'; inp.value=orig;
+  nmEl.replaceWith(inp);
+  inp.focus(); inp.select();
+  const commit = async()=>{
+    const newName = inp.value.trim()||orig;
+    // piにpi-nmを戻す
+    const newNm = document.createElement('div'); newNm.className='pi-nm'; newNm.textContent=newName;
+    inp.replaceWith(newNm);
+    if(newName===orig) return;
+    // プロジェクトデータを更新
+    const p = await A.getProject(ctxTargetId); if(!p) return;
+    p.name=newName; await A.updateProject(ctxTargetId, p);
+    loadPL();
+    if(cur&&cur.id===ctxTargetId){ cur.name=newName; document.getElementById('pn').textContent=' · '+newName; }
+  };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); inp.blur(); }
+    if(e.key==='Escape'){ inp.value=orig; inp.blur(); }
+  });
+}
+async function ctxDelete(){
+  document.getElementById('ctx-menu').style.display='none';
+  if(!ctxTargetId) return;
+  if(!confirm(`「${ctxTargetName}」を削除しますか？`)) return;
+  await A.deleteProject(ctxTargetId);
+  if(cur&&cur.id===ctxTargetId){ cur=null; showWl(); }
+  loadPL();
+}
 
 function openM(id){ document.getElementById(id).classList.remove('h'); }
 function closeM(id){ document.getElementById(id).classList.add('h'); }
@@ -1490,6 +1796,7 @@ async function agentCmdStop(){
   updateAgentDot();
   setAgentStatus('■ 停止しました');
   addSN('𓅱 エージェント 停止');
+  stopNextTimerDisplay();
 }
 
 async function agentCmdSchedule(){
@@ -1498,6 +1805,7 @@ async function agentCmdSchedule(){
   updateAgentDot();
   setAgentStatus('⏱ スケジュール動作中');
   addSN('𓅱 エージェント スケジュール動作開始', 'ok');
+  startNextTimerDisplay();
 }
 
 function setAgentStatus(msg, isErr){
@@ -1510,6 +1818,9 @@ function updateAgentDot(){
   document.getElementById('agent-dot').classList.toggle('on', agentRunning);
   document.getElementById('sb-agent-dot').classList.toggle('on', agentRunning);
   document.getElementById('sb-agent-status').textContent = agentRunning ? 'スケジュール動作中' : '停止中';
+  // ⑤ スライドスイッチ同期
+  const sw = document.getElementById('sb-agent-sw');
+  if(sw) sw.classList.toggle('on', agentRunning);
 }
 
 // ── ウォッチャーイベント受信 ──────────────────────────────────────
@@ -1518,6 +1829,16 @@ A.onWatcherEvent(ev => {
     case 'watcher_feed':   addAgentFeedItem(ev.data); break;
     case 'watcher_status': setAgentStatus(ev.data); break;
     case 'watcher_error':  setAgentStatus(ev.data, true); break;
+  }
+});
+// ⑧⑨ エージェントチャット応答受信
+A.onAgentChatEvent(ev => {
+  switch(ev.type){
+    case 'agent_text':
+      addAgentChatMsg('ai', ev.data); break;
+    case 'agent_status':
+      // ⑨ ポップアップのみ（チャット欄には出さない）
+      setAgentStatus(ev.data); break;
   }
 });
 
@@ -1530,8 +1851,8 @@ function addAgentFeedItem(data){
   const ts = new Date(data.ts || Date.now());
   const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
 
-  const srcClass = {discord:'discord', telegram:'telegram', searx: data.taskType==='url'?'searxurl':'searx'};
-  const srcLabels = {discord:'Discord', telegram:'Telegram', searx: data.taskType==='url'?'URL監視':'SearXNG'};
+  const srcClass = {discord:'discord', telegram:'telegram', searx: data.taskType==='url'?'searxurl':'searx', calendar:'calendar'};
+  const srcLabels = {discord:'Discord', telegram:'Telegram', searx: data.taskType==='url'?'URL監視':'SearXNG', calendar:'📅 カレンダー'};
   const cls   = srcClass[data.source]  || data.source;
   const label = srcLabels[data.source] || data.source;
 
@@ -1562,16 +1883,28 @@ async function initWatcher(){
     const st = await A.watcherStatus();
     agentRunning = st.running;
     updateAgentDot();
-    if (agentRunning) setAgentStatus('⏱ スケジュール動作中');
+    if (agentRunning) {
+      setAgentStatus('⏱ スケジュール動作中');
+      // ⑤ サイドバーのスライドスイッチをON
+      const sw = document.getElementById('sb-agent-sw');
+      if(sw) sw.classList.add('on');
+    }
+    // ⑫ エージェントチャット履歴を復元
+    try {
+      const hist = await A.getAgentHistory();
+      if(hist && hist.length > 0) renderAgentHistory(hist);
+    } catch {}
+    // ⑬ 次回実行タイマー表示を開始
+    startNextTimerDisplay();
   } catch(e){ console.error('[watcher init]',e); }
 }
 
 // ── 設定モーダル ─────────────────────────────────────────────────
 async function openWatcherSet(){
   const wcfg = await A.getWatcherCfg();
-  document.getElementById('wAiHost').value  = wcfg.watcherAiHost||'localhost';
-  document.getElementById('wAiPort').value  = wcfg.watcherAiPort||1234;
-  document.getElementById('wAiModel').value = wcfg.watcherModelId||'';
+  document.getElementById('wAiHost').value  = wcfg.agentAiHost||wcfg.watcherAiHost||'localhost';
+  document.getElementById('wAiPort').value  = wcfg.agentAiPort||wcfg.watcherAiPort||1234;
+  document.getElementById('wAiModel').value = wcfg.agentModelId||wcfg.watcherModelId||'';
 
   wTmpDiscordEn  = !!wcfg.discordEnabled;
   wTmpTelegramEn = !!wcfg.telegramEnabled;
@@ -1593,8 +1926,30 @@ async function openWatcherSet(){
   renderTeleChList();
   renderSearxTaskList();
 
+  // ③ 件数設定
+  const maxResEl = document.getElementById('wSearxMaxResults');
+  if(maxResEl) maxResEl.value = wcfg.searxMaxResults||15;
+
+  // ⑥ カレンダー設定
+  const calEnEl = document.getElementById('wCalEn');
+  if(calEnEl) calEnEl.checked = !!wcfg.calendarEnabled;
+  const gCalEnEl = document.getElementById('wGCalEn');
+  if(gCalEnEl) gCalEnEl.checked = !!wcfg.googleCalendarEnabled;
+  const gCalCiEl = document.getElementById('wGCalClientId');
+  if(gCalCiEl) gCalCiEl.value = wcfg.googleCalClientId||'';
+  const gCalCsEl = document.getElementById('wGCalClientSecret');
+  if(gCalCsEl) gCalCsEl.value = wcfg.googleCalClientSecret||'';
+  const gCalRtEl = document.getElementById('wGCalRefreshToken');
+  if(gCalRtEl) gCalRtEl.value = wcfg.googleCalRefreshToken||'';
+  const iCalEnEl = document.getElementById('wICalEn');
+  if(iCalEnEl) iCalEnEl.checked = !!wcfg.iCloudCalendarEnabled;
+  const iCalAiEl = document.getElementById('wICalAppleId');
+  if(iCalAiEl) iCalAiEl.value = wcfg.iCloudAppleId||'';
+  const iCalPwEl = document.getElementById('wICalPassword');
+  if(iCalPwEl) iCalPwEl.value = wcfg.iCloudAppPassword||'';
+
   // 既存モデル取得
-  fetchWatcherModels(wcfg.watcherModelId);
+  fetchWatcherModels(wcfg.agentModelId||wcfg.watcherModelId);
   openM('mW');
 }
 
@@ -1730,9 +2085,14 @@ async function saveWatcherSettings(){
   if(interval<1||interval>60){ alert('間隔は1〜60分で入力してください'); return; }
 
   const wcfg = {
-    watcherAiHost:   document.getElementById('wAiHost').value.trim()||'localhost',
-    watcherAiPort:   parseInt(document.getElementById('wAiPort').value)||1234,
-    watcherModelId:  document.getElementById('wAiModel').value,
+    // ④ v3 agent.jsのフィールド名に合わせる
+    agentAiHost:   document.getElementById('wAiHost').value.trim()||'',
+    agentAiPort:   parseInt(document.getElementById('wAiPort').value)||0,
+    agentModelId:  document.getElementById('wAiModel').value,
+    // 後方互換
+    watcherAiHost: document.getElementById('wAiHost').value.trim()||'',
+    watcherAiPort: parseInt(document.getElementById('wAiPort').value)||0,
+    watcherModelId:document.getElementById('wAiModel').value,
 
     discordEnabled:  wTmpDiscordEn,
     discordToken:    document.getElementById('wDiscordToken').value.trim(),
@@ -1744,7 +2104,18 @@ async function saveWatcherSettings(){
 
     searxEnabled:    wTmpSearxEn,
     searxIntervalMin:interval,
+    searxMaxResults: parseInt(document.getElementById('wSearxMaxResults')?.value)||15,
     searxTasks:      wTmpSearxTasks,
+
+    // ⑥ カレンダー設定
+    calendarEnabled:         document.getElementById('wCalEn')?.checked||false,
+    googleCalendarEnabled:   document.getElementById('wGCalEn')?.checked||false,
+    googleCalClientId:       document.getElementById('wGCalClientId')?.value.trim()||'',
+    googleCalClientSecret:   document.getElementById('wGCalClientSecret')?.value.trim()||'',
+    googleCalRefreshToken:   document.getElementById('wGCalRefreshToken')?.value.trim()||'',
+    iCloudCalendarEnabled:   document.getElementById('wICalEn')?.checked||false,
+    iCloudAppleId:           document.getElementById('wICalAppleId')?.value.trim()||'',
+    iCloudAppPassword:       document.getElementById('wICalPassword')?.value.trim()||'',
   };
 
   if(wcfg.discordEnabled && !wcfg.discordToken){ alert('Discord Bot Tokenを入力してください'); return; }
@@ -1762,6 +2133,174 @@ async function saveWatcherSettings(){
     setAgentStatus('⏱ 設定更新 — スケジュール動作中');
   }
   updateAgentDot();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// ⑤ サイドバースライドスイッチ: スケジュール動作ON/OFF
+// ═══════════════════════════════════════════════════════════
+function toggleAgentSchedule(e){
+  e.stopPropagation(); // openAgentViewを防ぐ
+  const sw = document.getElementById('sb-agent-sw');
+  if(agentRunning){
+    agentCmdStop();
+  } else {
+    agentCmdSchedule();
+  }
+}
+
+// スライドスイッチCSSを動的に設定 (inline styleで制御)
+function updateSbAgentSwStyle(){
+  const sw = document.getElementById('sb-agent-sw');
+  if(!sw) return;
+  sw.style.background = agentRunning ? 'var(--ok)' : 'var(--b2)';
+  // 疑似要素はinlineでは設定できないので、追加のdivで代替
+  let knob = sw.querySelector('.sw-knob');
+  if(!knob){
+    knob = document.createElement('div');
+    knob.className = 'sw-knob';
+    Object.assign(knob.style, {width:'12px',height:'12px',background:'#fff',borderRadius:'50%',position:'absolute',top:'3px',transition:'left .2s'});
+    sw.appendChild(knob);
+  }
+  knob.style.left = agentRunning ? '17px' : '3px';
+}
+// updateAgentDotにswStyleも追加
+const _origUpdateAgentDot = updateAgentDot;
+function updateAgentDot(){
+  _origUpdateAgentDot();
+  updateSbAgentSwStyle();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ⑧⑨ エージェントチャット機能
+// ═══════════════════════════════════════════════════════════
+let agentComposing = false;
+let agentChatBusy  = false;
+
+async function sendAgentChat(){
+  const inp = document.getElementById('agent-inp');
+  if(!inp) return;
+  const txt = inp.value.trim();
+  if(!txt || agentChatBusy) return;
+  inp.value = ''; inp.style.height='auto';
+
+  // ⑨ ユーザーメッセージをフィードに追加（チャット形式）
+  addAgentChatMsg('user', txt);
+
+  agentChatBusy = true;
+  // ⑨ 処理状況はstatus barのみ（チャット欄には出ない）
+  setAgentStatus('𓅱 処理中...');
+  try {
+    await A.agentChat({message: txt});
+  } catch(e) {
+    addAgentChatMsg('ai', '× エラー: '+e.message);
+  }
+  agentChatBusy = false;
+}
+
+function addAgentChatMsg(role, text){
+  const container = document.getElementById('agent-msgs');
+  if(!container) return;
+  const empty = document.getElementById('agent-feed-empty');
+  if(empty) empty.remove();
+
+  const d = document.createElement('div');
+  d.className = role === 'user' ? 'msg user' : 'msg ai';
+  const hd = document.createElement('div'); hd.className = 'msg-hd';
+  hd.innerHTML = `<span class="ml2">${role==='user'?'𓀀':'𓂀'}</span><span class="msg-ts">${nowDateTs()}</span>`;
+  d.appendChild(hd);
+  const b = document.createElement('div'); b.className = 'mb';
+  if(role==='ai'){ b.innerHTML=renderMd(text); b.classList.add('md-rendered'); }
+  else { b.textContent=text; }
+  d.appendChild(b);
+  container.appendChild(d);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ⑫ エージェント履歴レンダリング（起動時）
+function renderAgentHistory(hist){
+  if(!hist || !hist.length) return;
+  const container = document.getElementById('agent-msgs');
+  if(!container) return;
+  const empty = document.getElementById('agent-feed-empty');
+  if(empty) empty.remove();
+  hist.forEach(m=>{
+    if(m.role==='user' || m.role==='assistant'){
+      addAgentChatMsg(m.role==='user'?'user':'ai', m.content||'');
+    }
+  });
+}
+
+// クリア（フィード+チャット履歴）
+async function clearAgentFeedAndHistory(){
+  if(!confirm('エージェントのフィードとチャット履歴をクリアしますか？')) return;
+  const container = document.getElementById('agent-msgs');
+  if(container) container.innerHTML = '<div class="feed-empty" id="agent-feed-empty">フィードはまだありません<br><small>設定からソースを有効化するか、チャットで質問してください</small></div>';
+  try { await A.clearAgentHistory(); } catch {}
+}
+
+// addAgentFeedItemをagent-msgsにも対応させる（フィードをチャット欄に表示）
+const _origAddAgentFeedItem = addAgentFeedItem;
+function addAgentFeedItem(data){
+  // フィードカードをagent-msgsに追加
+  const container = document.getElementById('agent-msgs');
+  if(!container){ _origAddAgentFeedItem(data); return; }
+  const empty = document.getElementById('agent-feed-empty');
+  if(empty) empty.remove();
+
+  const ts = new Date(data.ts || Date.now());
+  const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const srcClass = {discord:'discord', telegram:'telegram', searx: data.taskType==='url'?'searxurl':'searx', calendar:'calendar'};
+  const srcLabels = {discord:'Discord', telegram:'Telegram', searx: data.taskType==='url'?'URL監視':'SearXNG', calendar:'📅 カレンダー'};
+  const cls   = srcClass[data.source]  || data.source;
+  const label = srcLabels[data.source] || data.source;
+
+  const item = document.createElement('div');
+  item.className = 'feed-item';
+  item.innerHTML =
+    '<div class="feed-hd">' +
+      '<span class="feed-src ' + esc(cls) + '">' + esc(label) + '</span>' +
+      '<span class="feed-label">' + esc(data.label||'') + '</span>' +
+      '<span class="feed-ts">' + tsStr + '</span>' +
+    '</div>' +
+    '<div class="feed-body' + (data.raw?' raw':'') + '">' + esc(data.summary||'') + '</div>';
+  container.insertBefore(item, container.firstChild);
+  while(container.children.length > 50) container.removeChild(container.lastChild);
+  container.scrollTop = 0; // 新着を見せる
+
+  if (!agentViewOpen) {
+    const dot = document.getElementById('sb-agent-dot');
+    dot.style.boxShadow = '0 0 0 2px var(--ok)';
+    setTimeout(()=>{ dot.style.boxShadow=''; }, 3000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ⑬ 次回SearXNG実行タイマー表示
+// ═══════════════════════════════════════════════════════════
+let nextTimerInterval = null;
+function startNextTimerDisplay(){
+  stopNextTimerDisplay();
+  nextTimerInterval = setInterval(async ()=>{
+    try{
+      const st = await A.watcherStatus();
+      const next = st.nextTime;
+      const el = document.getElementById('agent-next-timer');
+      if(!el) return;
+      if(!next || !agentRunning){
+        el.textContent = '';
+        return;
+      }
+      const diff = Math.max(0, Math.floor((next - Date.now())/1000));
+      const m = Math.floor(diff/60), s = diff%60;
+      el.textContent = `次回: ${m}:${String(s).padStart(2,'0')}`;
+    }catch{}
+  }, 1000);
+}
+function stopNextTimerDisplay(){
+  if(nextTimerInterval){ clearInterval(nextTimerInterval); nextTimerInterval=null; }
+  const el = document.getElementById('agent-next-timer');
+  if(el) el.textContent = '';
 }
 
 </script>

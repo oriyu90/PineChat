@@ -7,8 +7,9 @@ const agent = require('./agent');
 nativeTheme.themeSource = 'dark';
 let win = null;
 
-// 実行中セッション管理（終了時の確実な再開ファイル保存用）
-const activeSessions = new Map(); // sessId → {workDir, mode, lastText}
+// ⑭ 各sessIdごとの処理状態 (devモードで他PJへ切替中も継続)
+// { sessId → { workDir, mode, lastText, pausedForInput, projId } }
+const activeSessions = new Map();
 
 // ── ウィンドウ ──────────────────────────────────────────
 function createWindow() {
@@ -26,7 +27,6 @@ function createWindow() {
   win.on('close', e=>{
     if (!app.isQuitting) {
       e.preventDefault();
-      // 終了前に再開ファイルを確実に保存
       for (const [sessId, info] of activeSessions) {
         if (info.workDir && info.mode==='dev') {
           const sess = agent.getSession(sessId);
@@ -68,10 +68,40 @@ ipcMain.handle('pick-any-file', async()=>{
 
 // ── 設定 ────────────────────────────────────────────────
 ipcMain.handle('get-cfg', ()=>agent.getCfg());
-ipcMain.handle('save-cfg',async(_,data)=>{ agent.updateCfg(data); return agent.getCfg(); });
-ipcMain.handle('get-status',async()=>{
+ipcMain.handle('save-cfg', async(_,data)=>{ agent.updateCfg(data); return agent.getCfg(); });
+ipcMain.handle('get-status', async()=>{
   const modelId=await agent.detectModel(); const c=agent.getCfg();
-  return {online:!!modelId,modelId,aiHost:c.aiHost,aiPort:c.aiPort,searxngUrl:c.searxngUrl,handsOff:c.handsOff};
+  return {
+    online:!!modelId, modelId,
+    aiHost:c.aiHost, aiPort:c.aiPort,
+    searxngUrl:c.searxngUrl, handsOff:c.handsOff,
+    chatAiHost:c.chatAiHost, chatAiPort:c.chatAiPort, chatModelId:c.chatModelId,
+    agentAiHost:c.agentAiHost, agentAiPort:c.agentAiPort, agentModelId:c.agentModelId  // ④
+  };
+});
+// ④ 任意ホスト/ポートのモデル一覧
+ipcMain.handle('get-models-at', async(_,{host,port})=>agent.detectModelsAt(host,port));
+// 後方互換
+ipcMain.handle('get-chat-models', async(_,{host,port})=>agent.detectModelsAt(host,port));
+
+// チャット名自動生成
+ipcMain.handle('generate-project-name', async(_,{message})=>{
+  const cfg=agent.getCfg();
+  const host=cfg.chatAiHost||cfg.aiHost||'127.0.0.1';
+  const port=cfg.chatAiPort||cfg.aiPort;
+  let useModel=cfg.chatModelId;
+  if(!useModel) useModel=await agent.detectModel();
+  if(!useModel) return {name:'新規チャット'};
+  try{
+    const http=require('http');
+    const body=JSON.stringify({model:useModel,messages:[{role:'system',content:'ユーザーのメッセージを見て、チャットのタイトルを10文字以内の日本語で1つだけ答えてください。タイトルのみ出力し、説明や記号は不要です。'},{role:'user',content:message.slice(0,200)}],temperature:0.3,max_tokens:30,stream:false});
+    const name=await new Promise(resolve=>{
+      const req=http.request({hostname:host,port,path:'/v1/chat/completions',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)},timeout:10000},
+        res=>{let r='';res.on('data',c=>r+=c);res.on('end',()=>{try{resolve(JSON.parse(r).choices?.[0]?.message?.content?.trim()||'新規チャット');}catch{resolve('新規チャット');}});});
+      req.on('error',()=>resolve('新規チャット'));req.on('timeout',()=>{req.destroy();resolve('新規チャット');});req.write(body);req.end();
+    });
+    return {name:name.slice(0,20)||'新規チャット'};
+  }catch{return{name:'新規チャット'};}
 });
 
 // ── プロジェクト CRUD ────────────────────────────────────
@@ -101,10 +131,8 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   const sess   = agent.getSession(sessId);
   const cfg    = agent.getCfg();
 
-  // コンテキスト圧縮
   if(sess.history.length>40) sess.history=sess.history.slice(-40);
 
-  // 添付ファイル処理
   let fullMessage=message;
   if(attachments&&attachments.length>0){
     const texts=attachments.map(a=>{
@@ -113,60 +141,40 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
     });
     fullMessage+='\n\n【添付】\n'+texts.join('\n\n');
   }
-
   sess.history.push({role:'user',content:fullMessage});
 
-  // 調べるモード
   if(deepSearch){
     safeChunk(event,sessId,{type:'system',data:'𓅱 検索中...'});
     try{
-      const results=await Promise.race([
-        agent.searxSearch(message,5),
-        new Promise(r=>setTimeout(()=>r([]),8000))
-      ]);
+      const results=await Promise.race([agent.searxSearch(message,5),new Promise(r=>setTimeout(()=>r([]),8000))]);
       if(results.length>0){
         const ctx=results.map((r,i)=>`${i+1}. ${r.title}\n${r.snippet}\nURL:${r.url}`).join('\n\n');
         const last=sess.history[sess.history.length-1];
         if(last&&last.role==='user') last.content+=`\n\n【𓅱 検索結果(${results.length}件)】\n${ctx}\n\n上記を参考に回答してください。`;
         safeChunk(event,sessId,{type:'system',data:`𓅱 ${results.length}件取得`});
-      }else{ safeChunk(event,sessId,{type:'system',data:'𓅱 結果なし—SearXNG設定を確認してください'}); }
+      }else safeChunk(event,sessId,{type:'system',data:'𓅱 結果なし—SearXNG設定を確認してください'});
     }catch{ safeChunk(event,sessId,{type:'system',data:'𓅱 検索タイムアウト—AIのみで回答'}); }
   }
 
-  // システムプロンプト選択
   let sysPrompt;
-  if(mode==='dev'){
-    sysPrompt=agent.makeDevSysPrompt(workDir, proj?.systemPrompt, langs||'');
-  }else if(mode==='debug'){
-    sysPrompt=agent.buildDebugSysPrompt(workDir, proj?.systemPrompt);
-  }else{
-    sysPrompt=agent.buildChatSysPrompt(workDir, proj?.systemPrompt);
-  }
+  if(mode==='dev') sysPrompt=agent.makeDevSysPrompt(workDir,proj?.systemPrompt,langs||'');
+  else if(mode==='debug') sysPrompt=agent.buildDebugSysPrompt(workDir,proj?.systemPrompt);
+  else sysPrompt=agent.buildChatSysPrompt(workDir,proj?.systemPrompt);
 
-  let fullText='';
-  let wasAborted = false; // BUG-10修正用: 停止されたかどうかを追跡
-  activeSessions.set(sessId, {workDir, mode, lastText:''});
+  let fullText='', wasAborted=false;
+  activeSessions.set(sessId,{workDir,mode,lastText:'',projId:projectId});
 
-  try {
+  try{
     await agent.runAgent(sessId, sess.history, sysPrompt, workDir,
       (ev)=>{
-        if(ev.type==='text'){
-          fullText+=ev.data;
-          const info=activeSessions.get(sessId);
-          if(info) info.lastText=fullText;
-        }
+        if(ev.type==='text'){ fullText+=ev.data; const info=activeSessions.get(sessId); if(info) info.lastText=fullText; }
         safeChunk(event,sessId,ev);
       }
     );
-    // runAgent完了後にabort済みかチェック
-    wasAborted = agent.isAborted(sessId);
-  } finally {
+    wasAborted=agent.isAborted(sessId);
+  }finally{
     activeSessions.delete(sessId);
-    // BUG-10修正: 正常完了時のみ再開ファイルを削除する
-    // stopChat(abort)された場合は再開ファイルを残す
-    if(mode==='dev' && workDir && !wasAborted) {
-      agent.deleteResumeFile(workDir);
-    }
+    if(mode==='dev'&&workDir&&!wasAborted) agent.deleteResumeFile(workDir);
   }
 
   sess.history.push({role:'assistant',content:fullText});
@@ -175,13 +183,10 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
 });
 
 function safeChunk(event,sessId,data){
-  try{
-    if(!event.sender.isDestroyed())
-      event.sender.send('chat-chunk',{...data,sessId});
-  }catch{}
+  try{ if(!event.sender.isDestroyed()) event.sender.send('chat-chunk',{...data,sessId}); }catch{}
 }
 
-ipcMain.handle('stop-chat',   (_,sid)=>{ agent.stopAgent(sid);   return {ok:true}; });
+ipcMain.handle('stop-chat',   (_,sid)=>{ agent.stopAgent(sid); return {ok:true}; });
 ipcMain.handle('clear-history',(_,sid)=>{ const s=agent.getSession(sid); s.history=[]; return {ok:true}; });
 ipcMain.handle('edit-message',(_,{sessId,msgIndex,newContent})=>{
   const sess=agent.getSession(sessId);
@@ -191,12 +196,19 @@ ipcMain.handle('edit-message',(_,{sessId,msgIndex,newContent})=>{
   }
   return {ok:true};
 });
-
-// セッション履歴を外部から設定するIPC（doRestart用）
-ipcMain.handle('set-history', (_,{sessId, history})=>{
+ipcMain.handle('set-history',(_,{sessId,history})=>{
   const sess=agent.getSession(sessId);
-  sess.history = (history||[]).slice(-40);
+  sess.history=(history||[]).slice(-40);
   return {ok:true};
+});
+
+// ⑭ ほったらかしOFFで別PJ切替時: devセッションの"待機中"状態を通知
+ipcMain.handle('get-active-sessions', ()=>{
+  const result=[];
+  for(const [sessId,info] of activeSessions){
+    result.push({sessId, projId:info.projId, mode:info.mode, workDir:info.workDir});
+  }
+  return result;
 });
 
 // ── 再開ファイル ─────────────────────────────────────────
@@ -215,43 +227,51 @@ app.whenReady().then(async()=>{
   await agent.detectModel();
   createWindow();
   app.on('activate',()=>{ if(BrowserWindow.getAllWindows().length===0) createWindow(); else win?.show(); });
-
+  // ウォッチャー自動起動
+  setTimeout(()=>{
+    const wcfg=agent.getWatcherCfg();
+    if(wcfg.discordEnabled||wcfg.telegramEnabled||wcfg.searxEnabled||wcfg.calendarEnabled)
+      agent.startWatcher();
+  }, 2500);
 });
 app.on('window-all-closed',()=>{});
 app.on('before-quit',()=>{ app.isQuitting=true; });
 process.on('uncaughtException',e=>{ console.error('[main]',e); agent.logWrite('main','ERROR',e.message); });
 
-// ═══════════════════════════════════════════════════════════════════
-// ── ウォッチャーエージェント v2 IPCハンドラ ─────────────────────
-// ═══════════════════════════════════════════════════════════════════
-
-// ウォッチャーイベントをrendererへ転送
-agent.setWatcherCallback((ev) => {
-  if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
-    try { win.webContents.send('watcher-event', ev); } catch {}
+// ── ウォッチャーエージェント v3 IPC ─────────────────────
+agent.setWatcherCallback((ev)=>{
+  if(win&&!win.isDestroyed()&&win.webContents&&!win.webContents.isDestroyed()){
+    try{ win.webContents.send('watcher-event',ev); }catch{}
   }
 });
 
-ipcMain.handle('get-watcher-cfg',  () => agent.getWatcherCfg());
-ipcMain.handle('save-watcher-cfg', async (_, data) => {
+ipcMain.handle('get-watcher-cfg',  ()=>agent.getWatcherCfg());
+ipcMain.handle('save-watcher-cfg', async(_,data)=>{
   agent.saveWatcherCfg(data);
-  // 設定変更後、現在動作中なら再起動
-  if (agent.isWatcherRunning()) {
-    agent.stopWatcher();
-    agent.startWatcher();
-  }
+  if(agent.isWatcherRunning()){ agent.stopWatcher(); agent.startWatcher(); }
   return agent.getWatcherCfg();
 });
+ipcMain.handle('watcher-start',   async()=>{ agent.startWatcher(); return {ok:true}; });
+ipcMain.handle('watcher-stop',    async()=>{ agent.stopWatcher();  return {ok:true}; });
+ipcMain.handle('watcher-run-now', async()=>{ await agent.runWatcherNow(); return {ok:true}; });
+ipcMain.handle('watcher-status',  ()=>({
+  running: agent.isWatcherRunning(),
+  nextTime: agent.getWatcherNextTime(),
+  cfg: agent.getWatcherCfg()
+}));
+// ④ エージェントAI含む全ホストのモデル取得
+ipcMain.handle('get-watcher-models', async(_,{host,port})=>agent.detectModelsAt(host,port));
 
-ipcMain.handle('watcher-start',   async () => { agent.startWatcher(); return { ok:true }; });
-ipcMain.handle('watcher-stop',    async () => { agent.stopWatcher();  return { ok:true }; });
-ipcMain.handle('watcher-run-now', async () => { await agent.runWatcherNow(); return { ok:true }; });
-ipcMain.handle('watcher-status',  () => ({ running: agent.isWatcherRunning(), cfg: agent.getWatcherCfg() }));
-ipcMain.handle('get-watcher-models', async (_, {host, port}) => agent.detectWatcherModels(host, port));
+// ⑧ エージェントチャット送信
+ipcMain.handle('agent-chat', async(event,{message})=>{
+  await agent.runAgentChat(message, (ev)=>{
+    if(win&&!win.isDestroyed()&&win.webContents&&!win.webContents.isDestroyed()){
+      try{ win.webContents.send('agent-chat-event',ev); }catch{}
+    }
+  });
+  return {ok:true};
+});
 
-// アプリ起動時の自動開始（whenReadyの後）
-setTimeout(() => {
-  const wcfg = agent.getWatcherCfg();
-  const anyEnabled = wcfg.discordEnabled || wcfg.telegramEnabled || wcfg.searxEnabled;
-  if (anyEnabled) agent.startWatcher();
-}, 2500);
+// ⑧ エージェントチャット履歴取得 ⑫
+ipcMain.handle('get-agent-history', ()=>agent.loadAgentHistory());
+ipcMain.handle('clear-agent-history', ()=>{ agent.clearAgentHistory(); return {ok:true}; });
