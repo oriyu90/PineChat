@@ -278,8 +278,9 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .sb-agent-dot.on{background:var(--ok)}
 
 /* エージェントビュー */
+/* #agent-viewは#cwと並列 - 同じ制御パターン */
 #agent-view{flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden}
-#agent-view.visible{display:flex}
+#agent-view.open{display:flex}
 /* コントロールバー */
 .agent-ctrl{display:flex;align-items:center;gap:8px;padding:10px 18px;
   border-bottom:1px solid var(--b1);background:var(--c1);flex-shrink:0;flex-wrap:wrap}
@@ -445,12 +446,13 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <div class="ih">Enter で送信 · Shift+Enter で改行 · 変換中は送信されません</div>
       </div>
 
-    <!-- エージェントビュー ⑦ -->
+    </div><!-- /#cw -->
+
+    <!-- エージェントビュー: #ctの直接の子として#cwと並列 -->
     <div id="agent-view">
       <div class="agent-ctrl">
         <span class="agent-ctrl-title">𓅱 エージェント</span>
         <span class="agent-running-dot" id="agent-dot"></span>
-        <!-- ⑬ 次回実行タイマー -->
         <span id="agent-next-timer" style="font-size:11px;color:var(--t3);font-family:'Menlo',monospace"></span>
         <button class="acbtn run"      onclick="agentCmdRunNow()">▶ 今すぐ実行</button>
         <button class="acbtn stop"     onclick="agentCmdStop()">■ 停止</button>
@@ -458,24 +460,22 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <button class="acbtn"          onclick="openWatcherSet()" style="margin-left:auto">⚙ 設定</button>
         <button class="acbtn"          onclick="clearAgentFeedAndHistory()" style="border-color:var(--b3)">クリア</button>
       </div>
-      <!-- ⑧⑨ エージェントフィード+チャット統合ビュー -->
       <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px">
         <div class="feed-empty" id="agent-feed-empty">フィードはまだありません<br><small>設定からソースを有効化するか、チャットで質問してください</small></div>
       </div>
-      <!-- ⑧ エージェントチャット入力 -->
       <div style="padding:10px 18px;border-top:1px solid var(--b1);background:var(--c1);flex-shrink:0">
         <div style="display:flex;gap:8px;align-items:flex-end">
           <textarea id="agent-inp" placeholder="エージェントに質問... (例: 今日の予定は? / AIニュースを調べて)" rows="1"
             style="flex:1;background:#0a0a0a;border:1px solid var(--b2);border-radius:6px;color:var(--t1);font-size:13px;padding:8px 12px;resize:none;min-height:38px;max-height:100px;line-height:1.6;outline:none"></textarea>
           <button onclick="sendAgentChat()" style="background:var(--c3);color:var(--t1);border:1px solid var(--b2);border-radius:6px;padding:0 14px;height:38px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">送信</button>
         </div>
-        <div style="font-size:10px;color:var(--t3);margin-top:4px">Enter で送信 · Shift+Enter で改行 · ⑨ 処理状況はポップアップのみ表示</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:4px">Enter で送信 · Shift+Enter で改行</div>
       </div>
       <div class="agent-status-bar" id="agent-status-bar">待機中</div>
-    </div>
-    </div>
-  </div>
-</div>
+    </div><!-- /#agent-view -->
+
+  </div><!-- /#ct -->
+</div><!-- /#mn -->
 
 <!-- 新規プロジェクト -->
 <div class="ov h" id="mN">
@@ -939,15 +939,55 @@ function markProjBusy(sessId, evType){
   if (!el) return;
   const finished = ['dev_complete','timeout','user_input_required'].includes(evType);
   el.style.opacity = finished ? '' : '0.6';
-  // ⑭ ほったらかしOFF + user_input_required → サイドバーに「操作待ち」表示
   const mtEl = document.querySelector(`.pi[data-id="${projId}"] .pi-mt`);
   if(mtEl){
     if(evType==='user_input_required'){
       mtEl.textContent='⚠ 操作待ち'; mtEl.style.color='var(--warn)';
     } else if(finished){
-      mtEl.style.color='';
+      mtEl.textContent=''; mtEl.style.color='';
+      removeBgBusyBanner(projId);
+    } else {
+      // バックグラウンドでAIが動いているのを明示
+      if(!mtEl.textContent.includes('動作中')) mtEl.textContent='🔄 動作中';
+      mtEl.style.color='var(--ok)';
     }
   }
+  // バックグラウンドプロジェクトの停止バナー管理
+  if(!finished) showBgBusyBanner(projId, sessId);
+  else removeBgBusyBanner(projId);
+}
+
+// バックグラウンドAI動作バナー（現在表示中PJと異なるPJが動作中の場合）
+function showBgBusyBanner(projId, sessId){
+  // 既に現在のPJを表示中なら不要
+  if(cur && cur.id === projId) return;
+  let banner = document.getElementById('bg-busy-banner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'bg-busy-banner';
+    banner.style.cssText = 'position:fixed;bottom:60px;right:18px;background:var(--c2);border:1px solid var(--ok);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--ok);z-index:9000;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.6)';
+    const msg = document.createElement('span');
+    msg.id='bg-busy-msg';
+    const stopBtn = document.createElement('button');
+    stopBtn.textContent='■ 停止';
+    stopBtn.style.cssText='background:none;border:1px solid var(--err);color:var(--err);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700';
+    stopBtn.onclick = async ()=>{
+      const sid = banner.dataset.sessId;
+      if(sid) await A.stopChat(sid);
+      removeBgBusyBanner(banner.dataset.projId);
+      addSN('■ バックグラウンド処理を停止しました','warn');
+    };
+    banner.appendChild(msg); banner.appendChild(stopBtn);
+    document.body.appendChild(banner);
+  }
+  const projName = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`)?.textContent || projId;
+  banner.querySelector('#bg-busy-msg').textContent = `「${projName}」でAI動作中`;
+  banner.dataset.sessId = sessId;
+  banner.dataset.projId = projId;
+}
+function removeBgBusyBanner(projId){
+  const banner = document.getElementById('bg-busy-banner');
+  if(banner && (banner.dataset.projId === projId || !projId)) banner.remove();
 }
 
 // ── 起動 ────────────────────────────────────────────────
@@ -1074,7 +1114,8 @@ async function openP(id){
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
 
-  // 停止ボタン状態を新PJ用にリセット
+  // 停止ボタン: 別PJに切替時は停止ボタンを隠す
+  // (AIが動いていても別PJでは送信/停止は使わない)
   setStopState('hidden');
   document.getElementById('send-btn').disabled=false;
 
@@ -1588,8 +1629,34 @@ function addSN(t,cls){
   msgs().appendChild(d); dn();
 }
 
-function showWl(){ document.getElementById('wl').style.display='flex'; document.getElementById('cw').style.display='none'; document.getElementById('pn').textContent=''; }
-function showChat(){ document.getElementById('wl').style.display='none'; const cw=document.getElementById('cw'); Object.assign(cw.style,{display:'flex',flexDirection:'column',flex:'1',minHeight:'0',overflow:'hidden'}); }
+// ══ 表示切替: 3ビュー(wl/cw/agent-view)を排他的に管理 ══
+function _hideAllViews(){
+  document.getElementById('wl').style.display='none';
+  document.getElementById('cw').style.display='none';
+  document.getElementById('agent-view').classList.remove('open');
+}
+function showWl(){
+  _hideAllViews();
+  document.getElementById('wl').style.display='flex';
+  document.getElementById('pn').textContent='';
+  agentViewOpen=false;
+  document.getElementById('sb-agent-btn').classList.remove('on');
+  document.querySelectorAll('.pi').forEach(p=>p.classList.remove('on'));
+}
+function showChat(){
+  _hideAllViews();
+  const cw=document.getElementById('cw');
+  Object.assign(cw.style,{display:'flex',flexDirection:'column',flex:'1',minHeight:'0',overflow:'hidden'});
+  agentViewOpen=false;
+}
+function showAgent(){
+  _hideAllViews();
+  document.getElementById('agent-view').classList.add('open');
+  agentViewOpen=true;
+  document.getElementById('pn').textContent=' · エージェント';
+  document.getElementById('sb-agent-btn').classList.add('on');
+  document.querySelectorAll('.pi').forEach(p=>p.classList.remove('on'));
+}
 
 async function clrChat(){
   if(!cur) return; if(!confirm('履歴をクリアしますか？')) return;
@@ -1761,21 +1828,14 @@ function genId(){ return Math.random().toString(36).slice(2,10); }
 
 // ── エージェントビュー開閉 ────────────────────────────────────────
 function openAgentView(){
-  // チャット/ウェルカムを隠してエージェントビューを表示
-  document.getElementById('wl').style.display = 'none';
-  const cw = document.getElementById('cw'); cw.style.display = 'none';
-  document.getElementById('agent-view').classList.add('visible');
-  document.getElementById('sb-agent-btn').classList.add('on');
-  document.querySelectorAll('.pi').forEach(p=>p.classList.remove('on'));
-  agentViewOpen = true;
-  document.getElementById('pn').textContent = ' · エージェント';
+  showAgent(); // 統一された表示切替関数を使用
 }
-
 function closeAgentView(){
-  document.getElementById('agent-view').classList.remove('visible');
+  // 前のビュー状態に戻す
+  if(cur) { showChat(); document.getElementById('pn').textContent=' · '+cur.name; }
+  else showWl();
+  agentViewOpen=false;
   document.getElementById('sb-agent-btn').classList.remove('on');
-  agentViewOpen = false;
-  document.getElementById('pn').textContent = '';
 }
 
 // openP等でプロジェクトを開いたらエージェントビューを閉じる
@@ -1842,40 +1902,7 @@ A.onAgentChatEvent(ev => {
   }
 });
 
-function addAgentFeedItem(data){
-  const feed = document.getElementById('agent-feed');
-  // 空プレースホルダーを削除
-  const empty = feed.querySelector('.feed-empty');
-  if (empty) empty.remove();
-
-  const ts = new Date(data.ts || Date.now());
-  const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-
-  const srcClass = {discord:'discord', telegram:'telegram', searx: data.taskType==='url'?'searxurl':'searx', calendar:'calendar'};
-  const srcLabels = {discord:'Discord', telegram:'Telegram', searx: data.taskType==='url'?'URL監視':'SearXNG', calendar:'📅 カレンダー'};
-  const cls   = srcClass[data.source]  || data.source;
-  const label = srcLabels[data.source] || data.source;
-
-  const item = document.createElement('div');
-  item.className = 'feed-item';
-  item.innerHTML =
-    '<div class="feed-hd">' +
-      '<span class="feed-src ' + esc(cls) + '">' + esc(label) + '</span>' +
-      '<span class="feed-label">' + esc(data.label||'') + '</span>' +
-      '<span class="feed-ts">' + tsStr + '</span>' +
-    '</div>' +
-    '<div class="feed-body' + (data.raw?' raw':'') + '">' + esc(data.summary||'') + '</div>';
-
-  feed.insertBefore(item, feed.firstChild);
-  while(feed.children.length > 30) feed.removeChild(feed.lastChild);
-
-  // エージェントビューが閉じていたらサイドバーボタンを光らせる
-  if (!agentViewOpen) {
-    const dot = document.getElementById('sb-agent-dot');
-    dot.style.boxShadow = '0 0 0 2px var(--ok)';
-    setTimeout(()=>{ dot.style.boxShadow=''; }, 3000);
-  }
-}
+// addAgentFeedItem は下の完全版で定義
 
 // ── 起動時初期化 ─────────────────────────────────────────────────
 async function initWatcher(){
@@ -2239,19 +2266,17 @@ async function clearAgentFeedAndHistory(){
   try { await A.clearAgentHistory(); } catch {}
 }
 
-// addAgentFeedItemをagent-msgsにも対応させる（フィードをチャット欄に表示）
-const _origAddAgentFeedItem = addAgentFeedItem;
+// ═════ addAgentFeedItem: エージェントフィード表示（統一版）═════
 function addAgentFeedItem(data){
-  // フィードカードをagent-msgsに追加
   const container = document.getElementById('agent-msgs');
-  if(!container){ _origAddAgentFeedItem(data); return; }
+  if(!container) return;
   const empty = document.getElementById('agent-feed-empty');
   if(empty) empty.remove();
 
   const ts = new Date(data.ts || Date.now());
   const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  const srcClass = {discord:'discord', telegram:'telegram', searx: data.taskType==='url'?'searxurl':'searx', calendar:'calendar'};
-  const srcLabels = {discord:'Discord', telegram:'Telegram', searx: data.taskType==='url'?'URL監視':'SearXNG', calendar:'📅 カレンダー'};
+  const srcClass  = {discord:'discord',telegram:'telegram',searx:data.taskType==='url'?'searxurl':'searx',calendar:'calendar'};
+  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG',calendar:'📅 カレンダー'};
   const cls   = srcClass[data.source]  || data.source;
   const label = srcLabels[data.source] || data.source;
 
@@ -2265,13 +2290,12 @@ function addAgentFeedItem(data){
     '</div>' +
     '<div class="feed-body' + (data.raw?' raw':'') + '">' + esc(data.summary||'') + '</div>';
   container.insertBefore(item, container.firstChild);
-  while(container.children.length > 50) container.removeChild(container.lastChild);
-  container.scrollTop = 0; // 新着を見せる
+  while(container.children.length > 60) container.removeChild(container.lastChild);
 
-  if (!agentViewOpen) {
+  // エージェントビューが閉じていたら通知
+  if(!agentViewOpen){
     const dot = document.getElementById('sb-agent-dot');
-    dot.style.boxShadow = '0 0 0 2px var(--ok)';
-    setTimeout(()=>{ dot.style.boxShadow=''; }, 3000);
+    if(dot){ dot.style.boxShadow='0 0 0 2px var(--ok)'; setTimeout(()=>{ dot.style.boxShadow=''; },3000); }
   }
 }
 
