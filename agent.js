@@ -1,5 +1,5 @@
 'use strict';
-// agent.js — Pine Chat AI通信・ツール実行・ループ検知・ほったらかしモードについて
+// agent.js — Pine Chat AI通信・ツール実行・ループ検知・ほったらかしモード
 const http  = require('http');
 const https = require('https');
 const fs    = require('fs');
@@ -163,7 +163,7 @@ function resolvePath(p, workDir) {
   return p;
 }
 
-// fetch_url: タイムアウト・destroy後resolve漏れ・リダイレクト無限ループを全て対策
+// fetch_url: 全イベントでsettled guard、destroy後のresolve漏れ・リダイレクト無限ループ対策
 function fetchUrlInner(urlStr, depth=0) {
   return new Promise(resolve => {
     if (depth > 5) { resolve({ error: 'リダイレクト上限超過' }); return; }
@@ -195,20 +195,13 @@ function fetchUrlInner(urlStr, depth=0) {
       res.on('data', c => {
         data += c;
         if (data.length > 50000) {
-          // destroy後にendが来ない場合があるので先にresolve
           res.destroy();
-          done({
-            url: u,
-            content: stripHtml(data).slice(0, 10000) + '\n[切り捨て]'
-          });
+          done({ url: u, content: stripHtml(data).slice(0, 10000) + '\n[切り捨て]' });
         }
       });
-      res.on('end', () => done({
-        url: u,
-        content: stripHtml(data).slice(0, 10000)
-      }));
-      res.on('error', () => done({ url: u, content: stripHtml(data).slice(0, 10000) || '[読み込みエラー]' }));
-      res.on('close', () => done({ url: u, content: stripHtml(data).slice(0, 10000) || '[接続終了]' }));
+      res.on('end',  () => done({ url: u, content: stripHtml(data).slice(0, 10000) }));
+      res.on('error',() => done({ url: u, content: stripHtml(data).slice(0, 10000) || '[読み込みエラー]' }));
+      res.on('close',() => done({ url: u, content: stripHtml(data).slice(0, 10000) || '[接続終了]' }));
     });
     req.on('timeout', () => { req.destroy(); done({ error: `fetch timeout: ${u}` }); });
     req.on('error',   e  => done({ error: e.message }));
@@ -225,8 +218,8 @@ function stripHtml(html) {
     .trim();
 }
 
-async function fetchUrl(urlStr, workDir, sessId) {
-  // ハードタイムアウト20秒: fetchUrlInner自体がハングした場合の最終安全弁
+async function fetchUrl(urlStr) {
+  // ハードタイムアウト20秒
   return Promise.race([
     fetchUrlInner(urlStr),
     new Promise(r => setTimeout(() => r({ error: 'fetch hard timeout (20s)' }), 20000))
@@ -259,7 +252,7 @@ async function runTool(name, args, workDir, sessId) {
       }))};
     } catch(e) { return { error:e.message }; }
     case 'fetch_url':
-      return fetchUrl(args.url, workDir, sessId);  // workDir/sessIdは内部では未使用だが互換性のため残す
+      return fetchUrl(args.url);
     case 'web_search': {
       const r = await searxSearch(args.query,5);
       return r.length ? { results:r } : { error:'SearXNG未設定または結果なし' };
@@ -269,7 +262,6 @@ async function runTool(name, args, workDir, sessId) {
 }
 
 // ── ループ検知 ────────────────────────────────────────────
-// win=8: ウィンドウを大きくして誤検知を低減
 function detectLoop(msgs, win=8) {
   if (msgs.length < win*2) return false;
   const r = msgs.slice(-win).map(m=>m.content||'').join('|');
@@ -353,8 +345,10 @@ function makeDevSysPrompt(workDir, customSys, langs) {
 
 // ── エージェントループ ────────────────────────────────────
 const abortMap = new Map();
+// ④ ほったらかしモードON時のタイムアウト自動再試行カウント
+const retryCountMap = new Map(); // sessId → retryCount
 
-function stopAgent(sessId) { abortMap.get(sessId)?.abort(); abortMap.delete(sessId); }
+function stopAgent(sessId) { abortMap.get(sessId)?.abort(); abortMap.delete(sessId); retryCountMap.delete(sessId); }
 
 async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) {
   if (!MODEL_ID) await detectModel();
@@ -373,7 +367,6 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
 
   for (let turn = 0; turn < 60; turn++) {
     if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止しました。' }); break; }
-    // handsOffは毎ターン最新cfgから読む（途中トグルに対応）
     const isHandsOff = cfg.handsOff;
 
     let data;
@@ -384,9 +377,32 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
         tools:TOOLS, tool_choice:'auto',
         temperature:0.6, max_tokens:4096, stream:false
       });
+      // ④ 成功したらリトライカウントリセット
+      retryCountMap.delete(sessId);
     } catch(e) {
       logWrite(sessId,'ERROR',`APIエラー:${e.message}`);
       if(ac.signal.aborted){ onEvent({type:'text',data:'\n■ 停止'}); break; }
+
+      // ④ ほったらかしモードON時: タイムアウトなら自動再試行（最大3回、待機後）
+      if (isHandsOff && e.message.includes('タイムアウト')) {
+        const retries = (retryCountMap.get(sessId)||0) + 1;
+        retryCountMap.set(sessId, retries);
+        if (retries <= 3) {
+          onEvent({ type:'system', data:`⏳ タイムアウト — ${retries}/3回目の自動再試行を30秒後に実行...` });
+          logWrite(sessId,'WARN',`タイムアウト自動再試行 ${retries}/3`);
+          // 30秒待機してからモデル再確認後リトライ
+          await new Promise(r => setTimeout(r, 30000));
+          if (ac.signal.aborted) { onEvent({type:'text',data:'\n■ 停止'}); break; }
+          await detectModel();
+          if (!MODEL_ID) {
+            onEvent({ type:'timeout', data:'AI接続できず' });
+            break;
+          }
+          onEvent({ type:'system', data:`↺ 再試行中 (${retries}/3)...` });
+          continue; // ループを継続してリトライ
+        }
+      }
+
       onEvent({ type:'text', data:`\n× 通信エラー: ${e.message}` });
       onEvent({ type:'timeout', data:e.message });
       break;
@@ -419,7 +435,6 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
         }
       }
 
-      // ループ検知
       if (msg.content === lastContent) { sameCount++; } else { sameCount=0; lastContent=msg.content; }
       if (detectLoop(msgs)) loopCount++;
 
@@ -448,6 +463,7 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent, opts={}) 
   }
 
   abortMap.delete(sessId);
+  retryCountMap.delete(sessId);
   deleteOldLogs();
 }
 

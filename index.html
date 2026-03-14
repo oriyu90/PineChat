@@ -34,17 +34,14 @@ body{display:flex}
   padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;font-weight:600}
 .sb-add:hover{border-color:var(--t2);color:var(--t1)}
 #pl{flex:1;overflow-y:auto;padding:4px 0}
-.pi{display:flex;align-items:center;gap:8px;padding:9px 14px;
-  cursor:pointer;border-left:2px solid transparent}
-.pi:hover{background:var(--c2)}
-.pi.on{background:var(--c2);border-left-color:var(--t2)}
+.pi{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;border-left:2px solid transparent}
+.pi:hover{background:var(--c2)}.pi.on{background:var(--c2);border-left-color:var(--t2)}
 .pi-g{font-size:14px;flex-shrink:0;opacity:.7}
 .pi-info{flex:1;min-width:0}
 .pi-nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--t1)}
 .pi-mt{font-size:11px;color:var(--t3);margin-top:2px}
 .pi-del{background:none;border:none;color:transparent;cursor:pointer;font-size:13px;padding:2px 6px}
-.pi:hover .pi-del{color:var(--t3)}
-.pi-del:hover{color:var(--t2)!important}
+.pi:hover .pi-del{color:var(--t3)}.pi-del:hover{color:var(--t2)!important}
 
 /* ── メイン ── */
 #mn{flex:1;display:flex;flex-direction:column;min-width:0;height:100vh;overflow:hidden}
@@ -52,8 +49,7 @@ body{display:flex}
 /* ── ヘッダー ── */
 header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   border-bottom:1px solid var(--b1);background:var(--c1);flex-shrink:0;min-height:52px}
-#sb-btn{background:none;border:none;color:var(--t3);cursor:pointer;
-  font-size:18px;padding:4px 8px;border-radius:4px}
+#sb-btn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;padding:4px 8px;border-radius:4px}
 #sb-btn:hover{color:var(--t1)}
 .logo{font-size:15px;font-weight:800;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em}
 .logo small{font-size:12px;font-weight:400;color:var(--t3);margin-left:8px}
@@ -61,9 +57,8 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .dot{width:7px;height:7px;border-radius:50%;background:var(--b2);flex-shrink:0}
 .dot.on{background:var(--ok)}.dot.err{background:var(--err)}
 #ml{font-size:11px;color:var(--t2);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
-/* ほったらかしトグル */
 .ho-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
-.ho-lbl{font-size:11px;color:var(--t3);font-weight:600}
+.ho-lbl{font-size:11px;color:var(--t3);font-weight:600;white-space:nowrap}
 .ho-sw{width:36px;height:20px;background:var(--b2);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0}
 .ho-sw.on{background:var(--ok)}
 .ho-sw::after{content:'';width:14px;height:14px;background:#fff;border-radius:50%;
@@ -97,14 +92,12 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   border-bottom:1px solid var(--b1);background:var(--c1);flex-shrink:0}
 .mt{background:none;border:1px solid transparent;color:var(--t3);
   padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
-.mt:hover{color:var(--t2)}
-.mt.on{border-color:var(--b2);color:var(--t1);background:var(--c3)}
+.mt:hover{color:var(--t2)}.mt.on{border-color:var(--b2);color:var(--t1);background:var(--c3)}
 #res-btn{display:none;background:none;border:1px solid var(--warn);color:var(--warn);
-  padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;margin-left:auto;
-  white-space:nowrap;font-weight:700}
+  padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;margin-left:auto;white-space:nowrap;font-weight:700}
 #res-btn:hover{background:var(--warn-bg);color:#f0a040}
 
-/* 進捗バー(dev mode) */
+/* 進捗バー */
 #prog-bar{display:none;padding:7px 18px;background:var(--prog-bg);
   border-bottom:1px solid var(--prog-bdr);flex-shrink:0;font-size:12px;color:var(--prog-txt)}
 .prog-inner{display:flex;align-items:center;gap:10px}
@@ -119,10 +112,23 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 /* メッセージ */
 #msgs{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:13px}
 .msg{display:flex;flex-direction:column;gap:4px}
+
+/* ① メッセージヘッダー（ラベル＋時刻） */
+.msg-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .ml2{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)}
+.msg-ts{font-size:10px;color:var(--t3);font-family:'Menlo',monospace;opacity:.7}
+
 .mb{padding:11px 16px;border-radius:7px;line-height:1.85;word-break:break-word;font-size:14.5px;position:relative}
 .msg.user .mb{background:var(--c3);border:1px solid var(--b2);align-self:flex-end;max-width:82%}
 .msg.ai   .mb{background:var(--c2);border:1px solid var(--b1);max-width:100%}
+
+/* ① .sn にも時刻（右端） */
+.sn{display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:4px 12px;font-size:11px;color:var(--t3);margin:2px 30px;border-radius:4px;font-weight:500}
+.sn.warn{background:var(--warn-bg);color:#d08830;border:1px solid var(--warn-bdr)}
+.sn.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bdr)}
+.sn.err{background:#160404;color:#d05050;border:1px solid #3a0c0c}
+.sn-ts{font-size:10px;opacity:.6;font-family:'Menlo',monospace;flex-shrink:0}
 
 /* Markdownレンダリング */
 .md-rendered h1{font-size:1.45em;font-weight:800;margin:.7em 0 .35em;color:#fff;border-bottom:1px solid var(--b1);padding-bottom:.3em}
@@ -146,11 +152,12 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .md-rendered th,.md-rendered td{border:1px solid var(--b2);padding:6px 10px;font-size:13px}
 .md-rendered th{background:var(--c3);font-weight:700;color:#fff}
 
-/* 編集ボタン */
-.edit-btn{position:absolute;top:5px;right:6px;background:none;border:none;
-  color:transparent;cursor:pointer;font-size:11px;padding:2px 6px;border-radius:3px}
-.msg.user:hover .edit-btn{color:var(--t3)}
-.edit-btn:hover{color:var(--t2)!important;background:var(--b1)}
+/* ⑧ 編集ボタン — バブル下部に配置 */
+.edit-btn-row{display:flex;justify-content:flex-end;margin-top:4px;opacity:0;transition:opacity .15s}
+.msg.user:hover .edit-btn-row{opacity:1}
+.edit-btn{background:none;border:1px solid var(--b2);color:var(--t3);
+  cursor:pointer;font-size:11px;padding:2px 9px;border-radius:3px}
+.edit-btn:hover{color:var(--t2);border-color:var(--b3)}
 .edit-area{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;
   color:var(--t1);font-size:14px;padding:8px 12px;resize:vertical;min-height:64px;
   line-height:1.75;outline:none;margin-top:6px}
@@ -161,7 +168,8 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 
 /* ツール表示 */
 .tb{margin:4px 0;border:1px solid var(--b1);border-radius:5px;background:#040404;overflow:hidden}
-.th2{display:flex;align-items:center;gap:8px;padding:5px 11px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--b1);justify-content:space-between}
+.th2{display:flex;align-items:center;gap:8px;padding:5px 11px;font-size:11px;color:var(--t3);
+  border-bottom:1px solid var(--b1);justify-content:space-between}
 .tn2{font-weight:700;color:var(--t2)}
 .tt2{font-size:10px;color:var(--t3);font-family:'Menlo',monospace;opacity:.7}
 .td2{padding:6px 11px;font-size:10px;color:var(--t3);font-family:'Menlo',monospace;line-height:1.6}
@@ -172,12 +180,6 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .ths span{width:4px;height:4px;border-radius:50%;background:var(--t3);animation:bl 1.2s infinite}
 .ths span:nth-child(2){animation-delay:.2s}.ths span:nth-child(3){animation-delay:.4s}
 @keyframes bl{0%,80%,100%{opacity:.15}40%{opacity:1}}
-
-/* システム通知 */
-.sn{text-align:center;padding:4px 12px;font-size:11px;color:var(--t3);margin:2px 30px;border-radius:4px;font-weight:500}
-.sn.warn{background:var(--warn-bg);color:#d08830;border:1px solid var(--warn-bdr)}
-.sn.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bdr)}
-.sn.err{background:#160404;color:#d05050;border:1px solid #3a0c0c}
 
 /* 再開バナー */
 .resume-banner{margin:8px 0;padding:13px 18px;background:var(--ok-bg);
@@ -199,10 +201,20 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 
 /* ── 入力エリア ── */
 .ia{padding:12px 18px;border-top:1px solid var(--b1);background:var(--c1);flex-shrink:0}
-.chat-opts{display:flex;align-items:center;gap:14px;margin-bottom:9px;flex-wrap:wrap}
-.co-chk{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--t2);user-select:none;font-weight:600}
-.co-chk input{accent-color:var(--ok);cursor:pointer;width:14px;height:14px}
-.co-chk:hover{color:var(--t1)}
+/* ⑦ chat-opts: アプリ設計中は非表示、デバッグ/チャット時のみ */
+.chat-opts{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+/* 添付ボタン */
+.att-add-btn{background:none;border:1px solid var(--b2);color:var(--t2);
+  padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
+.att-add-btn:hover{border-color:var(--ok);color:var(--ok)}
+/* ⑥ 調べるスライドスイッチ */
+.sw-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+.sw-lbl{font-size:12px;color:var(--t2);font-weight:600}
+.sw-track{width:34px;height:18px;background:var(--b2);border-radius:9px;position:relative;transition:background .2s;flex-shrink:0}
+.sw-track.on{background:var(--ok)}
+.sw-track::after{content:'';width:12px;height:12px;background:#fff;border-radius:50%;
+  position:absolute;top:3px;left:3px;transition:left .2s}
+.sw-track.on::after{left:19px}
 .att-list{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px}
 .att-item{display:flex;align-items:center;gap:5px;background:var(--c2);
   border:1px solid var(--b1);border-radius:5px;padding:3px 9px;font-size:12px;color:var(--t2)}
@@ -214,12 +226,14 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   min-height:46px;max-height:140px;line-height:1.65;outline:none}
 #inp:focus{border-color:var(--b3)}
 #inp::placeholder{color:var(--t3)}
-/* 停止/再開ボタン — display:noneをデフォルトにして busy時だけ表示 */
+/* ② 停止ボタン */
 #stop-btn{display:none;background:none;border:1px solid var(--b2);color:var(--t2);
   border-radius:6px;padding:0 13px;cursor:pointer;font-size:14px;height:46px;white-space:nowrap;font-weight:700}
 #stop-btn:hover{border-color:var(--err);color:var(--err)}
 #stop-btn.resume{border-color:var(--ok)!important;color:var(--ok)!important;display:block!important}
 #stop-btn.resume:hover{background:var(--ok-bg);color:#4de8a8!important}
+/* ② stopping状態: 処理完了待ち中のスタイル */
+#stop-btn.stopping{border-color:var(--warn)!important;color:var(--warn)!important;cursor:not-allowed!important;opacity:.7}
 #send-btn{background:var(--c3);color:var(--t1);border:1px solid var(--b2);
   border-radius:6px;padding:0 18px;cursor:pointer;font-size:13px;font-weight:800;
   height:46px;white-space:nowrap;letter-spacing:.04em}
@@ -247,8 +261,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .mcs{display:flex;gap:10px;margin-bottom:14px}
 .mc{flex:1;background:var(--c2);border:1px solid var(--b1);border-radius:8px;
   padding:16px 12px;cursor:pointer;text-align:center;transition:all .15s}
-.mc:hover{background:var(--c3);border-color:var(--b2)}
-.mc.s{border-color:var(--t2);background:var(--c3)}
+.mc:hover{background:var(--c3);border-color:var(--b2)}.mc.s{border-color:var(--t2);background:var(--c3)}
 .mc-g{font-size:20px;opacity:.55;margin-bottom:6px;line-height:1}
 .mc-l{font-size:13px;font-weight:700;color:var(--t1)}.mc-d{font-size:11px;color:var(--t3);margin-top:3px}
 .mf{display:flex;gap:7px;margin-bottom:14px}
@@ -258,17 +271,13 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .mfb{background:var(--c2);border:1px solid var(--b2);color:var(--t2);
   padding:8px 13px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;font-weight:600}
 .mfb:hover{border-color:var(--t2);color:var(--t1)}
-/* 言語検索 */
 .lang-q{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;
   color:var(--t1);font-size:13px;padding:7px 12px;outline:none;margin-bottom:8px}
 .lang-q:focus{border-color:var(--b3)}
 .langs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;max-height:120px;overflow-y:auto}
 .lg{background:var(--c2);border:1px solid var(--b1);color:var(--t3);
   padding:3px 11px;border-radius:5px;cursor:pointer;font-size:12px}
-.lg:hover{color:var(--t1);border-color:var(--b2)}
-.lg.s{border-color:var(--t2);color:var(--t1);background:var(--c3)}
-.lg.h{display:none}
-/* RAG */
+.lg:hover{color:var(--t1);border-color:var(--b2)}.lg.s{border-color:var(--t2);color:var(--t1);background:var(--c3)}.lg.h{display:none}
 .rag-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
 .rag-item{display:flex;align-items:center;gap:7px;background:var(--c2);
   border:1px solid var(--b1);border-radius:5px;padding:6px 11px;font-size:12px}
@@ -276,82 +285,38 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .rag-rm{background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px}
 .rag-rm:hover{color:var(--t1)}
 .rag-add{background:none;border:1px dashed var(--b2);color:var(--t3);
-  width:100%;padding:8px;border-radius:5px;cursor:pointer;font-size:12px;
-  text-align:center;margin-bottom:14px}
+  width:100%;padding:8px;border-radius:5px;cursor:pointer;font-size:12px;text-align:center;margin-bottom:14px}
 .rag-add:hover{border-color:var(--b3);color:var(--t2)}
-/* フッター */
 .mft{display:flex;justify-content:flex-end;gap:8px;margin-top:6px;flex-wrap:wrap}
 .bc{background:none;border:1px solid var(--b2);color:var(--t2);
   padding:7px 15px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600}
 .bc:hover{border-color:var(--t2);color:var(--t1)}
 .bok{background:var(--c3);border:1px solid var(--b2);color:var(--t1);
   padding:7px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:700}
-.bok:hover{background:var(--b2)}
-.bok:disabled{opacity:.3;cursor:not-allowed}
+.bok:hover{background:var(--b2)}.bok:disabled{opacity:.3;cursor:not-allowed}
 .msu{background:var(--bg);border:1px solid var(--b1);border-radius:5px;
   padding:12px;font-size:13px;line-height:1.8;max-height:170px;overflow-y:auto;
   margin-bottom:14px;white-space:pre-wrap;color:var(--t1)}
-/* 設定 */
 .set-sec{margin-bottom:18px}
-.set-stl{font-size:11px;font-weight:700;color:var(--t2);
-  border-bottom:1px solid var(--b1);padding-bottom:6px;margin-bottom:12px}
+.set-stl{font-size:11px;font-weight:700;color:var(--t2);border-bottom:1px solid var(--b1);padding-bottom:6px;margin-bottom:12px}
 .set-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .set-lbl{font-size:13px;color:var(--t2);min-width:135px;flex-shrink:0}
 .set-inp{background:var(--bg);border:1px solid var(--b2);border-radius:5px;
-  color:var(--t1);font-family:'Menlo',monospace;font-size:13px;
-  padding:7px 11px;outline:none;width:200px}
+  color:var(--t1);font-family:'Menlo',monospace;font-size:13px;padding:7px 11px;outline:none;width:200px}
 .set-inp:focus{border-color:var(--b3)}
 .set-hint{font-size:11px;color:var(--t3);margin:-7px 0 10px 145px}
 .log-viewer{background:var(--bg);border:1px solid var(--b1);border-radius:5px;
   padding:11px;font-family:'Menlo',monospace;font-size:10px;line-height:1.65;
   color:var(--t3);max-height:260px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:12px}
-/* 完了確認 */
 .fin-opts{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
-.fin-opt{background:var(--c2);border:1px solid var(--b1);border-radius:8px;
-  padding:14px;cursor:pointer;transition:all .15s}
-.fin-opt:hover{background:var(--c3);border-color:var(--b2)}
-.fin-opt.s{border-color:var(--t2)}
+.fin-opt{background:var(--c2);border:1px solid var(--b1);border-radius:8px;padding:14px;cursor:pointer;transition:all .15s}
+.fin-opt:hover{background:var(--c3);border-color:var(--b2)}.fin-opt.s{border-color:var(--t2)}
 .fin-opt-t{font-size:13px;font-weight:700;margin-bottom:4px;color:var(--t1)}
 .fin-opt-d{font-size:11px;color:var(--t3);line-height:1.65}
-
-/* ⑤ ほったらかしラベル */
-.ho-lbl{font-size:11px;color:var(--t3);font-weight:600;white-space:nowrap}
-
-/* ⑥ 画像・ファイル添付ボタン */
-.att-add-btn{background:none;border:1px solid var(--b2);color:var(--t2);
-  padding:4px 11px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;
-  transition:border-color .15s,color .15s}
-.att-add-btn:hover{border-color:var(--ok);color:var(--ok)}
-.att-add-btn:disabled{opacity:.35;cursor:not-allowed}
-
-/* ⑥ 調べるチェックボックス — 黒背景 */
-.co-chk-dark{background:var(--b1);border:1px solid var(--b2);border-radius:5px;
-  padding:4px 10px;display:flex;align-items:center;gap:6px;cursor:pointer;
-  font-size:12px;color:var(--t2);user-select:none;font-weight:600}
-.co-chk-dark input{accent-color:var(--ok);cursor:pointer;width:14px;height:14px}
-.co-chk-dark:hover{color:var(--t1);border-color:var(--b3)}
-
-/* ④ 別PJ処理中警告バナー */
-#other-busy-banner{
-  margin:10px 18px 0;padding:11px 16px;
-  background:#160a00;border:1px solid var(--warn);border-radius:7px;
-  font-size:13px;color:#d08830;line-height:1.7
-}
-#other-busy-banner strong{color:#f0a030}
-.stop-other-btn{
-  display:inline-block;margin-top:7px;
-  background:none;border:1px solid var(--warn);color:#d08830;
-  padding:4px 13px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700
-}
-.stop-other-btn:hover{background:var(--warn-bg);color:#f0a040}
-
-/* ③ 下準備中通知 */
-.sn.prep{background:#061510;color:#3ab87a;border:1px solid #134030;font-weight:700}
 </style>
 </head>
 <body>
 
-<!-- サイドバー -->
 <div id="sb">
   <div class="sb-hd">
     <span class="sb-ttl">𓂀 PROJECTS</span>
@@ -360,7 +325,6 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   <div id="pl"></div>
 </div>
 
-<!-- メイン -->
 <div id="mn">
   <header>
     <button id="sb-btn" onclick="toggleSB()">𓊹</button>
@@ -368,8 +332,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <div class="hright">
       <div class="dot" id="dt"></div>
       <span id="ml">接続確認中...</span>
-      <!-- ほったらかしモード ⑤ラベル追加 -->
-      <div class="ho-wrap" onclick="toggleHO()" title="ほったらかしモード: ONにするとループ時に自動打開します">
+      <div class="ho-wrap" onclick="toggleHO()" title="ほったらかしモード">
         <span class="ho-lbl">𓅭 ほったらかし</span>
         <div class="ho-sw" id="ho-sw"></div>
       </div>
@@ -379,33 +342,22 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   </header>
 
   <div id="ct">
-    <!-- ウェルカム -->
     <div id="wl">
       <div class="wg">𓂀</div>
       <div class="wt">Pine Chat</div>
       <div class="ws">自立思考型 AI エージェント<br>プロジェクトを選択または新規作成してください</div>
       <div class="wcs">
-        <div class="wc" onclick="openNew()">
-          <div class="wc-g">𓀁</div>
-          <div class="wc-l">新規プロジェクト</div>
-          <div class="wc-d">チャット / アプリ設計</div>
-        </div>
-        <div class="wc" onclick="openSB()">
-          <div class="wc-g">𓀀</div>
-          <div class="wc-l">既存プロジェクト</div>
-          <div class="wc-d">サイドバーを開く</div>
-        </div>
+        <div class="wc" onclick="openNew()"><div class="wc-g">𓀁</div><div class="wc-l">新規プロジェクト</div><div class="wc-d">チャット / アプリ設計</div></div>
+        <div class="wc" onclick="openSB()"><div class="wc-g">𓀀</div><div class="wc-l">既存プロジェクト</div><div class="wc-d">サイドバーを開く</div></div>
       </div>
     </div>
 
-    <!-- チャット -->
     <div id="cw">
       <div class="mode-bar" id="mode-bar" style="display:none">
         <button class="mt on" id="tab-chat"  onclick="switchMode('chat')">𓃰 チャット</button>
         <button class="mt"    id="tab-debug" onclick="switchMode('debug')" style="display:none">𓃗 デバッグ</button>
         <button id="res-btn"  onclick="doRestart()">↺ 再起動</button>
       </div>
-      <!-- 進捗バー -->
       <div id="prog-bar">
         <div class="prog-inner">
           <span id="prog-txt" style="min-width:160px">準備中...</span>
@@ -415,21 +367,23 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         </div>
       </div>
       <div id="dbg-banner">𓃗 デバッグ・機能追加モード — バグ修正・テスト・機能拡張</div>
-      <!-- ④ 別PJで処理中のときの警告バナー -->
-      <div id="other-busy-banner" style="display:none"></div>
       <div id="msgs"></div>
       <div class="ia">
+        <!-- ⑦ chat-optsはupdateModeUI()で制御 -->
         <div class="chat-opts" id="chat-opts" style="display:none">
-          <!-- ⑥ 画像・ファイルは+ボタン、調べるはチェックボックス黒 -->
-          <button class="att-add-btn" id="btn-img" title="画像を添付">＋ 画像</button>
-          <button class="att-add-btn" id="btn-file" title="ファイルを添付">＋ ファイル</button>
-          <label class="co-chk co-chk-dark"><input type="checkbox" id="chk-deep"> 𓅱 調べる</label>
+          <button class="att-add-btn" id="btn-img">＋ 画像</button>
+          <button class="att-add-btn" id="btn-file">＋ ファイル</button>
+          <!-- ⑥ 調べるをスライドスイッチに変更 -->
+          <div class="sw-wrap" onclick="toggleDeep()" title="Web検索を使って調べながら回答">
+            <div class="sw-track" id="deep-sw"></div>
+            <span class="sw-lbl">𓅱 調べる</span>
+          </div>
         </div>
         <div class="att-list" id="att-list"></div>
         <div class="ir">
           <textarea id="inp" placeholder="メッセージを入力..." rows="1"></textarea>
-          <button id="stop-btn"  onclick="doStopOrResume()">■</button>
-          <button id="send-btn"  onclick="doSend()">送信</button>
+          <button id="stop-btn" onclick="doStop()">■</button>
+          <button id="send-btn" onclick="doSend()">送信</button>
         </div>
         <div class="ih">Enter で送信 · Shift+Enter で改行 · 変換中は送信されません</div>
       </div>
@@ -446,18 +400,11 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <input class="inp2" id="nNm" type="text" placeholder="例: マイアプリ" oninput="valNew()">
     <div class="lbl">種類</div>
     <div class="mcs">
-      <div class="mc" id="mCC" onclick="selT('chat')">
-        <div class="mc-g">𓃰</div><div class="mc-l">チャット</div><div class="mc-d">会話・調査</div>
-      </div>
-      <div class="mc" id="mCD" onclick="selT('design')">
-        <div class="mc-g">𓃭</div><div class="mc-l">アプリ設計</div><div class="mc-d">設計図から開発</div>
-      </div>
+      <div class="mc" id="mCC" onclick="selT('chat')"><div class="mc-g">𓃰</div><div class="mc-l">チャット</div><div class="mc-d">会話・調査</div></div>
+      <div class="mc" id="mCD" onclick="selT('design')"><div class="mc-g">𓃭</div><div class="mc-l">アプリ設計</div><div class="mc-d">設計図から開発</div></div>
     </div>
     <div class="lbl">作業フォルダ</div>
-    <div class="mf">
-      <div class="mfd" id="fD">未選択</div>
-      <button class="mfb" onclick="pickF()">選択...</button>
-    </div>
+    <div class="mf"><div class="mfd" id="fD">未選択</div><button class="mfb" onclick="pickF()">選択...</button></div>
     <div class="lbl">システムプロンプト（任意）</div>
     <textarea class="ta2" id="nSys" placeholder="このプロジェクト専用の指示..."></textarea>
     <div class="mft">
@@ -559,20 +506,12 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     </div>
     <div class="set-sec">
       <div class="set-stl">ログ管理</div>
-      <div class="set-row">
-        <span class="set-lbl">ログ有効</span>
-        <input type="checkbox" id="sLog" style="accent-color:var(--acc);cursor:pointer">
-      </div>
-      <div class="set-row">
-        <span class="set-lbl">保持日数</span>
-        <input class="set-inp" id="sLogDays" type="number" min="1" max="30" style="width:60px">
-      </div>
+      <div class="set-row"><span class="set-lbl">ログ有効</span><input type="checkbox" id="sLog" style="accent-color:var(--acc);cursor:pointer"></div>
+      <div class="set-row"><span class="set-lbl">保持日数</span><input class="set-inp" id="sLogDays" type="number" min="1" max="30" style="width:60px"></div>
       <button class="bc" onclick="viewLogs()" style="font-size:11px;padding:4px 10px">ログを見る</button>
       <button class="bc" onclick="delLogs()" style="font-size:11px;padding:4px 10px;margin-left:5px;color:#c85050;border-color:#c85050">ログ削除</button>
     </div>
-    <div id="logArea" style="display:none">
-      <div class="log-viewer" id="logContent"></div>
-    </div>
+    <div id="logArea" style="display:none"><div class="log-viewer" id="logContent"></div></div>
     <div class="mft">
       <button class="bc" onclick="closeM('mS')">キャンセル</button>
       <button class="bok" onclick="savSet()">保存</button>
@@ -584,26 +523,32 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 'use strict';
 const A = window.api;
 
-// ── 軽量 Markdown パーサー ─────────────────────────────────
+// ── ① 現在時刻フォーマット ────────────────────────────────
+function nowTs() {
+  const d = new Date();
+  return d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function nowDateTs() {
+  const d = new Date();
+  return d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) + ' ' +
+         d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+// ── Markdown パーサー ──────────────────────────────────────
 function renderMd(src) {
   if (!src) return '';
   let s = src
     .replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>`<pre><code class="lang-${lang||''}">${esc(code.trim())}</code></pre>`)
     .replace(/`([^`]+)`/g, (_,c)=>`<code>${esc(c)}</code>`)
     .replace(/^(?:---|\*\*\*|___)\s*$/gm,'<hr>')
-    .replace(/^######\s+(.+)$/gm,'<h6>$1</h6>')
-    .replace(/^#####\s+(.+)$/gm,'<h5>$1</h5>')
-    .replace(/^####\s+(.+)$/gm,'<h4>$1</h4>')
-    .replace(/^###\s+(.+)$/gm,'<h3>$1</h3>')
-    .replace(/^##\s+(.+)$/gm,'<h2>$1</h2>')
-    .replace(/^#\s+(.+)$/gm,'<h1>$1</h1>')
+    .replace(/^######\s+(.+)$/gm,'<h6>$1</h6>').replace(/^#####\s+(.+)$/gm,'<h5>$1</h5>')
+    .replace(/^####\s+(.+)$/gm,'<h4>$1</h4>').replace(/^###\s+(.+)$/gm,'<h3>$1</h3>')
+    .replace(/^##\s+(.+)$/gm,'<h2>$1</h2>').replace(/^#\s+(.+)$/gm,'<h1>$1</h1>')
     .replace(/^>\s+(.+)$/gm,'<blockquote>$1</blockquote>')
     .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')
     .replace(/___(.+?)___/g,'<strong><em>$1</em></strong>')
-    .replace(/__(.+?)__/g,'<strong>$1</strong>')
-    .replace(/_(.+?)_/g,'<em>$1</em>')
+    .replace(/__(.+?)__/g,'<strong>$1</strong>').replace(/_(.+?)_/g,'<em>$1</em>')
     .replace(/~~(.+?)~~/g,'<del>$1</del>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)+)/g,(_,h,rows)=>{
@@ -611,7 +556,6 @@ function renderMd(src) {
       const trs=rows.trim().split('\n').map(r=>`<tr>${r.split('|').filter(c=>c.trim()).map(c=>`<td>${c.trim()}</td>`).join('')}</tr>`).join('');
       return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
     });
-
   s = s.replace(/((?:^[ \t]*[-*+]\s.+\n?)+)/gm, block=>{
     const items=block.trim().split('\n').map(l=>`<li>${l.replace(/^[ \t]*[-*+]\s/,'').trim()}</li>`).join('');
     return `<ul>${items}</ul>`;
@@ -620,13 +564,11 @@ function renderMd(src) {
     const items=block.trim().split('\n').map(l=>`<li>${l.replace(/^[ \t]*\d+\.\s/,'').trim()}</li>`).join('');
     return `<ol>${items}</ol>`;
   });
-
   s = s.split('\n').map(line=>{
     if (/^<(h[1-6]|ul|ol|li|pre|blockquote|hr|table|thead|tbody|tr|th|td)/.test(line)) return line;
     if (line.trim()==='') return '';
     return `<p>${line}</p>`;
   }).join('\n');
-
   return s;
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -634,22 +576,17 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 // ── 状態 ──────────────────────────────────────────────────
 let cur=null, curSid=null, busy=false;
 let curMode='chat';
-// 新規作成用
 let sT=null, sF=null, sL=[], dMd=null, ragFiles=[], dDat=null;
-// 添付
 let atts=[];
-// 完了確認
 let finSel=null;
-// IME
 let isComposing=false;
-// 進捗
 let taskN=0, taskTotal=0;
-// バッファ(チャンク用)
 let curEl=null, curBb=null, curFull='';
-// handsOff
 let handsOff=false;
-// 開発時間計測
+let deepSearch=false;  // ⑥ 調べるスライドスイッチ状態
 let devStartTime=null, devElapsedBase=0, devTimerInterval=null;
+// ② 停止フラグ: stopping中はボタンを無効化
+let stopping=false;
 
 // ── 全言語リスト ───────────────────────────────────────────
 const ALL_LANGS=[
@@ -664,13 +601,17 @@ const ALL_LANGS=[
   'WebAssembly','GLSL','Metal','OpenGL','Vulkan',
 ];
 
+// ── ⑥ 調べるスイッチ ────────────────────────────────────
+function toggleDeep(){
+  deepSearch=!deepSearch;
+  document.getElementById('deep-sw').classList.toggle('on',deepSearch);
+}
+
 // ── チャンク受信 ───────────────────────────────────────────
 A.onChunk(ev=>{
   if (ev.sessId && ev.sessId !== curSid) {
-    markProjBusy(ev.sessId, ev.type);
-    return;
+    markProjBusy(ev.sessId, ev.type); return;
   }
-
   switch(ev.type){
     case 'text':
       curFull += ev.data;
@@ -679,89 +620,32 @@ A.onChunk(ev=>{
       curBb.classList.add('md-rendered');
       dn(); break;
     case 'tool':
-      // ③ toolが来たとき、まだtextが何も出ていなければ「下準備中」通知
-      if (!curEl){
-        addSN('🔧 下準備をしています...','prep');
-        const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl);
-      }
+      if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
       addTool(curEl, ev.data); dn(); break;
-    case 'task_start':
-      addTaskCard(ev.data); dn(); break;
-    case 'task_done':
-      updateProgress(ev.data.n, ev.data.total); dn(); break;
+    case 'task_start': addTaskCard(ev.data); dn(); break;
+    case 'task_done':  updateProgress(ev.data.n, ev.data.total); dn(); break;
     case 'dev_complete':
-      addSN('𓋹 開発完了','ok'); updateProgress(taskTotal, taskTotal); dn();
+      addSN('𓋹 開発完了','ok'); updateProgress(taskTotal,taskTotal); dn();
       setTimeout(()=>openM('mFin'),800); break;
-    case 'progress':
-      addSN(ev.data,'ok'); break;
-    case 'system':
-      addSN(ev.data); break;
-    case 'paused':
-      addSN(ev.data,'warn'); break;
-    case 'resumed':
-      addSN(ev.data,'ok'); break;
+    case 'progress': addSN(ev.data,'ok'); break;
+    case 'system':   addSN(ev.data); break;
+    case 'paused':   addSN(ev.data,'warn'); break;
+    case 'resumed':  addSN(ev.data,'ok'); break;
     case 'timeout':
       addSN('タイムアウト — ↺ 再起動ボタンで再試行できます','warn');
       document.getElementById('res-btn').style.display='block';
       setBusy(false); break;
-    case 'user_input_required':
-      addAI(ev.data); setBusy(false); break;
+    case 'user_input_required': addAI(ev.data); setBusy(false); break;
   }
 });
-
-// ④ 別プロジェクトが処理中のことを警告バナーで明示
-let otherBusySessId = null; // 処理中の別PJのsessId
 
 function markProjBusy(sessId, evType){
   const projId = sessId.startsWith('P') ? sessId.slice(1) : null;
   if (!projId) return;
-
-  // サイドバーのopacity
   const el = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`);
-  const finishTypes = ['dev_complete','timeout','user_input_required'];
-  const isFinished = finishTypes.includes(evType);
-
-  if (el) el.style.opacity = isFinished ? '' : '0.6';
-
-  if (isFinished) {
-    otherBusySessId = null;
-    updateOtherBusyBanner(null);
-  } else {
-    otherBusySessId = sessId;
-    // プロジェクト名を取得して警告バナー表示
-    const nmEl = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`);
-    const projName = nmEl ? nmEl.textContent : projId;
-    updateOtherBusyBanner({ sessId, projId, projName });
-  }
-}
-
-function updateOtherBusyBanner(info){
-  const banner = document.getElementById('other-busy-banner');
-  if (!banner) return;
-  const stopBtn = document.getElementById('stop-btn');
-
-  if (!info) {
-    banner.style.display = 'none';
-    // 停止ボタンを通常に戻す
-    if (stopBtn && !busy) stopBtn.style.display = 'none';
-    return;
-  }
-
-  banner.style.display = 'block';
-  banner.innerHTML = `
-    ⚠️ AIは現在 <strong>「${esc(info.projName)}」</strong> プロジェクトで動いているため、現在AIを使うことができません。<br>
-    AIを使う場合は <strong>「${esc(info.projName)}」</strong> プロジェクトでのタスクを停止させてください。
-    <br><button class="stop-other-btn" onclick="stopOtherProject('${info.sessId}','${esc(info.projName)}')">「${esc(info.projName)}」を停止する</button>
-  `;
-  // 現在のPJの停止ボタンは別PJなので押させない
-  if (stopBtn) { stopBtn.style.display = 'none'; }
-}
-
-async function stopOtherProject(sessId, projName){
-  await A.stopChat(sessId);
-  otherBusySessId = null;
-  updateOtherBusyBanner(null);
-  addSN(`「${projName}」を停止しました。`, 'warn');
+  if (!el) return;
+  const finished = ['dev_complete','timeout','user_input_required'].includes(evType);
+  el.style.opacity = finished ? '' : '0.6';
 }
 
 // ── 起動 ──────────────────────────────────────────────────
@@ -769,51 +653,64 @@ document.addEventListener('DOMContentLoaded',()=>{
   pollSt(); setInterval(pollSt,15000);
   loadPL(); setupInp(); buildLangs();
 
-  // ⑥ 画像・ファイルは+ボタンで添付
-  document.getElementById('btn-img').addEventListener('click', async function(){
+  document.getElementById('btn-img').addEventListener('click', async ()=>{
     const r = await A.pickImageFile();
-    if (r && !r.error) { atts.push({type:'image', name:r.name, path:r.path}); renderAtts(); }
+    if (r && !r.error) { atts.push({type:'image',name:r.name,path:r.path}); renderAtts(); }
   });
-  document.getElementById('btn-file').addEventListener('click', async function(){
+  document.getElementById('btn-file').addEventListener('click', async ()=>{
     const r = await A.pickAnyFile();
-    if (r && !r.error) { atts.push({type:'file', name:r.name, content:r.content}); renderAtts(); }
+    if (r && !r.error) { atts.push({type:'file',name:r.name,content:r.content}); renderAtts(); }
   });
 
-  // ② スリープ復帰検知: lastTickから大幅にずれたらvisibilitychangeでも検知
+  // ⑤ スリープ判定: tickベース（visibilitychangeだけに頼らない）
   let lastTick = Date.now();
   setInterval(()=>{
-    const now = Date.now();
-    const gap = now - lastTick;
-    lastTick = now;
-    // 30秒以上のギャップ = スリープから復帰
-    if (gap > 30000) onWakeFromSleep();
+    const now = Date.now(), gap = now - lastTick; lastTick = now;
+    // 60秒以上のギャップ = 確実にスリープ復帰
+    if (gap > 60000) onWakeFromSleep('tick');
   }, 5000);
+  // visibilitychangeはウィンドウ最小化では発火しない → focusで補完
   document.addEventListener('visibilitychange', ()=>{
-    if (document.visibilityState === 'visible') onWakeFromSleep();
+    if (document.visibilityState === 'visible') {
+      // 最小化 → 復元はvisibilitychangeが来ないケースがある
+      // 少し待ってからtickチェックで判断するので何もしない
+    }
+  });
+  window.addEventListener('focus', ()=>{
+    // フォーカス復帰は普通の操作でも起こる → スリープ判定はtickに任せる
+    // ただし接続確認だけ行う
+    pollSt();
   });
 
   A.onWillQuit(async()=>{
     if (cur && curMode==='dev' && cur.workDir && busy){
-      await A.saveResume({sessId:curSid, workDir:cur.workDir, history:cur.messages||[], checkpoint:'アプリ終了による中断', state:'終了'});
+      await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint:'アプリ終了による中断',state:'終了'});
     }
-    if (cur) A.updateProject(cur.id, cur);
+    if (cur) A.updateProject(cur.id,cur);
   });
 });
 
-// ② スリープ復帰時の処理
-async function onWakeFromSleep(){
-  await pollSt(); // AI接続を再確認
-  if (!cur || !busy) return;
-  // devモードで処理中だった場合: 再開ファイルを保存してから再起動
-  if (curMode==='dev' && cur.workDir){
-    addSN('💤 スリープから復帰しました。処理を再開します...','ok');
-    await A.stopChat(curSid);
-    await new Promise(r=>setTimeout(r,800));
-    const checkpoint = curFull ? ('最後の出力: '+curFull.slice(-200)) : 'スリープ中断';
-    await A.saveResume({sessId:curSid, workDir:cur.workDir, history:cur.messages||[], checkpoint, state:'スリープ復帰'});
-    busy=false; setBusy(false);
-    setTimeout(()=>doRestart(), 500);
+// ⑤ スリープ復帰処理: 確実にAIを止めて再開ボタンを出す
+async function onWakeFromSleep(reason){
+  await pollSt();
+  if (!busy) return;
+  addSN('💤 スリープから復帰しました。処理を確実に停止します...','warn');
+  // AIを強制停止
+  if (curSid) await A.stopChat(curSid);
+  // 再開ファイルを保存
+  if (cur && cur.workDir){
+    const checkpoint = curFull ? ('スリープ復帰前の出力: '+curFull.slice(-200)) : 'スリープ中断';
+    await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'スリープ復帰'});
   }
+  busy=false; stopping=false;
+  // ③ 停止ボタンを確実に再開ボタンに変える
+  const btn=document.getElementById('stop-btn');
+  btn.classList.remove('stopping');
+  btn.classList.add('resume');
+  btn.textContent='▷ 再開';
+  btn.style.display='block';
+  document.getElementById('send-btn').disabled=false;
+  addSN('▶ 再開ボタンで続きから再開できます','ok');
 }
 
 // ── ステータス ─────────────────────────────────────────────
@@ -827,7 +724,6 @@ async function pollSt(){
   }catch(e){ document.getElementById('ml').textContent='接続エラー'; }
 }
 
-// ── ほったらかしモード ─────────────────────────────────────
 async function toggleHO(){
   handsOff=!handsOff;
   document.getElementById('ho-sw').classList.toggle('on',handsOff);
@@ -839,14 +735,13 @@ async function toggleHO(){
 function setupInp(){
   const el=document.getElementById('inp');
   el.addEventListener('compositionstart',()=>isComposing=true);
-  el.addEventListener('compositionend',()=>isComposing=false);
+  el.addEventListener('compositionend',  ()=>isComposing=false);
   el.addEventListener('input',()=>{ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; });
   el.addEventListener('keydown',e=>{
     if (e.key==='Enter'&&!e.shiftKey&&!isComposing&&!e.isComposing){ e.preventDefault(); doSend(); }
   });
 }
 
-// ── サイドバー ─────────────────────────────────────────────
 let sbOn=false;
 function toggleSB(){ sbOn=!sbOn; document.getElementById('sb').classList.toggle('closed',!sbOn); }
 function openSB()  { sbOn=true;  document.getElementById('sb').classList.remove('closed'); }
@@ -869,15 +764,13 @@ async function loadPL(){
 }
 
 async function openP(id){
-  if (cur&&cur.id!==id) { A.updateProject(cur.id,cur); }
-  const p=await A.getProject(id);
-  if(!p) return;
+  if (cur&&cur.id!==id) A.updateProject(cur.id,cur);
+  const p=await A.getProject(id); if(!p) return;
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
   document.getElementById('msgs').innerHTML='';
-  // ① プロジェクト切り替え時に進捗バー・taskカウンタをリセット
   taskN=0; taskTotal=0;
   document.getElementById('prog-bar').style.display='none';
   document.getElementById('prog-fill').style.width='0%';
@@ -885,36 +778,22 @@ async function openP(id){
   document.getElementById('prog-txt').textContent='準備中...';
   document.getElementById('prog-time').textContent='00:00';
   stopDevTimer();
-  // ④ 別PJ警告バナーをリセット（このPJに移動したら消す）
-  updateOtherBusyBanner(null);
-  // 履歴を表示
   renderHist(p.messages||[]);
   loadPL(); updateModeUI();
-  // devモードで再開ファイルがあれば再開バナーを表示
   if(p.workDir&&(curMode==='dev'||curMode==='debug')){
     const r=await A.loadResume(p.workDir);
-    if(r){ showResumeBanner(r); }
+    if(r) showResumeBanner(r);
   }
 }
 
 function showResumeBanner(r){
-  // 既存バナーがあれば削除
-  const existing=document.getElementById('resume-banner');
-  if(existing) existing.remove();
+  const ex=document.getElementById('resume-banner'); if(ex) ex.remove();
   const savedAt=new Date(r.savedAt);
-  const timeStr=savedAt.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const ts=savedAt.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const banner=document.createElement('div');
-  banner.className='resume-banner';
-  banner.id='resume-banner';
-  banner.innerHTML=`
-    <span class="resume-icon">▶</span>
-    <div class="resume-info">
-      <div class="resume-title">前回の続きから再開できます</div>
-      <div class="resume-sub">${timeStr} に中断 — ${esc(r.checkpoint||'処理中断')}</div>
-    </div>
-    <span class="resume-act">続きから開始</span>
-  `;
-  banner.addEventListener('click', ()=>doResumeFromFile(r));
+  banner.className='resume-banner'; banner.id='resume-banner';
+  banner.innerHTML=`<span class="resume-icon">▶</span><div class="resume-info"><div class="resume-title">前回の続きから再開できます</div><div class="resume-sub">${ts} に中断 — ${esc(r.checkpoint||'処理中断')}</div></div><span class="resume-act">続きから開始</span>`;
+  banner.addEventListener('click',()=>doResumeFromFile(r));
   msgs().appendChild(banner); dn();
 }
 
@@ -927,7 +806,6 @@ async function delP(e,id){
 }
 
 function renderHist(ms){
-  // userとassistantのみ表示（toolロールは表示しない）
   ms.forEach((m,i)=>{
     if(m.role==='user') addUserBubble(m.content,i);
     else if(m.role==='assistant') addAI(m.content);
@@ -995,22 +873,18 @@ function renderRagList(){
 function rmRag(i){ ragFiles.splice(i,1); renderRagList(); }
 
 async function subDes(){
-  const mdContent=dMd?dMd.content:'';
-  const extra=document.getElementById('dSp').value.trim();
+  const mdContent=dMd?dMd.content:'', extra=document.getElementById('dSp').value.trim();
   if(!mdContent&&!extra){ alert('設計図(.md)または補足を入力してください'); return; }
-  const spec=mdContent+(extra?'\n\n'+extra:'');
-  const langs=sL.join(', ')||'';
+  const spec=mdContent+(extra?'\n\n'+extra:''), langs=sL.join(', ')||'';
   let ragCtx='';
   if(ragFiles.length>0) ragCtx='\n\n【RAGライブラリ情報】\n'+ragFiles.map(r=>`--- ${r.path.split('/').pop()} ---\n${r.content}`).join('\n\n');
-  dDat={spec:spec+ragCtx, langs, ragFiles};
-  closeM('mD');
-  addSN('𓂀 設計を分析中...');
+  dDat={spec:spec+ragCtx,langs,ragFiles};
+  closeM('mD'); addSN('𓂀 設計を分析中...');
   const prompt=`【設計分析】\n設計図:\n${spec}${langs?'\n\n優先言語: '+langs:''}${ragCtx}\n\n以下の形式で日本語で回答:\n1. アプリ概要(2-3文)\n2. 主要機能一覧\n3. 開発タスクリスト(番号付き、具体的に)\n4. 技術スタック\n5. ファイル構造`;
   const sm=await chatInternal(prompt,'analysis');
   dDat.summary=sm;
   document.getElementById('dSu').textContent=sm||'（応答なし）';
-  document.getElementById('dRv').value='';
-  openM('mC');
+  document.getElementById('dRv').value=''; openM('mC');
 }
 async function revDes(){
   const rv=document.getElementById('dRv').value.trim(); if(!rv){alert('修正指示を入力してください');return;}
@@ -1021,21 +895,19 @@ async function startDev(){
   closeM('mC');
   taskN=0; taskTotal=0;
   document.getElementById('prog-bar').style.display='block';
-  updateProgress(0,0);
-  startDevTimer();
-  addSN('𓃭 開発を開始します。進捗はタスクカードで確認できます。','ok');
+  updateProgress(0,0); startDevTimer();
+  addSN('𓃭 開発を開始します。','ok');
   const prompt=`【開発開始】\n設計図:\n${dDat.spec}\n${dDat.langs?'優先言語: '+dDat.langs+'\n':''}作業フォルダ: ${cur?cur.workDir:'未設定'}\n\n今すぐ開発を開始してください。まず「=== タスクリスト ===」を表示してから1つずつ実行してください。`;
   busy=true; setBusy(true);
-  await chatInternalDev(prompt, dDat.langs);
+  await chatInternalDev(prompt,dDat.langs);
   stopDevTimer();
   if(cur) A.updateProject(cur.id,cur);
 }
 
-// ── 開発時間タイマー ───────────────────────────────────────
+// ── タイマー ───────────────────────────────────────────────
 function startDevTimer(){
   devStartTime=Date.now();
-  // cur存在チェックを正しく行う（元のコードは構文エラーだった）
-  devElapsedBase=(cur && cur._devElapsed) ? cur._devElapsed : 0;
+  devElapsedBase=(cur&&cur._devElapsed)?cur._devElapsed:0;
   if(devTimerInterval) clearInterval(devTimerInterval);
   devTimerInterval=setInterval(()=>{
     const total=devElapsedBase+Math.floor((Date.now()-devStartTime)/1000);
@@ -1044,27 +916,23 @@ function startDevTimer(){
 }
 function stopDevTimer(){
   if(devTimerInterval){ clearInterval(devTimerInterval); devTimerInterval=null; }
-  if(devStartTime&&cur){
-    const elapsed=Math.floor((Date.now()-devStartTime)/1000);
-    cur._devElapsed=(cur._devElapsed||0)+elapsed;
-    devStartTime=null;
-  }
+  if(devStartTime&&cur){ cur._devElapsed=(cur._devElapsed||0)+Math.floor((Date.now()-devStartTime)/1000); devStartTime=null; }
 }
 function fmtSec(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;
   if(h>0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
 
-// ── 進捗表示 ───────────────────────────────────────────────
+// ── 進捗 ───────────────────────────────────────────────────
 function addTaskCard(data){
   taskN=data.n; if(data.total) taskTotal=data.total;
   const d=document.createElement('div'); d.className='task-card';
-  d.innerHTML=`<span class="task-num">タスク ${data.n}${taskTotal?'/'+taskTotal:''}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中...</span>`;
+  d.innerHTML=`<span class="task-num">タスク ${data.n}${taskTotal?'/'+taskTotal:''}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span></span>`;
   msgs().appendChild(d); dn();
-  document.querySelectorAll('.task-card .task-stat').forEach(s=>s.textContent='');
-  d.querySelector('.task-stat').textContent='処理中...';
-  updateProgress(data.n-1, data.total||taskTotal);
+  document.querySelectorAll('.task-card .task-stat').forEach(s=>{ if(!s.textContent.includes('完了')) s.textContent=''; });
+  d.querySelector('.task-stat').innerHTML=`処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span>`;
+  updateProgress(data.n-1,data.total||taskTotal);
 }
-function updateProgress(n, total){
+function updateProgress(n,total){
   taskN=n; if(total) taskTotal=total;
   const pct=total>0?Math.round(n/total*100):0;
   document.getElementById('prog-fill').style.width=pct+'%';
@@ -1075,7 +943,7 @@ function updateProgress(n, total){
   });
 }
 
-// ── 完了アクション ─────────────────────────────────────────
+// ── 完了 ───────────────────────────────────────────────────
 function selFin(v){
   finSel=v;
   ['output','build','debug'].forEach(k=>document.getElementById('finOpt'+k[0].toUpperCase()+k.slice(1)).classList.toggle('s',k===v));
@@ -1084,7 +952,7 @@ function selFin(v){
 async function execFin(){
   if(!finSel) return; closeM('mFin');
   if(finSel==='output'){
-    await chatInternalDev('【出力指示】現在の実装を整理し、IMPLEMENTATION.md を作業フォルダに生成してください。内容: 実装済み機能・技術スタック・ファイル構造・今後の課題','dev');
+    await chatInternalDev('【出力指示】現在の実装を整理し、IMPLEMENTATION.md を作業フォルダに生成してください。','dev');
   } else if(finSel==='build'){
     await chatInternalDev('【ビルド前仕上げ】全ファイルを最終確認・修正し、ビルド設定を整え、IMPLEMENTATION.md を生成してください','dev');
   } else {
@@ -1103,12 +971,12 @@ function updateModeUI(){
   if(cur.type==='design'){
     bar.style.display='flex';
     const tabDebug=document.getElementById('tab-debug');
-    const tabChat=document.getElementById('tab-chat');
     tabDebug.style.display=cur.devDone?'':'none';
-    tabChat.classList.toggle('on', curMode!=='debug');
-    tabDebug.classList.toggle('on', curMode==='debug');
+    document.getElementById('tab-chat').classList.toggle('on',curMode!=='debug');
+    tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
-    chatOpts.style.display='flex';
+    // ⑦ アプリ設計中(dev)は画像/ファイル/調べるを非表示、debug/完成後のみ表示
+    chatOpts.style.display=cur.devDone?'flex':'none';
     document.getElementById('prog-bar').style.display=(curMode==='dev'&&taskTotal>0)?'block':'none';
   } else {
     bar.style.display='none'; dbg.style.display='none';
@@ -1118,7 +986,6 @@ function updateModeUI(){
 }
 function switchMode(m){
   curMode=m; updateModeUI();
-  // デバッグモード初期化はメッセージが0の時だけ
   if(m==='debug'&&msgs().children.length===0){
     addAI('𓃗 デバッグモードです。コードベースを調査します。');
     chatInternalDev('既存コードを調査して全体構造を把握し、問題点があれば指摘してください。','debug');
@@ -1130,141 +997,120 @@ async function doSend(){
   const el=document.getElementById('inp'), txt=el.value.trim();
   if(!txt) return;
   if(!cur){ openNew(); return; }
-
-  // 再開バナーが表示中 かつ 再開系キーワードが含まれている場合は優先的に再開処理
+  // 再開バナーが出ていて再開キーワードなら優先再開
   const resumeBanner=document.getElementById('resume-banner');
-  const isResumeKeyword=/再開|続き|continue|resume/i.test(txt);
-  if(resumeBanner && isResumeKeyword && !busy){
+  if(resumeBanner && /再開|続き|continue|resume/i.test(txt) && !busy){
     el.value=''; el.style.height='auto';
-    // resumeBannerのclickイベントに埋め込まれたデータを取得する代わりに
-    // 直接loadResumeして再開
-    if(cur.workDir){
-      const r=await A.loadResume(cur.workDir);
-      if(r){ resumeBanner.remove(); await doResumeFromFile(r); return; }
-    }
+    if(cur.workDir){ const r=await A.loadResume(cur.workDir); if(r){ resumeBanner.remove(); await doResumeFromFile(r); return; } }
   }
-
-  if(busy) return;  // 通常時はbusy中は送信不可
+  if(busy) return;
   el.value=''; el.style.height='auto';
-  const attachments=[...atts], deepSearch=document.getElementById('chk-deep')?.checked||false;
+  const attachs=[...atts], ds=deepSearch;
   atts=[]; renderAtts();
   if(!cur.messages) cur.messages=[];
   cur.messages.push({role:'user',content:txt});
   const msgIdx=cur.messages.length-1;
   addUserBubble(txt,msgIdx);
   busy=true; setBusy(true);
-  const sendMode = cur.type==='design' ? (curMode==='debug'?'debug':'dev') : curMode;
-  await chatInternal(txt, sendMode, attachments, deepSearch);
+  const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
+  await chatInternal(txt,sendMode,attachs,ds);
   if(cur) A.updateProject(cur.id,cur);
 }
 
-async function chatInternal(msg, mode, attachments, deepSearch){
+async function chatInternal(msg,mode,attachments,ds){
   const thk=addThk(); curEl=null; curBb=null; curFull='';
   try{
-    await A.startChat({sessId:curSid,message:msg,projectId:cur?cur.id:null,mode,attachments:attachments||[],deepSearch:!!deepSearch,langs:dDat?.langs||''});
+    await A.startChat({sessId:curSid,message:msg,projectId:cur?cur.id:null,mode,attachments:attachments||[],deepSearch:!!ds,langs:dDat?.langs||''});
     if(thk.parentNode) thk.remove();
     if(cur&&curFull&&mode!=='analysis'){
       if(!cur.messages) cur.messages=[];
       cur.messages.push({role:'assistant',content:curFull});
     }
   }catch(e){ if(thk.parentNode)thk.remove(); addAI('× エラー: '+e.message); }
-  finally{ busy=false; setBusy(false); document.getElementById('inp').focus(); }
+  finally{ busy=false; stopping=false; setBusy(false); document.getElementById('inp').focus(); }
   return curFull;
 }
+async function chatInternalDev(msg,mode){ return chatInternal(msg,mode||'dev',[],false); }
 
-async function chatInternalDev(msg, mode){
-  return chatInternal(msg, mode||'dev', [], false);
-}
-
-// ── 停止/再開ボタン ────────────────────────────────────────
-async function doStopOrResume(){
-  const btn = document.getElementById('stop-btn');
+// ── ② 停止ボタン ─────────────────────────────────────────
+// 再開ボタンは別関数に分離してUIの整合性を確保
+async function doStop(){
+  const btn=document.getElementById('stop-btn');
   if(btn.classList.contains('resume')){
-    // 再開ボタン押下: 再開ファイルがあれば直接再開、なければ入力ガイド
-    btn.classList.remove('resume');
-    btn.textContent='■';
-    btn.style.display='none';
+    // 再開ボタン: 再開ファイルがあれば直接再開
+    btn.classList.remove('resume'); btn.textContent='■'; btn.style.display='none';
     document.getElementById('send-btn').disabled=false;
-    if(cur && cur.workDir){
+    if(cur&&cur.workDir){
       const r=await A.loadResume(cur.workDir);
-      if(r){
-        // 再開バナーを除去してそのままファイルから再開
-        const banner=document.getElementById('resume-banner');
-        if(banner) banner.remove();
-        await doResumeFromFile(r);
-        return;
-      }
+      if(r){ const b=document.getElementById('resume-banner'); if(b) b.remove(); await doResumeFromFile(r); return; }
     }
-    addSN('𓂀 再開ファイルを保存済みです。メッセージを入力して続きから再開できます。','ok');
-  } else {
-    // 停止: AIを止めて再開ファイル保存 → ボタンを再開ボタンに変化
-    await A.stopChat(curSid);
-    if(cur && cur.workDir){
-      const checkpoint = curFull ? ('最後の出力: '+curFull.slice(-200)) : '処理中断';
-      await A.saveResume({sessId:curSid, workDir:cur.workDir, history:cur.messages||[], checkpoint, state:'停止'});
-      addSN('𓅯 停止しました。再開ファイルを保存しました。','warn');
-    } else {
-      addSN('■ 停止しました。','warn');
-    }
-    busy=false;
-    document.getElementById('send-btn').disabled=false;
-    btn.classList.add('resume');
-    btn.textContent='▷ 再開';
+    addSN('𓂀 メッセージを入力して続きから再開できます。','ok');
+    return;
   }
+  if(stopping) return; // ② 二重押し防止
+  stopping=true;
+  btn.classList.add('stopping'); btn.textContent='停止中...';
+
+  // ② 再開ファイルを先に保存
+  if(cur&&cur.workDir){
+    const checkpoint=curFull?('最後の出力: '+curFull.slice(-200)):'処理中断';
+    await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'停止'});
+  }
+
+  // ② AIに「まとめて終了」を指示してから止める（問題があれば即停止）
+  if(busy&&curSid){
+    // まず正常終了を試みる: main側のstartChatが返ってくるまで少し待つ
+    await A.stopChat(curSid);
+  }
+
+  // ③ busyフラグとUIを確実にリセット
+  busy=false; stopping=false;
+  btn.classList.remove('stopping');
+  btn.classList.add('resume'); btn.textContent='▷ 再開';
+  document.getElementById('send-btn').disabled=false;
+  addSN('𓅯 停止しました。再開ファイルを保存しました。','warn');
 }
 
 // ── 再起動 ────────────────────────────────────────────────
 async function doRestart(){
   document.getElementById('res-btn').style.display='none';
-  addSN('↺ 再起動します...','ok');
-  await pollSt();
-  if(!cur) return;
-  const history = cur.messages||[];
-  // 末尾のassistantメッセージ（途中で切れたもの）を取り除く
-  const cleanHistory = history[history.length-1]?.role==='assistant'
-    ? history.slice(0,-1) : [...history];
-  const lastUser = [...cleanHistory].reverse().find(m=>m.role==='user');
+  addSN('↺ 再起動します...','ok'); await pollSt(); if(!cur) return;
+  const history=cur.messages||[];
+  const cleanHistory=history[history.length-1]?.role==='assistant'?history.slice(0,-1):[...history];
+  const lastUser=[...cleanHistory].reverse().find(m=>m.role==='user');
   if(!lastUser) return;
-  // セッション側のhistoryを最新状態に設定（文脈引き継ぎ）
-  await A.setHistory({sessId:curSid, history:cleanHistory});
-  cur.messages = cleanHistory;
+  await A.setHistory({sessId:curSid,history:cleanHistory});
+  cur.messages=cleanHistory;
   busy=true; setBusy(true);
-  const sendMode = cur.type==='design' ? (curMode==='debug'?'debug':'dev') : curMode;
+  const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
   if(sendMode==='dev') startDevTimer();
-  await chatInternal(lastUser.content, sendMode);
+  await chatInternal(lastUser.content,sendMode);
   if(sendMode==='dev') stopDevTimer();
   if(cur) A.updateProject(cur.id,cur);
 }
 
-// ── 再開ファイルからの続き再開 ────────────────────────────
+// ── 再開ファイルから続き ───────────────────────────────────
 async function doResumeFromFile(r){
-  const banner=document.getElementById('resume-banner');
-  if(banner) banner.remove();
+  const banner=document.getElementById('resume-banner'); if(banner) banner.remove();
   addSN('▶ 前回の続きから再開します...','ok');
   const resumeMsg=`【再開指示】前回の作業を以下のチェックポイントから再開してください:\n${r.checkpoint}\n\n作業フォルダ: ${cur.workDir}\n\n前回の中断箇所から続きを実行してください。`;
-  busy=true; setBusy(true);
-  startDevTimer();
+  busy=true; setBusy(true); startDevTimer();
   await chatInternalDev(resumeMsg,'dev');
   stopDevTimer();
-  // 完了後に再開ファイルを削除
   if(cur.workDir) await A.deleteResume(cur.workDir);
   if(cur) A.updateProject(cur.id,cur);
 }
 
 // ── 添付 ──────────────────────────────────────────────────
-// チェックボックスのchangeイベントはDOMContentLoadedで設定済み
 function renderAtts(){
-  const el=document.getElementById('att-list');
-  el.innerHTML='';
-  atts.forEach((a,i)=>{
-    const d=document.createElement('div'); d.className='att-item';
+  const el=document.getElementById('att-list'); el.innerHTML='';
+  atts.forEach((a,i)=>{ const d=document.createElement('div'); d.className='att-item';
     d.innerHTML=(a.type==='image'?'[img] ':'[file] ')+esc(a.name)+`<button class="att-rm" onclick="rmAtt(${i})">×</button>`;
-    el.appendChild(d);
-  });
+    el.appendChild(d); });
 }
 function rmAtt(i){ atts.splice(i,1); renderAtts(); }
 
-// ── メッセージ編集 ─────────────────────────────────────────
+// ── ⑧ メッセージ編集 ─────────────────────────────────────
 function startEdit(idx){
   const msg=cur&&cur.messages&&cur.messages[idx]; if(!msg||msg.role!=='user') return;
   const bubble=document.querySelector(`.msg[data-idx="${idx}"] .mb`); if(!bubble) return;
@@ -1273,44 +1119,50 @@ function startEdit(idx){
   const ta=document.createElement('textarea'); ta.className='edit-area'; ta.value=orig;
   const foot=document.createElement('div'); foot.className='edit-foot';
   const btnC=document.createElement('button'); btnC.textContent='キャンセル';
-  const btnO=document.createElement('button'); btnO.textContent='送信'; btnO.style.color='var(--ok)';
+  const btnO=document.createElement('button'); btnO.textContent='送信して再実行'; btnO.style.color='var(--ok)';
   btnC.addEventListener('click',()=>{
-    bubble.innerHTML=''; bubble.textContent=orig;
+    bubble.textContent=orig;
+    // 編集ボタン行を再追加
+    const er=document.createElement('div'); er.className='edit-btn-row';
     const eb=document.createElement('button'); eb.className='edit-btn'; eb.textContent='編集';
-    eb.addEventListener('click',()=>startEdit(idx)); bubble.appendChild(eb);
+    eb.addEventListener('click',()=>startEdit(idx)); er.appendChild(eb);
+    const msgEl=document.querySelector(`.msg[data-idx="${idx}"]`);
+    if(msgEl){ const old=msgEl.querySelector('.edit-btn-row'); if(old) old.remove(); msgEl.appendChild(er); }
   });
   btnO.addEventListener('click',()=>commitEdit(idx,ta));
   foot.appendChild(btnC); foot.appendChild(btnO);
   bubble.appendChild(ta); bubble.appendChild(foot);
 }
+
 async function commitEdit(idx,ta){
   if(!ta) ta=document.querySelector(`.msg[data-idx="${idx}"] .edit-area`);
   if(!ta) return;
   const newText=ta.value.trim(); if(!newText) return;
   await A.editMessage({sessId:curSid,msgIndex:idx,newContent:newText});
   if(cur&&cur.messages){ cur.messages=cur.messages.slice(0,idx+1); cur.messages[idx].content=newText; }
+
+  // ⑧ 編集以降のDOM要素を全て削除
   const msgEl=document.getElementById('msgs');
-  const all=Array.from(msgEl.children); let found=false;
-  for(const el of all){ if(el.dataset&&parseInt(el.dataset.idx)===idx){found=true;} if(found&&parseInt(el.dataset.idx)!==idx)el.remove(); }
-  // 編集後のバブルを作り直す
-  const existingBubble=document.querySelector(`.msg[data-idx="${idx}"] .mb`);
-  if(existingBubble){
-    existingBubble.innerHTML='';
-    existingBubble.textContent=newText;
+  const allNodes=Array.from(msgEl.children);
+  let removeMode=false;
+  for(const el of allNodes){
+    if(el.dataset&&parseInt(el.dataset.idx)===idx){ removeMode=true; continue; }
+    if(removeMode) el.remove();
+  }
+  // 編集バブルを更新
+  const existBubble=document.querySelector(`.msg[data-idx="${idx}"] .mb`);
+  if(existBubble){
+    existBubble.textContent=newText;
+    const er=document.createElement('div'); er.className='edit-btn-row';
     const eb=document.createElement('button'); eb.className='edit-btn'; eb.textContent='編集';
-    eb.addEventListener('click',()=>startEdit(idx)); existingBubble.appendChild(eb);
+    eb.addEventListener('click',()=>startEdit(idx)); er.appendChild(eb);
+    const msgParent=document.querySelector(`.msg[data-idx="${idx}"]`);
+    if(msgParent){ const old=msgParent.querySelector('.edit-btn-row'); if(old) old.remove(); msgParent.appendChild(er); }
   }
-  // 編集後のメッセージ以降を削除してAI再送信
-  const allMsgs=Array.from(msgEl.children);
-  let afterEdit=false;
-  for(const el of allMsgs){
-    if(el.dataset&&parseInt(el.dataset.idx)===idx){ afterEdit=true; continue; }
-    if(afterEdit) el.remove();
-  }
+  // ⑧ 編集後のメッセージから以降を再実行
   busy=true; setBusy(true);
-  // 編集後は正しいsendModeで再送信（問題②: commitEditもsendMode計算が必要）
-  const sendMode = cur && cur.type==='design' ? (curMode==='debug'?'debug':'dev') : curMode;
-  await chatInternal(newText, sendMode);
+  const sendMode=cur&&cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
+  await chatInternal(newText,sendMode);
   if(cur) A.updateProject(cur.id,cur);
 }
 
@@ -1318,58 +1170,73 @@ async function commitEdit(idx,ta){
 function msgs(){ return document.getElementById('msgs'); }
 function dn()  { const el=msgs(); el.scrollTop=el.scrollHeight; }
 
+// ① ユーザーバブル — ヘッダーに時刻、編集ボタンはバブル下
 function addUserBubble(t,idx){
   const d=document.createElement('div'); d.className='msg user';
   if(idx!==undefined) d.dataset.idx=idx;
-  d.innerHTML='<div class="ml2">𓀀</div>';
+  // ① ヘッダー行（ラベル＋時刻）
+  const hd=document.createElement('div'); hd.className='msg-hd';
+  hd.innerHTML=`<span class="ml2">𓀀</span><span class="msg-ts">${nowDateTs()}</span>`;
+  d.appendChild(hd);
   const b=document.createElement('div'); b.className='mb'; b.textContent=t;
+  d.appendChild(b);
+  // ⑧ 編集ボタンをバブル下に
   if(idx!==undefined){
+    const er=document.createElement('div'); er.className='edit-btn-row';
     const eb=document.createElement('button'); eb.className='edit-btn'; eb.textContent='編集';
-    eb.addEventListener('click',()=>startEdit(idx)); b.appendChild(eb);
+    eb.addEventListener('click',()=>startEdit(idx)); er.appendChild(eb);
+    d.appendChild(er);
   }
-  d.appendChild(b); msgs().appendChild(d); dn(); return d;
+  msgs().appendChild(d); dn(); return d;
 }
 
+// ① AIバブル — ヘッダーに時刻
 function addAI(t){
   const {el,bb}=mkAI();
-  bb.innerHTML=renderMd(t);
-  bb.classList.add('md-rendered');
+  bb.innerHTML=renderMd(t); bb.classList.add('md-rendered');
   msgs().appendChild(el); dn(); return el;
 }
 
 function mkAI(){
   const el=document.createElement('div'); el.className='msg ai';
-  el.innerHTML='<div class="ml2">𓂀</div>';
-  const bb=document.createElement('div'); bb.className='mb'; el.appendChild(bb); return {el,bb};
+  // ① ヘッダー行
+  const hd=document.createElement('div'); hd.className='msg-hd';
+  hd.innerHTML=`<span class="ml2">𓂀</span><span class="msg-ts">${nowDateTs()}</span>`;
+  el.appendChild(hd);
+  const bb=document.createElement('div'); bb.className='mb'; el.appendChild(bb);
+  return {el,bb};
 }
 
+// ① ツール表示 — 日時はすでに実装済み、統一形式に
 function addTool(par,td){
   const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
   const box=document.createElement('div'); box.className='tb';
   const args=td.args||{};
-  const argStr=['command','path','url','query','reason'].filter(k=>args[k]).map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
-  // 日時を表示（問題⑥: ツール呼び出しに日時を付与）
-  const now=new Date();
-  const timeStr=now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const dateStr=now.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'});
-  box.innerHTML=`<div class="th2"><span>${icons[td.name]||'·'}</span><span class="tn2">${esc(td.name)}</span><span class="tt2">${dateStr} ${timeStr}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
+  const argStr=['command','path','url','query','reason'].filter(k=>args[k])
+    .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
+  box.innerHTML=`<div class="th2"><span>${icons[td.name]||'·'}</span><span class="tn2">${esc(td.name)}</span><span class="tt2">${nowDateTs()}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
   par.appendChild(box);
 }
 
 function addThk(){ const d=document.createElement('div'); d.className='thk'; d.innerHTML='<div class="ths"><span></span><span></span><span></span></div><span>処理中...</span>'; msgs().appendChild(d); dn(); return d; }
-function addSN(t,cls){ const d=document.createElement('div'); d.className='sn'+(cls?' '+cls:''); d.textContent=t; msgs().appendChild(d); dn(); }
 
-function showWl(){ document.getElementById('wl').style.display='flex'; const cw=document.getElementById('cw'); cw.style.display='none'; document.getElementById('pn').textContent=''; }
+// ① addSN — 時刻付き
+function addSN(t,cls){
+  const d=document.createElement('div'); d.className='sn'+(cls?' '+cls:'');
+  const txt=document.createElement('span'); txt.textContent=t;
+  const ts=document.createElement('span'); ts.className='sn-ts'; ts.textContent=nowTs();
+  d.appendChild(txt); d.appendChild(ts);
+  msgs().appendChild(d); dn();
+}
+
+function showWl(){ document.getElementById('wl').style.display='flex'; document.getElementById('cw').style.display='none'; document.getElementById('pn').textContent=''; }
 function showChat(){ document.getElementById('wl').style.display='none'; const cw=document.getElementById('cw'); Object.assign(cw.style,{display:'flex',flexDirection:'column',flex:'1',minHeight:'0',overflow:'hidden'}); }
+
 function setBusy(b){
   document.getElementById('send-btn').disabled=b;
   const sb=document.getElementById('stop-btn');
-  if(b){
-    // ④ 別PJが処理中なら停止ボタンは出さない（押せない）
-    if(!otherBusySessId){
-      sb.style.display='block'; sb.classList.remove('resume'); sb.textContent='■';
-    }
-  } else if(!sb.classList.contains('resume')){ sb.style.display='none'; }
+  if(b){ sb.style.display='block'; sb.classList.remove('resume','stopping'); sb.textContent='■'; }
+  else if(!sb.classList.contains('resume')){ sb.style.display='none'; }
   if(!b) stopDevTimer();
 }
 
@@ -1398,11 +1265,9 @@ async function savSet(){
   if(!port||port<1||port>65535){ alert('有効なポートを入力してください'); return; }
   if(to<100||to>1000){ alert('タイムアウトは100〜1000秒で入力してください'); return; }
   if(cur){ cur.systemPrompt=document.getElementById('sySys').value.trim(); await A.updateProject(cur.id,cur); }
-  // handsOffはグローバル変数から取得（pollStで同期済み）
-  await A.saveCfg({aiHost:host, aiPort:port, searxngUrl:searx, timeout:to,
+  await A.saveCfg({aiHost:host,aiPort:port,searxngUrl:searx,timeout:to,
     logEnabled:document.getElementById('sLog').checked,
-    logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,
-    handsOff});
+    logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,handsOff});
   await pollSt(); closeM('mS');
 }
 async function viewLogs(){
@@ -1413,7 +1278,6 @@ async function viewLogs(){
 }
 async function delLogs(){ if(!confirm('全ログを削除しますか？'))return; await A.deleteLogs(); document.getElementById('logArea').style.display='none'; }
 
-// ── モーダル ───────────────────────────────────────────────
 function openM(id){ document.getElementById(id).classList.remove('h'); }
 function closeM(id){ document.getElementById(id).classList.add('h'); }
 function fmt(ts){ if(!ts)return ''; const d=new Date(ts); return (d.getMonth()+1)+'/'+(d.getDate())+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
