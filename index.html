@@ -313,6 +313,40 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .fin-opt.s{border-color:var(--t2)}
 .fin-opt-t{font-size:13px;font-weight:700;margin-bottom:4px;color:var(--t1)}
 .fin-opt-d{font-size:11px;color:var(--t3);line-height:1.65}
+
+/* ⑤ ほったらかしラベル */
+.ho-lbl{font-size:11px;color:var(--t3);font-weight:600;white-space:nowrap}
+
+/* ⑥ 画像・ファイル添付ボタン */
+.att-add-btn{background:none;border:1px solid var(--b2);color:var(--t2);
+  padding:4px 11px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;
+  transition:border-color .15s,color .15s}
+.att-add-btn:hover{border-color:var(--ok);color:var(--ok)}
+.att-add-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ⑥ 調べるチェックボックス — 黒背景 */
+.co-chk-dark{background:var(--b1);border:1px solid var(--b2);border-radius:5px;
+  padding:4px 10px;display:flex;align-items:center;gap:6px;cursor:pointer;
+  font-size:12px;color:var(--t2);user-select:none;font-weight:600}
+.co-chk-dark input{accent-color:var(--ok);cursor:pointer;width:14px;height:14px}
+.co-chk-dark:hover{color:var(--t1);border-color:var(--b3)}
+
+/* ④ 別PJ処理中警告バナー */
+#other-busy-banner{
+  margin:10px 18px 0;padding:11px 16px;
+  background:#160a00;border:1px solid var(--warn);border-radius:7px;
+  font-size:13px;color:#d08830;line-height:1.7
+}
+#other-busy-banner strong{color:#f0a030}
+.stop-other-btn{
+  display:inline-block;margin-top:7px;
+  background:none;border:1px solid var(--warn);color:#d08830;
+  padding:4px 13px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700
+}
+.stop-other-btn:hover{background:var(--warn-bg);color:#f0a040}
+
+/* ③ 下準備中通知 */
+.sn.prep{background:#061510;color:#3ab87a;border:1px solid #134030;font-weight:700}
 </style>
 </head>
 <body>
@@ -334,9 +368,9 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <div class="hright">
       <div class="dot" id="dt"></div>
       <span id="ml">接続確認中...</span>
-      <!-- ほったらかしモード -->
-      <div class="ho-wrap" onclick="toggleHO()" title="ほったらかしモード">
-        <span class="ho-lbl">𓅭</span>
+      <!-- ほったらかしモード ⑤ラベル追加 -->
+      <div class="ho-wrap" onclick="toggleHO()" title="ほったらかしモード: ONにするとループ時に自動打開します">
+        <span class="ho-lbl">𓅭 ほったらかし</span>
         <div class="ho-sw" id="ho-sw"></div>
       </div>
       <button class="hb" onclick="openSet()">𓀂 設定</button>
@@ -381,12 +415,15 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         </div>
       </div>
       <div id="dbg-banner">𓃗 デバッグ・機能追加モード — バグ修正・テスト・機能拡張</div>
+      <!-- ④ 別PJで処理中のときの警告バナー -->
+      <div id="other-busy-banner" style="display:none"></div>
       <div id="msgs"></div>
       <div class="ia">
         <div class="chat-opts" id="chat-opts" style="display:none">
-          <label class="co-chk"><input type="checkbox" id="chk-img"> 画像</label>
-          <label class="co-chk"><input type="checkbox" id="chk-file"> ファイル</label>
-          <label class="co-chk"><input type="checkbox" id="chk-deep"> 𓅱 調べる</label>
+          <!-- ⑥ 画像・ファイルは+ボタン、調べるはチェックボックス黒 -->
+          <button class="att-add-btn" id="btn-img" title="画像を添付">＋ 画像</button>
+          <button class="att-add-btn" id="btn-file" title="ファイルを添付">＋ ファイル</button>
+          <label class="co-chk co-chk-dark"><input type="checkbox" id="chk-deep"> 𓅱 調べる</label>
         </div>
         <div class="att-list" id="att-list"></div>
         <div class="ir">
@@ -638,12 +675,15 @@ A.onChunk(ev=>{
     case 'text':
       curFull += ev.data;
       if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
-      // 常にMarkdown描画
       curBb.innerHTML = renderMd(curFull);
       curBb.classList.add('md-rendered');
       dn(); break;
     case 'tool':
-      if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
+      // ③ toolが来たとき、まだtextが何も出ていなければ「下準備中」通知
+      if (!curEl){
+        addSN('🔧 下準備をしています...','prep');
+        const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl);
+      }
       addTool(curEl, ev.data); dn(); break;
     case 'task_start':
       addTaskCard(ev.data); dn(); break;
@@ -669,16 +709,59 @@ A.onChunk(ev=>{
   }
 });
 
-// 別プロジェクトが処理中のことをサイドバーで示す
+// ④ 別プロジェクトが処理中のことを警告バナーで明示
+let otherBusySessId = null; // 処理中の別PJのsessId
+
 function markProjBusy(sessId, evType){
-  // sessIdは "P" + projectId の形式
   const projId = sessId.startsWith('P') ? sessId.slice(1) : null;
   if (!projId) return;
+
+  // サイドバーのopacity
   const el = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`);
-  if (!el) return;
   const finishTypes = ['dev_complete','timeout','user_input_required'];
-  if (finishTypes.includes(evType)) { el.style.opacity=''; }
-  else { el.style.opacity='0.6'; }
+  const isFinished = finishTypes.includes(evType);
+
+  if (el) el.style.opacity = isFinished ? '' : '0.6';
+
+  if (isFinished) {
+    otherBusySessId = null;
+    updateOtherBusyBanner(null);
+  } else {
+    otherBusySessId = sessId;
+    // プロジェクト名を取得して警告バナー表示
+    const nmEl = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`);
+    const projName = nmEl ? nmEl.textContent : projId;
+    updateOtherBusyBanner({ sessId, projId, projName });
+  }
+}
+
+function updateOtherBusyBanner(info){
+  const banner = document.getElementById('other-busy-banner');
+  if (!banner) return;
+  const stopBtn = document.getElementById('stop-btn');
+
+  if (!info) {
+    banner.style.display = 'none';
+    // 停止ボタンを通常に戻す
+    if (stopBtn && !busy) stopBtn.style.display = 'none';
+    return;
+  }
+
+  banner.style.display = 'block';
+  banner.innerHTML = `
+    ⚠️ AIは現在 <strong>「${esc(info.projName)}」</strong> プロジェクトで動いているため、現在AIを使うことができません。<br>
+    AIを使う場合は <strong>「${esc(info.projName)}」</strong> プロジェクトでのタスクを停止させてください。
+    <br><button class="stop-other-btn" onclick="stopOtherProject('${info.sessId}','${esc(info.projName)}')">「${esc(info.projName)}」を停止する</button>
+  `;
+  // 現在のPJの停止ボタンは別PJなので押させない
+  if (stopBtn) { stopBtn.style.display = 'none'; }
+}
+
+async function stopOtherProject(sessId, projName){
+  await A.stopChat(sessId);
+  otherBusySessId = null;
+  updateOtherBusyBanner(null);
+  addSN(`「${projName}」を停止しました。`, 'warn');
 }
 
 // ── 起動 ──────────────────────────────────────────────────
@@ -686,24 +769,27 @@ document.addEventListener('DOMContentLoaded',()=>{
   pollSt(); setInterval(pollSt,15000);
   loadPL(); setupInp(); buildLangs();
 
-  // チェックボックスのchangeイベントをDOMContentLoaded後に設定
-  document.getElementById('chk-img').addEventListener('change', async function(){
-    if (!this.checked) return;
-    this.checked = false; // 先にリセット（キャンセルしても戻る）
+  // ⑥ 画像・ファイルは+ボタンで添付
+  document.getElementById('btn-img').addEventListener('click', async function(){
     const r = await A.pickImageFile();
-    if (r && !r.error) {
-      atts.push({type:'image', name:r.name, path:r.path});
-      renderAtts();
-    }
+    if (r && !r.error) { atts.push({type:'image', name:r.name, path:r.path}); renderAtts(); }
   });
-  document.getElementById('chk-file').addEventListener('change', async function(){
-    if (!this.checked) return;
-    this.checked = false;
+  document.getElementById('btn-file').addEventListener('click', async function(){
     const r = await A.pickAnyFile();
-    if (r && !r.error) {
-      atts.push({type:'file', name:r.name, content:r.content});
-      renderAtts();
-    }
+    if (r && !r.error) { atts.push({type:'file', name:r.name, content:r.content}); renderAtts(); }
+  });
+
+  // ② スリープ復帰検知: lastTickから大幅にずれたらvisibilitychangeでも検知
+  let lastTick = Date.now();
+  setInterval(()=>{
+    const now = Date.now();
+    const gap = now - lastTick;
+    lastTick = now;
+    // 30秒以上のギャップ = スリープから復帰
+    if (gap > 30000) onWakeFromSleep();
+  }, 5000);
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.visibilityState === 'visible') onWakeFromSleep();
   });
 
   A.onWillQuit(async()=>{
@@ -713,6 +799,22 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (cur) A.updateProject(cur.id, cur);
   });
 });
+
+// ② スリープ復帰時の処理
+async function onWakeFromSleep(){
+  await pollSt(); // AI接続を再確認
+  if (!cur || !busy) return;
+  // devモードで処理中だった場合: 再開ファイルを保存してから再起動
+  if (curMode==='dev' && cur.workDir){
+    addSN('💤 スリープから復帰しました。処理を再開します...','ok');
+    await A.stopChat(curSid);
+    await new Promise(r=>setTimeout(r,800));
+    const checkpoint = curFull ? ('最後の出力: '+curFull.slice(-200)) : 'スリープ中断';
+    await A.saveResume({sessId:curSid, workDir:cur.workDir, history:cur.messages||[], checkpoint, state:'スリープ復帰'});
+    busy=false; setBusy(false);
+    setTimeout(()=>doRestart(), 500);
+  }
+}
 
 // ── ステータス ─────────────────────────────────────────────
 async function pollSt(){
@@ -775,10 +877,20 @@ async function openP(id){
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
   document.getElementById('msgs').innerHTML='';
-  // 履歴を表示（問題⑧: 既存履歴をちゃんと表示）
+  // ① プロジェクト切り替え時に進捗バー・taskカウンタをリセット
+  taskN=0; taskTotal=0;
+  document.getElementById('prog-bar').style.display='none';
+  document.getElementById('prog-fill').style.width='0%';
+  document.getElementById('prog-pct').textContent='0%';
+  document.getElementById('prog-txt').textContent='準備中...';
+  document.getElementById('prog-time').textContent='00:00';
+  stopDevTimer();
+  // ④ 別PJ警告バナーをリセット（このPJに移動したら消す）
+  updateOtherBusyBanner(null);
+  // 履歴を表示
   renderHist(p.messages||[]);
   loadPL(); updateModeUI();
-  // devモードで再開ファイルがあれば再開バナーを表示（問題⑦）
+  // devモードで再開ファイルがあれば再開バナーを表示
   if(p.workDir&&(curMode==='dev'||curMode==='debug')){
     const r=await A.loadResume(p.workDir);
     if(r){ showResumeBanner(r); }
@@ -1016,8 +1128,23 @@ function switchMode(m){
 // ── チャット送信 ───────────────────────────────────────────
 async function doSend(){
   const el=document.getElementById('inp'), txt=el.value.trim();
-  if(!txt||busy) return;
+  if(!txt) return;
   if(!cur){ openNew(); return; }
+
+  // 再開バナーが表示中 かつ 再開系キーワードが含まれている場合は優先的に再開処理
+  const resumeBanner=document.getElementById('resume-banner');
+  const isResumeKeyword=/再開|続き|continue|resume/i.test(txt);
+  if(resumeBanner && isResumeKeyword && !busy){
+    el.value=''; el.style.height='auto';
+    // resumeBannerのclickイベントに埋め込まれたデータを取得する代わりに
+    // 直接loadResumeして再開
+    if(cur.workDir){
+      const r=await A.loadResume(cur.workDir);
+      if(r){ resumeBanner.remove(); await doResumeFromFile(r); return; }
+    }
+  }
+
+  if(busy) return;  // 通常時はbusy中は送信不可
   el.value=''; el.style.height='auto';
   const attachments=[...atts], deepSearch=document.getElementById('chk-deep')?.checked||false;
   atts=[]; renderAtts();
@@ -1053,14 +1180,24 @@ async function chatInternalDev(msg, mode){
 async function doStopOrResume(){
   const btn = document.getElementById('stop-btn');
   if(btn.classList.contains('resume')){
-    // 再開モード: 送信できるようにリセット
+    // 再開ボタン押下: 再開ファイルがあれば直接再開、なければ入力ガイド
     btn.classList.remove('resume');
     btn.textContent='■';
     btn.style.display='none';
     document.getElementById('send-btn').disabled=false;
+    if(cur && cur.workDir){
+      const r=await A.loadResume(cur.workDir);
+      if(r){
+        // 再開バナーを除去してそのままファイルから再開
+        const banner=document.getElementById('resume-banner');
+        if(banner) banner.remove();
+        await doResumeFromFile(r);
+        return;
+      }
+    }
     addSN('𓂀 再開ファイルを保存済みです。メッセージを入力して続きから再開できます。','ok');
   } else {
-    // 停止モード: AIを止めて再開ファイル保存 → ボタンを再開ボタンに変化
+    // 停止: AIを止めて再開ファイル保存 → ボタンを再開ボタンに変化
     await A.stopChat(curSid);
     if(cur && cur.workDir){
       const checkpoint = curFull ? ('最後の出力: '+curFull.slice(-200)) : '処理中断';
@@ -1227,8 +1364,12 @@ function showChat(){ document.getElementById('wl').style.display='none'; const c
 function setBusy(b){
   document.getElementById('send-btn').disabled=b;
   const sb=document.getElementById('stop-btn');
-  if(b){ sb.style.display='block'; sb.classList.remove('resume'); sb.textContent='■'; }
-  else if(!sb.classList.contains('resume')){ sb.style.display='none'; }
+  if(b){
+    // ④ 別PJが処理中なら停止ボタンは出さない（押せない）
+    if(!otherBusySessId){
+      sb.style.display='block'; sb.classList.remove('resume'); sb.textContent='■';
+    }
+  } else if(!sb.classList.contains('resume')){ sb.style.display='none'; }
   if(!b) stopDevTimer();
 }
 

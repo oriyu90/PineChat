@@ -163,48 +163,74 @@ function resolvePath(p, workDir) {
   return p;
 }
 
-// fetch_url: リダイレクト無限ループを防ぐためdepth管理
-async function fetchUrl(urlStr, workDir, sessId, depth=0) {
-  if (depth > 5) return { error: 'リダイレクト上限超過' };
-  let u = (urlStr||'').trim();
-  if (!u.startsWith('http')) u = 'https://' + u;
-  let parsed;
-  try { parsed = new URL(u); } catch { return { error: '無効URL' }; }
-  const proto = parsed.protocol === 'https:' ? https : http;
+// fetch_url: タイムアウト・destroy後resolve漏れ・リダイレクト無限ループを全て対策
+function fetchUrlInner(urlStr, depth=0) {
   return new Promise(resolve => {
+    if (depth > 5) { resolve({ error: 'リダイレクト上限超過' }); return; }
+    let u = (urlStr||'').trim();
+    if (!u.startsWith('http')) u = 'https://' + u;
+    let parsed;
+    try { parsed = new URL(u); } catch { resolve({ error: '無効URL' }); return; }
+    const proto = parsed.protocol === 'https:' ? https : http;
+
+    let settled = false;
+    const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+
     const req = proto.request({
       hostname: parsed.hostname,
       port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
       path: parsed.pathname + parsed.search,
-      method: 'GET', timeout: 15000,
+      method: 'GET', timeout: 10000,
       headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html,*/*' }
     }, res => {
       if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
-        res.resume(); // bodyを消費してから
+        res.resume();
         const loc = res.headers.location;
         const nextUrl = loc.startsWith('http') ? loc : `${parsed.protocol}//${parsed.host}${loc}`;
-        resolve(fetchUrl(nextUrl, workDir, sessId, depth+1));
+        fetchUrlInner(nextUrl, depth+1).then(done);
         return;
       }
       let data = '';
       res.setEncoding('utf-8');
-      res.on('data', c => { data += c; if (data.length > 50000) res.destroy(); });
-      res.on('end', () => resolve({
+      res.on('data', c => {
+        data += c;
+        if (data.length > 50000) {
+          // destroy後にendが来ない場合があるので先にresolve
+          res.destroy();
+          done({
+            url: u,
+            content: stripHtml(data).slice(0, 10000) + '\n[切り捨て]'
+          });
+        }
+      });
+      res.on('end', () => done({
         url: u,
-        content: data
-          .replace(/<script[\s\S]*?<\/script>/gi, '')
-          .replace(/<style[\s\S]*?<\/style>/gi, '')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 10000)
+        content: stripHtml(data).slice(0, 10000)
       }));
-      res.on('error', e => resolve({ error: e.message }));
+      res.on('error', () => done({ url: u, content: stripHtml(data).slice(0, 10000) || '[読み込みエラー]' }));
+      res.on('close', () => done({ url: u, content: stripHtml(data).slice(0, 10000) || '[接続終了]' }));
     });
-    req.on('timeout', () => { req.destroy(); resolve({ error: 'timeout' }); });
-    req.on('error', e => resolve({ error: e.message }));
+    req.on('timeout', () => { req.destroy(); done({ error: `fetch timeout: ${u}` }); });
+    req.on('error',   e  => done({ error: e.message }));
     req.end();
   });
+}
+
+function stripHtml(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function fetchUrl(urlStr, workDir, sessId) {
+  // ハードタイムアウト20秒: fetchUrlInner自体がハングした場合の最終安全弁
+  return Promise.race([
+    fetchUrlInner(urlStr),
+    new Promise(r => setTimeout(() => r({ error: 'fetch hard timeout (20s)' }), 20000))
+  ]);
 }
 
 async function runTool(name, args, workDir, sessId) {
@@ -233,7 +259,7 @@ async function runTool(name, args, workDir, sessId) {
       }))};
     } catch(e) { return { error:e.message }; }
     case 'fetch_url':
-      return fetchUrl(args.url, workDir, sessId);
+      return fetchUrl(args.url, workDir, sessId);  // workDir/sessIdは内部では未使用だが互換性のため残す
     case 'web_search': {
       const r = await searxSearch(args.query,5);
       return r.length ? { results:r } : { error:'SearXNG未設定または結果なし' };
