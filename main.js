@@ -215,7 +215,70 @@ app.whenReady().then(async()=>{
   await agent.detectModel();
   createWindow();
   app.on('activate',()=>{ if(BrowserWindow.getAllWindows().length===0) createWindow(); else win?.show(); });
+  // ウォッチャー: 設定が有効なら自動開始
+  setTimeout(()=>{
+    const wcfg = agent.getWatcherCfg();
+    if (wcfg.enabled) agent.startWatcher(wcfg.intervalMin || 5);
+  }, 2500);
 });
 app.on('window-all-closed',()=>{});
 app.on('before-quit',()=>{ app.isQuitting=true; });
 process.on('uncaughtException',e=>{ console.error('[main]',e); agent.logWrite('main','ERROR',e.message); });
+
+// ═══════════════════════════════════════════════════════════════════
+// ── ウォッチャーエージェント IPCハンドラ ───────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+// ウォッチャーからのイベントをrendererへ転送
+agent.setWatcherCallback((ev) => {
+  if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
+    try { win.webContents.send('watcher-event', ev); } catch {}
+  }
+});
+
+// ウォッチャー設定の取得・保存
+ipcMain.handle('get-watcher-cfg',    () => agent.getWatcherCfg());
+ipcMain.handle('save-watcher-cfg',   async (_, data) => {
+  agent.saveWatcherCfg(data);
+  // enabledが変わった場合はwatcherを再起動/停止
+  if (data.enabled && !agent.isWatcherRunning()) {
+    agent.startWatcher(data.intervalMin || 5);
+  } else if (!data.enabled && agent.isWatcherRunning()) {
+    agent.stopWatcher();
+  }
+  return agent.getWatcherCfg();
+});
+
+// ウォッチャー手動トリガー(テスト用)
+ipcMain.handle('watcher-trigger', async () => {
+  // 即時1回実行
+  const wcfg = agent.getWatcherCfg();
+  if (!wcfg.enabled) return { ok:false, msg:'ウォッチャーが無効です' };
+  agent.startWatcher(wcfg.intervalMin); // 再起動して即実行
+  return { ok:true };
+});
+
+// ウォッチャー専用AIのモデル一覧取得
+ipcMain.handle('get-watcher-models', async (_, {host, port}) => {
+  const models = await agent.detectWatcherModels(host, port);
+  return models;
+});
+
+// ウォッチャーの手動ON/OFF
+ipcMain.handle('watcher-start', async () => {
+  const wcfg = agent.getWatcherCfg();
+  agent.startWatcher(wcfg.intervalMin || 5);
+  return { ok:true, running:true };
+});
+ipcMain.handle('watcher-stop', async () => {
+  agent.stopWatcher();
+  return { ok:true, running:false };
+});
+ipcMain.handle('watcher-status', () => ({
+  running: agent.isWatcherRunning(),
+  cfg: agent.getWatcherCfg()
+}));
+
+// アプリ起動時: ウォッチャーが有効なら自動開始
+// (createWindowの後にチェック)
+// ウォッチャー自動起動はcreateWindow後に行う(上のwhenReadyブロック内で実行済み)

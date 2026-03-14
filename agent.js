@@ -539,3 +539,237 @@ module.exports = {
   getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// ── ウォッチャーエージェント機能 ────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+// ── ウォッチャー設定デフォルト ─────────────────────────────────
+const WATCHER_DEFAULT = {
+  enabled: false,
+  intervalMin: 5,          // 取得間隔(分) 1〜60
+  apiType: 'searxng',      // 'searxng' | 'discord' | 'telegram'
+  searchQuery: '',          // SearXNG検索ワード
+  discordToken: '',         // Discord Bot Token
+  discordChannelId: '',     // 対象チャンネルID
+  telegramToken: '',        // Telegram Bot Token
+  telegramChatId: '',       // 対象チャットID
+  watcherAiHost: 'localhost', // ウォッチャー専用AIホスト
+  watcherAiPort: 1234,        // ウォッチャー専用AIポート
+  watcherModelId: '',         // ウォッチャー専用モデルID(空=メインAI使用)
+};
+
+// getCfg/updateCfgはwatcherフィールドも扱う（DEFAULT_CFGにマージ）
+// ウォッチャー設定の読み書き
+function getWatcherCfg() {
+  const c = loadCfg();
+  return Object.assign({}, WATCHER_DEFAULT, c.watcher || {});
+}
+function saveWatcherCfg(w) {
+  const c = loadCfg();
+  c.watcher = Object.assign({}, WATCHER_DEFAULT, w);
+  saveCfg(c);
+}
+
+// ── エージェント専用AI: モデル一覧取得 ─────────────────────────
+async function detectWatcherModels(host, port) {
+  const h = host || 'localhost';
+  const p = port || 1234;
+  try {
+    const d = await httpGet(h, p, '/v1/models', 5000);
+    return (d.data || []).map(m => ({ id: m.id, name: m.id }));
+  } catch {
+    return [];
+  }
+}
+
+// ── Discord: 最新メッセージ取得 ────────────────────────────────
+async function fetchDiscordMessages(token, channelId, lastMsgId) {
+  if (!token || !channelId) return { messages: [], lastId: lastMsgId };
+  return new Promise(resolve => {
+    let path = `/api/v10/channels/${channelId}/messages?limit=20`;
+    if (lastMsgId) path += `&after=${lastMsgId}`;
+    const req = https.request({
+      hostname: 'discord.com', port: 443, path, method: 'GET',
+      timeout: 10000,
+      headers: { 'Authorization': `Bot ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'PineChat/1.0' }
+    }, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try {
+          const msgs = JSON.parse(raw);
+          if (!Array.isArray(msgs)) { resolve({ messages: [], lastId: lastMsgId, error: msgs.message || '取得失敗' }); return; }
+          const sorted = msgs.sort((a, b) => a.id > b.id ? 1 : -1);
+          const newLastId = sorted.length > 0 ? sorted[sorted.length-1].id : lastMsgId;
+          resolve({ messages: sorted.map(m => ({ author: m.author?.username || '?', content: m.content || '', ts: m.timestamp })), lastId: newLastId });
+        } catch { resolve({ messages: [], lastId: lastMsgId }); }
+      });
+      res.on('error', () => resolve({ messages: [], lastId: lastMsgId }));
+    });
+    req.on('timeout', () => { req.destroy(); resolve({ messages: [], lastId: lastMsgId }); });
+    req.on('error', () => resolve({ messages: [], lastId: lastMsgId }));
+    req.end();
+  });
+}
+
+// ── Telegram: 最新メッセージ取得 ───────────────────────────────
+async function fetchTelegramMessages(token, chatId, lastUpdateId) {
+  if (!token) return { messages: [], lastUpdateId };
+  return new Promise(resolve => {
+    const offset = lastUpdateId ? lastUpdateId + 1 : 0;
+    const req = https.request({
+      hostname: 'api.telegram.org', port: 443,
+      path: `/bot${token}/getUpdates?timeout=0&offset=${offset}&limit=20`,
+      method: 'GET', timeout: 15000,
+      headers: { 'Content-Type': 'application/json' }
+    }, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(raw);
+          if (!j.ok) { resolve({ messages: [], lastUpdateId, error: j.description }); return; }
+          const updates = j.result || [];
+          const filtered = chatId
+            ? updates.filter(u => String(u.message?.chat?.id) === String(chatId) || String(u.channel_post?.chat?.id) === String(chatId))
+            : updates;
+          const newLastId = filtered.length > 0 ? filtered[filtered.length-1].update_id : lastUpdateId;
+          resolve({
+            messages: filtered.map(u => {
+              const m = u.message || u.channel_post;
+              return { author: m?.from?.username || m?.chat?.title || '?', content: m?.text || '', ts: new Date((m?.date||0)*1000).toISOString() };
+            }),
+            lastUpdateId: newLastId
+          });
+        } catch { resolve({ messages: [], lastUpdateId }); }
+      });
+      res.on('error', () => resolve({ messages: [], lastUpdateId }));
+    });
+    req.on('timeout', () => { req.destroy(); resolve({ messages: [], lastUpdateId }); });
+    req.on('error', () => resolve({ messages: [], lastUpdateId }));
+    req.end();
+  });
+}
+
+// ── ウォッチャー: AI要約 ────────────────────────────────────────
+async function summarizeWithAI(texts, wcfg) {
+  const host = wcfg.watcherAiHost || cfg.aiHost || 'localhost';
+  const port = wcfg.watcherAiPort || cfg.aiPort;
+  const model = wcfg.watcherModelId || MODEL_ID;
+  if (!model) { await detectModel(); }
+  const useModel = wcfg.watcherModelId || MODEL_ID;
+  if (!useModel || !texts.length) return null;
+
+  const content = texts.join('\n\n');
+  const prompt = `以下の内容を日本語でニュース形式に要約してください。重要なポイントを箇条書きで3〜5項目にまとめ、最後に1行でまとめを書いてください。\n\n${content.slice(0, 3000)}`;
+  try {
+    const d = await httpPost(host, port, '/v1/chat/completions', {
+      model: useModel,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4, max_tokens: 800, stream: false
+    }, 30000);
+    return d.choices?.[0]?.message?.content || null;
+  } catch { return null; }
+}
+
+// ── ウォッチャーループ ─────────────────────────────────────────
+let watcherTimer = null;
+let watcherState = { running: false, lastMsgId: null, lastUpdateId: null };
+let watcherCallback = null; // main.jsから設定: (event) => void
+
+function setWatcherCallback(cb) { watcherCallback = cb; }
+
+function watcherEmit(type, data) {
+  if (watcherCallback) watcherCallback({ type, data });
+}
+
+async function watcherTick() {
+  const wcfg = getWatcherCfg();
+  if (!wcfg.enabled) return;
+  logWrite('watcher', 'INFO', `tick: ${wcfg.apiType}`);
+
+  let texts = [];
+  let statusMsg = '';
+
+  if (wcfg.apiType === 'searxng') {
+    if (!wcfg.searchQuery) { watcherEmit('watcher_error', '検索ワードが未設定です'); return; }
+    watcherEmit('watcher_status', `𓅱 「${wcfg.searchQuery}」を検索中...`);
+    const results = await Promise.race([searxSearch(wcfg.searchQuery, 5), new Promise(r=>setTimeout(()=>r([]),15000))]);
+    if (!results.length) { watcherEmit('watcher_status', '検索結果なし'); return; }
+    texts = results.map(r => `【${r.title}】\n${r.snippet}\n${r.url}`);
+    statusMsg = `𓅱 ${results.length}件取得`;
+
+  } else if (wcfg.apiType === 'discord') {
+    if (!wcfg.discordToken || !wcfg.discordChannelId) { watcherEmit('watcher_error', 'Discord設定が不完全です'); return; }
+    watcherEmit('watcher_status', 'Discord メッセージ取得中...');
+    const res = await fetchDiscordMessages(wcfg.discordToken, wcfg.discordChannelId, watcherState.lastMsgId);
+    if (res.error) { watcherEmit('watcher_error', `Discord: ${res.error}`); return; }
+    watcherState.lastMsgId = res.lastId;
+    if (!res.messages.length) { watcherEmit('watcher_status', 'Discord: 新しいメッセージなし'); return; }
+    texts = res.messages.map(m => `[${m.author}] ${m.content}`);
+    statusMsg = `Discord: ${res.messages.length}件のメッセージ`;
+
+  } else if (wcfg.apiType === 'telegram') {
+    if (!wcfg.telegramToken) { watcherEmit('watcher_error', 'Telegramトークンが未設定です'); return; }
+    watcherEmit('watcher_status', 'Telegram メッセージ取得中...');
+    const res = await fetchTelegramMessages(wcfg.telegramToken, wcfg.telegramChatId, watcherState.lastUpdateId);
+    if (res.error) { watcherEmit('watcher_error', `Telegram: ${res.error}`); return; }
+    watcherState.lastUpdateId = res.lastUpdateId;
+    if (!res.messages.length) { watcherEmit('watcher_status', 'Telegram: 新しいメッセージなし'); return; }
+    texts = res.messages.map(m => `[${m.author}] ${m.content}`);
+    statusMsg = `Telegram: ${res.messages.length}件のメッセージ`;
+  }
+
+  if (!texts.length) return;
+  watcherEmit('watcher_status', statusMsg + ' — AI要約中...');
+  const summary = await summarizeWithAI(texts, wcfg);
+  if (summary) {
+    watcherEmit('watcher_feed', {
+      summary,
+      source: wcfg.apiType,
+      query: wcfg.apiType === 'searxng' ? wcfg.searchQuery : '',
+      count: texts.length,
+      ts: new Date().toISOString()
+    });
+  } else {
+    // 要約失敗時は生テキストをそのまま送る
+    watcherEmit('watcher_feed', {
+      summary: texts.slice(0, 3).join('\n\n'),
+      source: wcfg.apiType,
+      query: wcfg.apiType === 'searxng' ? wcfg.searchQuery : '',
+      count: texts.length,
+      raw: true,
+      ts: new Date().toISOString()
+    });
+  }
+}
+
+function startWatcher(intervalMin) {
+  stopWatcher();
+  watcherState.running = true;
+  const ms = Math.max(1, Math.min(60, intervalMin||5)) * 60 * 1000;
+  logWrite('watcher', 'INFO', `開始 interval=${intervalMin}min`);
+  // 即時1回実行してからタイマー
+  watcherTick().catch(e => logWrite('watcher', 'ERROR', e.message));
+  watcherTimer = setInterval(() => {
+    watcherTick().catch(e => logWrite('watcher', 'ERROR', e.message));
+  }, ms);
+}
+
+function stopWatcher() {
+  if (watcherTimer) { clearInterval(watcherTimer); watcherTimer = null; }
+  watcherState.running = false;
+  logWrite('watcher', 'INFO', '停止');
+}
+
+function isWatcherRunning() { return watcherState.running; }
+
+// module.exportsに追加
+module.exports = Object.assign(module.exports, {
+  getWatcherCfg, saveWatcherCfg,
+  detectWatcherModels,
+  startWatcher, stopWatcher, isWatcherRunning,
+  setWatcherCallback,
+  fetchDiscordMessages, fetchTelegramMessages,
+});
