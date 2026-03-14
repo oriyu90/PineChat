@@ -30,16 +30,16 @@ contextBridge.exposeInMainWorld('api', {
   // ログ
   getLogs:           days    => ipcRenderer.invoke('get-logs', days),
   deleteLogs:        ()      => ipcRenderer.invoke('delete-logs'),
-  // ウォッチャーエージェント
+  // ウォッチャーエージェント v2
   getWatcherCfg:     ()      => ipcRenderer.invoke('get-watcher-cfg'),
   saveWatcherCfg:    d       => ipcRenderer.invoke('save-watcher-cfg', d),
-  watcherTrigger:    ()      => ipcRenderer.invoke('watcher-trigger'),
   watcherStart:      ()      => ipcRenderer.invoke('watcher-start'),
   watcherStop:       ()      => ipcRenderer.invoke('watcher-stop'),
+  watcherRunNow:     ()      => ipcRenderer.invoke('watcher-run-now'),
   watcherStatus:     ()      => ipcRenderer.invoke('watcher-status'),
   getWatcherModels:  (h,p)   => ipcRenderer.invoke('get-watcher-models', {host:h, port:p}),
-  // イベント受信
-  onChunk:           cb      => ipcRenderer.on('chat-chunk', (_, d) => cb(d)),
+  // イベント
+  onChunk:           cb      => ipcRenderer.on('chat-chunk',    (_, d) => cb(d)),
   offChunk:          ()      => ipcRenderer.removeAllListeners('chat-chunk'),
   onWatcherEvent:    cb      => ipcRenderer.on('watcher-event', (_, d) => cb(d)),
   offWatcherEvent:   ()      => ipcRenderer.removeAllListeners('watcher-event'),

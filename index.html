@@ -263,66 +263,105 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .fin-opt-t{font-size:13px;font-weight:700;margin-bottom:4px;color:var(--t1)}
 .fin-opt-d{font-size:11px;color:var(--t3);line-height:1.65}
 
-/* ── ウォッチャーエージェントパネル ── */
-#watcher-panel{background:var(--c1);border-bottom:1px solid var(--b1);flex-shrink:0;overflow:hidden}
-.wp-hd{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none}
-.wp-hd:hover{background:var(--c2)}
-.wp-icon{font-size:13px;opacity:.7}
-.wp-title{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--t3);text-transform:uppercase;flex:1}
-.wp-sw{width:32px;height:17px;background:var(--b2);border-radius:9px;position:relative;transition:background .2s;flex-shrink:0}
-.wp-sw.on{background:var(--ok)}
-.wp-sw::after{content:'';width:11px;height:11px;background:#fff;border-radius:50%;
+
+/* ═══ ウォッチャーエージェント v2 ═══ */
+/* サイドバー エージェントボタン */
+#sb-agent-btn{display:flex;align-items:center;gap:8px;padding:9px 14px;
+  cursor:pointer;border-left:2px solid transparent;background:none;width:100%;text-align:left}
+#sb-agent-btn:hover{background:var(--c2)}
+#sb-agent-btn.on{background:var(--c2);border-left-color:var(--ok)}
+.sb-agent-icon{font-size:14px;flex-shrink:0;opacity:.7}
+.sb-agent-info{flex:1;min-width:0}
+.sb-agent-nm{font-size:13px;font-weight:600;color:var(--t1)}
+.sb-agent-st{font-size:11px;color:var(--t3);margin-top:2px}
+.sb-agent-dot{width:6px;height:6px;border-radius:50%;background:var(--b2);flex-shrink:0}
+.sb-agent-dot.on{background:var(--ok)}
+
+/* エージェントビュー */
+#agent-view{flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden}
+#agent-view.visible{display:flex}
+/* コントロールバー */
+.agent-ctrl{display:flex;align-items:center;gap:8px;padding:10px 18px;
+  border-bottom:1px solid var(--b1);background:var(--c1);flex-shrink:0;flex-wrap:wrap}
+.agent-ctrl-title{font-size:13px;font-weight:700;color:var(--t2);flex:1}
+.acbtn{background:none;border:1px solid var(--b2);color:var(--t2);
+  padding:6px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700}
+.acbtn:hover{border-color:var(--t2);color:var(--t1)}
+.acbtn.run{border-color:var(--ok);color:var(--ok)}
+.acbtn.run:hover{background:var(--ok-bg)}
+.acbtn.stop{border-color:var(--err);color:var(--err)}
+.acbtn.stop:hover{background:#160404}
+.acbtn.schedule{border-color:var(--warn);color:var(--warn)}
+.acbtn.schedule:hover{background:var(--warn-bg)}
+.agent-running-dot{width:8px;height:8px;border-radius:50%;background:var(--b2);flex-shrink:0}
+.agent-running-dot.on{background:var(--ok);animation:pulse .8s infinite alternate}
+@keyframes pulse{from{opacity:1}to{opacity:.3}}
+/* フィードエリア */
+#agent-feed{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+.feed-item{border:1px solid var(--b1);border-radius:7px;overflow:hidden}
+.feed-hd{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--c2)}
+.feed-src{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.feed-src.discord{color:#7289da}.feed-src.telegram{color:#26a5e4}
+.feed-src.searx{color:var(--prog-txt)}.feed-src.searxurl{color:#c4882a}
+.feed-label{font-size:12px;font-weight:600;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed-ts{font-size:10px;color:var(--t3);font-family:'Menlo',monospace;flex-shrink:0}
+.feed-body{padding:10px 12px;font-size:13px;line-height:1.75;color:var(--t1);white-space:pre-wrap;word-break:break-word;background:var(--c1)}
+.feed-body.raw{color:var(--t2);font-size:12px}
+.feed-empty{font-size:13px;color:var(--t3);text-align:center;padding:40px;opacity:.6}
+.agent-status-bar{font-size:11px;color:var(--t3);padding:4px 18px;background:var(--c1);border-top:1px solid var(--b1);flex-shrink:0}
+.agent-status-bar.err{color:var(--err)}
+
+/* ウォッチャー設定モーダル */
+.task-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.task-item{background:var(--c2);border:1px solid var(--b1);border-radius:6px;padding:10px 12px}
+.task-item-hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.task-item-lbl{flex:1;font-size:12px;font-weight:600;color:var(--t1)}
+.task-toggle{width:28px;height:16px;background:var(--b2);border-radius:8px;position:relative;
+  cursor:pointer;flex-shrink:0;transition:background .2s}
+.task-toggle.on{background:var(--ok)}
+.task-toggle::after{content:'';width:10px;height:10px;background:#fff;border-radius:50%;
   position:absolute;top:3px;left:3px;transition:left .2s}
-.wp-sw.on::after{left:18px}
-.wp-body{display:none;padding:0 12px 10px}
-.wp-body.open{display:block}
-.wp-feed{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-top:6px}
-.wp-item{background:var(--c2);border:1px solid var(--b1);border-radius:6px;padding:10px 12px;font-size:12px;line-height:1.7}
-.wp-item-hd{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.wp-item-src{font-size:10px;font-weight:700;color:var(--prog-txt);text-transform:uppercase;letter-spacing:.1em}
-.wp-item-ts{font-size:10px;color:var(--t3);font-family:'Menlo',monospace;margin-left:auto}
-.wp-item-body{color:var(--t1);white-space:pre-wrap;word-break:break-word}
-.wp-item-body.raw{color:var(--t2)}
-.wp-status{font-size:11px;color:var(--t3);padding:4px 0;text-align:center}
-.wp-status.err{color:var(--err)}
-.wp-ctrl{display:flex;gap:6px;padding-top:6px}
-.wp-btn{background:none;border:1px solid var(--b2);color:var(--t3);padding:3px 10px;
-  border-radius:4px;cursor:pointer;font-size:11px;font-weight:600}
-.wp-btn:hover{border-color:var(--t2);color:var(--t2)}
-.wp-btn.primary{border-color:var(--ok);color:var(--ok)}
-.wp-btn.primary:hover{background:var(--ok-bg)}
-.wp-empty{font-size:11px;color:var(--t3);text-align:center;padding:12px 0}
-.wp-interval{font-size:10px;color:var(--t3);margin-left:auto}
+.task-toggle.on::after{left:15px}
+.task-del{background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:0 4px}
+.task-del:hover{color:var(--err)}
+.task-add-btn{background:none;border:1px dashed var(--b2);color:var(--t3);
+  width:100%;padding:7px;border-radius:5px;cursor:pointer;font-size:12px;
+  text-align:center;margin-bottom:10px}
+.task-add-btn:hover{border-color:var(--b3);color:var(--t2)}
+.type-sel{display:flex;gap:6px;margin-bottom:6px}
+.type-btn{flex:1;background:none;border:1px solid var(--b2);color:var(--t3);
+  padding:4px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700}
+.type-btn.on{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+.ch-item{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.ch-inp{flex:1;background:var(--bg);border:1px solid var(--b2);border-radius:4px;
+  color:var(--t1);font-size:12px;padding:5px 8px;outline:none}
+.ch-inp:focus{border-color:var(--b3)}
+.sw-sm{width:28px;height:16px;background:var(--b2);border-radius:8px;position:relative;
+  cursor:pointer;flex-shrink:0;transition:background .2s}
+.sw-sm.on{background:var(--ok)}
+.sw-sm::after{content:'';width:10px;height:10px;background:#fff;border-radius:50%;
+  position:absolute;top:3px;left:3px;transition:left .2s}
+.sw-sm.on::after{left:15px}
 
 </style>
 </head>
 <body>
 
 <div id="sb">
-  <!-- ウォッチャーエージェントパネル -->
-<div id="watcher-panel">
-  <div class="wp-hd" onclick="toggleWatcherPanel()">
-    <span class="wp-icon">𓅱</span>
-    <span class="wp-title">エージェント</span>
-    <span class="wp-interval" id="wp-interval-label"></span>
-    <div class="wp-sw" id="wp-sw" onclick="event.stopPropagation();toggleWatcher()"></div>
-  </div>
-  <div class="wp-body" id="wp-body">
-    <div class="wp-status" id="wp-status">設定を開いて構成してください</div>
-    <div class="wp-feed" id="wp-feed">
-      <div class="wp-empty">フィードはまだありません</div>
-    </div>
-    <div class="wp-ctrl">
-      <button class="wp-btn primary" onclick="watcherRunNow()">今すぐ実行</button>
-      <button class="wp-btn" onclick="openWatcherSet()">⚙ 設定</button>
-      <button class="wp-btn" onclick="clearWatcherFeed()">クリア</button>
-    </div>
-  </div>
-</div>
+  
 <div class="sb-hd">
     <span class="sb-ttl">𓂀 PROJECTS</span>
     <button class="sb-add" onclick="openNew()">+ 新規</button>
   </div>
+  <!-- エージェントビューボタン -->
+  <button id="sb-agent-btn" onclick="openAgentView()">
+    <span class="sb-agent-icon">𓅱</span>
+    <div class="sb-agent-info">
+      <div class="sb-agent-nm">エージェント</div>
+      <div class="sb-agent-st" id="sb-agent-status">停止中</div>
+    </div>
+    <span class="sb-agent-dot" id="sb-agent-dot"></span>
+  </button>
   <div id="pl"></div>
 </div>
 
@@ -386,6 +425,22 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         </div>
         <div class="ih">Enter で送信 · Shift+Enter で改行 · 変換中は送信されません</div>
       </div>
+
+    <!-- エージェントビュー -->
+    <div id="agent-view">
+      <div class="agent-ctrl">
+        <span class="agent-ctrl-title">𓅱 エージェント</span>
+        <span class="agent-running-dot" id="agent-dot"></span>
+        <button class="acbtn run"      onclick="agentCmdRunNow()">▶ 今すぐ実行</button>
+        <button class="acbtn stop"     onclick="agentCmdStop()">■ 停止</button>
+        <button class="acbtn schedule" onclick="agentCmdSchedule()">⏱ スケジュール動作</button>
+        <button class="acbtn"          onclick="openWatcherSet()" style="margin-left:auto">⚙ 設定</button>
+      </div>
+      <div id="agent-feed">
+        <div class="feed-empty">フィードはまだありません<br><small>設定からソースを有効化してください</small></div>
+      </div>
+      <div class="agent-status-bar" id="agent-status-bar">待機中</div>
+    </div>
     </div>
   </div>
 </div>
@@ -483,77 +538,81 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   </div>
 </div>
 
+
+
 <!-- ウォッチャーエージェント設定 -->
 <div class="ov h" id="mW">
-  <div class="md w">
+  <div class="md xl" style="max-height:88vh;overflow-y:auto">
     <div class="mt2">𓅱 エージェント設定</div>
-    <div class="ms2">自動取得・要約の設定を行います</div>
+    <div class="ms2">Discord・Telegram・SearXNGの設定を行います（複数同時有効化可）</div>
 
+    <!-- エージェント専用AI -->
     <div class="set-sec">
-      <div class="set-stl">取得間隔</div>
-      <div class="set-row">
-        <span class="set-lbl">間隔（分）</span>
-        <input class="set-inp" id="wInterval" type="number" min="1" max="60" style="width:70px">
-        <span style="font-size:12px;color:var(--t3);margin-left:6px">1〜60分</span>
-      </div>
-    </div>
-
-    <div class="set-sec">
-      <div class="set-stl">情報ソース</div>
-      <div class="mcs" style="margin-bottom:10px">
-        <div class="mc" id="wSrcSearx" onclick="selWsrc('searxng')">
-          <div class="mc-g">𓅱</div><div class="mc-l">SearXNG</div><div class="mc-d">検索ワード指定</div>
-        </div>
-        <div class="mc" id="wSrcDiscord" onclick="selWsrc('discord')">
-          <div class="mc-g">𓀠</div><div class="mc-l">Discord</div><div class="mc-d">チャンネル監視</div>
-        </div>
-        <div class="mc" id="wSrcTelegram" onclick="selWsrc('telegram')">
-          <div class="mc-g">𓁳</div><div class="mc-l">Telegram</div><div class="mc-d">チャット監視</div>
-        </div>
-      </div>
-
-      <!-- SearXNG設定 -->
-      <div id="wSetSearx">
-        <div class="set-row"><span class="set-lbl">検索ワード</span>
-          <input class="set-inp" id="wQuery" type="text" placeholder="例: AI news" style="width:220px">
-        </div>
-      </div>
-      <!-- Discord設定 -->
-      <div id="wSetDiscord" style="display:none">
-        <div class="set-row"><span class="set-lbl">Bot Token</span>
-          <input class="set-inp" id="wDiscordToken" type="password" placeholder="Discord Bot Token" style="width:220px">
-        </div>
-        <div class="set-row"><span class="set-lbl">チャンネルID</span>
-          <input class="set-inp" id="wDiscordCh" type="text" placeholder="Channel ID" style="width:180px">
-        </div>
-        <div class="set-hint">Discord Developer Portal でBotを作成してトークンを取得してください</div>
-      </div>
-      <!-- Telegram設定 -->
-      <div id="wSetTelegram" style="display:none">
-        <div class="set-row"><span class="set-lbl">Bot Token</span>
-          <input class="set-inp" id="wTeleToken" type="password" placeholder="Telegram Bot Token" style="width:220px">
-        </div>
-        <div class="set-row"><span class="set-lbl">チャットID（任意）</span>
-          <input class="set-inp" id="wTeleChatId" type="text" placeholder="Chat ID（空=全て）" style="width:180px">
-        </div>
-        <div class="set-hint">@BotFatherでBotを作成してトークンを取得してください</div>
-      </div>
-    </div>
-
-    <div class="set-sec">
-      <div class="set-stl">エージェント専用AI（省略時はメインAIを使用）</div>
+      <div class="set-stl">エージェント専用AI</div>
       <div class="set-row">
         <span class="set-lbl">ホスト</span>
-        <input class="set-inp" id="wAiHost" type="text" placeholder="localhost" style="width:160px">
-        <span style="font-size:12px;color:var(--t3);margin:0 6px">:</span>
-        <input class="set-inp" id="wAiPort" type="number" min="1" max="65535" placeholder="1234" style="width:80px">
-        <button class="mfb" onclick="fetchWatcherModels()" style="margin-left:8px">モデル取得</button>
+        <input class="set-inp" id="wAiHost" type="text" placeholder="localhost" style="width:150px">
+        <span style="font-size:12px;color:var(--t3);margin:0 5px">:</span>
+        <input class="set-inp" id="wAiPort" type="number" min="1" max="65535" style="width:75px">
+        <button class="mfb" onclick="fetchWatcherModels()" style="margin-left:8px;font-size:11px;padding:5px 10px">モデル取得</button>
       </div>
       <div class="set-row">
         <span class="set-lbl">モデル</span>
         <select class="set-inp" id="wAiModel" style="width:220px;cursor:pointer;background:var(--bg)">
           <option value="">メインAIと同じ</option>
         </select>
+      </div>
+    </div>
+
+    <!-- Discord -->
+    <div class="set-sec">
+      <div class="set-stl" style="display:flex;align-items:center;gap:10px">
+        <span style="flex:1">Discord</span>
+        <div class="sw-sm" id="wDiscordSw" onclick="toggleWCfgSw('discord')"></div>
+      </div>
+      <div id="wDiscordBody">
+        <div class="set-row"><span class="set-lbl">Bot Token</span>
+          <input class="set-inp" id="wDiscordToken" type="password" placeholder="Discord Bot Token" style="width:220px">
+        </div>
+        <div class="lbl" style="margin-top:4px">監視チャンネル</div>
+        <div id="wDiscordChList" class="task-list"></div>
+        <button class="task-add-btn" onclick="addDiscordCh()">＋ チャンネルを追加</button>
+        <div class="set-hint">Discord Developer Portal でBotを作成しトークンを取得してください</div>
+      </div>
+    </div>
+
+    <!-- Telegram -->
+    <div class="set-sec">
+      <div class="set-stl" style="display:flex;align-items:center;gap:10px">
+        <span style="flex:1">Telegram</span>
+        <div class="sw-sm" id="wTelegramSw" onclick="toggleWCfgSw('telegram')"></div>
+      </div>
+      <div id="wTelegramBody">
+        <div class="set-row"><span class="set-lbl">Bot Token</span>
+          <input class="set-inp" id="wTeleToken" type="password" placeholder="Telegram Bot Token" style="width:220px">
+        </div>
+        <div class="lbl" style="margin-top:4px">監視チャット（空=全て）</div>
+        <div id="wTeleChList" class="task-list"></div>
+        <button class="task-add-btn" onclick="addTeleChat()">＋ チャットを追加</button>
+        <div class="set-hint">@BotFatherでBotを作成してトークンを取得してください</div>
+      </div>
+    </div>
+
+    <!-- SearXNG -->
+    <div class="set-sec">
+      <div class="set-stl" style="display:flex;align-items:center;gap:10px">
+        <span style="flex:1">SearXNG 定期検索</span>
+        <div class="sw-sm" id="wSearxSw" onclick="toggleWCfgSw('searx')"></div>
+      </div>
+      <div id="wSearxBody">
+        <div class="set-row"><span class="set-lbl">間隔（分）</span>
+          <input class="set-inp" id="wSearxInterval" type="number" min="1" max="60" style="width:65px">
+          <span style="font-size:12px;color:var(--t3);margin-left:6px">1〜60分</span>
+        </div>
+        <div class="lbl" style="margin-top:4px">タスク一覧</div>
+        <div id="wSearxTaskList" class="task-list"></div>
+        <button class="task-add-btn" onclick="addSearxTask('search')">＋ 検索タスクを追加</button>
+        <button class="task-add-btn" onclick="addSearxTask('url')" style="margin-top:-4px">＋ URL監視タスクを追加</button>
       </div>
     </div>
 
@@ -591,7 +650,6 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     </div>
     <div id="logArea" style="display:none"><div class="log-viewer" id="logContent"></div></div>
     <div class="mft">
-      <button class="bc" onclick="openWatcherSet()" style="margin-right:auto">𓅱 エージェント設定</button>
       <button class="bc" onclick="closeM('mS')">キャンセル</button>
       <button class="bok" onclick="savSet()">保存</button>
     </div>
@@ -1376,215 +1434,334 @@ function openM(id){ document.getElementById(id).classList.remove('h'); }
 function closeM(id){ document.getElementById(id).classList.add('h'); }
 function fmt(ts){ if(!ts)return ''; const d=new Date(ts); return (d.getMonth()+1)+'/'+(d.getDate())+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 
+
 // ═══════════════════════════════════════════════════════════════════
-// ── ウォッチャーエージェント JS ────────────────────────────────
+// ── ウォッチャーエージェント v2 JS ──────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
 
-// ウォッチャー状態
-let watcherEnabled   = false;
-let watcherPanelOpen = false;
-let watcherSrc       = 'searxng'; // 現在選択中のソース種別
+// ── 状態変数 ─────────────────────────────────────────────────────
+let agentViewOpen    = false;
+let agentRunning     = false;
+// 設定モーダル内の一時データ
+let wTmpDiscordChs   = [];  // [{id,channelId,label}]
+let wTmpTeleChats    = [];  // [{id,chatId,label}]
+let wTmpSearxTasks   = [];  // [{id,type,label,query,url,topic,systemPrompt,enabled}]
+let wTmpDiscordEn    = false;
+let wTmpTelegramEn   = false;
+let wTmpSearxEn      = false;
 
-// ── 初期化（DOMContentLoaded内から呼ぶ）────────────────────────
-async function initWatcher() {
-  const wcfg = await A.getWatcherCfg().catch(()=>null);
-  if (!wcfg) return;
-  watcherEnabled = !!wcfg.enabled;
-  document.getElementById('wp-sw').classList.toggle('on', watcherEnabled);
-  const intLabel = document.getElementById('wp-interval-label');
-  intLabel.textContent = wcfg.intervalMin ? wcfg.intervalMin+'分ごと' : '';
-  if (watcherEnabled) {
-    setWpStatus('𓅱 エージェント動作中');
-  }
+// ── UUID生成 ─────────────────────────────────────────────────────
+function genId(){ return Math.random().toString(36).slice(2,10); }
+
+// ── エージェントビュー開閉 ────────────────────────────────────────
+function openAgentView(){
+  // チャット/ウェルカムを隠してエージェントビューを表示
+  document.getElementById('wl').style.display = 'none';
+  const cw = document.getElementById('cw'); cw.style.display = 'none';
+  document.getElementById('agent-view').classList.add('visible');
+  document.getElementById('sb-agent-btn').classList.add('on');
+  document.querySelectorAll('.pi').forEach(p=>p.classList.remove('on'));
+  agentViewOpen = true;
+  document.getElementById('pn').textContent = ' · エージェント';
 }
 
-// ── パネル開閉 ──────────────────────────────────────────────────
-function toggleWatcherPanel() {
-  watcherPanelOpen = !watcherPanelOpen;
-  document.getElementById('wp-body').classList.toggle('open', watcherPanelOpen);
+function closeAgentView(){
+  document.getElementById('agent-view').classList.remove('visible');
+  document.getElementById('sb-agent-btn').classList.remove('on');
+  agentViewOpen = false;
+  document.getElementById('pn').textContent = '';
 }
 
-// ── ウォッチャーON/OFF ──────────────────────────────────────────
-async function toggleWatcher() {
-  watcherEnabled = !watcherEnabled;
-  document.getElementById('wp-sw').classList.toggle('on', watcherEnabled);
-  const wcfg = await A.getWatcherCfg();
-  wcfg.enabled = watcherEnabled;
-  await A.saveWatcherCfg(wcfg);
-  if (watcherEnabled) {
-    setWpStatus('𓅱 エージェント開始...');
-    await A.watcherStart();
-    addSN('𓅱 ウォッチャーエージェント ON', 'ok');
-  } else {
-    await A.watcherStop();
-    setWpStatus('ウォッチャー停止中');
-    addSN('𓅱 ウォッチャーエージェント OFF');
-  }
-}
+// openP等でプロジェクトを開いたらエージェントビューを閉じる
+// (既存のopenP先頭にフック)
+const _origOpenP = window._origOpenP || null;
 
-// ── 今すぐ実行 ─────────────────────────────────────────────────
-async function watcherRunNow() {
-  setWpStatus('𓅱 実行中...');
-  if (!watcherPanelOpen) { watcherPanelOpen=true; document.getElementById('wp-body').classList.add('open'); }
+// ── エージェントコマンド ──────────────────────────────────────────
+async function agentCmdRunNow(){
+  setAgentStatus('▶ 今すぐ実行中...');
   try {
-    const res = await A.watcherTrigger();
-    if (!res.ok) setWpStatus(res.msg || 'エラー', true);
-  } catch(e) {
-    setWpStatus('エラー: '+e.message, true);
-  }
+    await A.watcherRunNow();
+  } catch(e) { setAgentStatus('エラー: '+e.message, true); }
 }
 
-// ── フィードクリア ──────────────────────────────────────────────
-function clearWatcherFeed() {
-  const feed = document.getElementById('wp-feed');
-  feed.innerHTML = '<div class="wp-empty">フィードはまだありません</div>';
+async function agentCmdStop(){
+  await A.watcherStop();
+  agentRunning = false;
+  updateAgentDot();
+  setAgentStatus('■ 停止しました');
+  addSN('𓅱 エージェント 停止');
 }
 
-// ── ウォッチャーイベント受信 ────────────────────────────────────
+async function agentCmdSchedule(){
+  await A.watcherStart();
+  agentRunning = true;
+  updateAgentDot();
+  setAgentStatus('⏱ スケジュール動作中');
+  addSN('𓅱 エージェント スケジュール動作開始', 'ok');
+}
+
+function setAgentStatus(msg, isErr){
+  const el = document.getElementById('agent-status-bar');
+  el.textContent = msg;
+  el.className = 'agent-status-bar' + (isErr ? ' err' : '');
+}
+
+function updateAgentDot(){
+  document.getElementById('agent-dot').classList.toggle('on', agentRunning);
+  document.getElementById('sb-agent-dot').classList.toggle('on', agentRunning);
+  document.getElementById('sb-agent-status').textContent = agentRunning ? 'スケジュール動作中' : '停止中';
+}
+
+// ── ウォッチャーイベント受信 ──────────────────────────────────────
 A.onWatcherEvent(ev => {
-  switch(ev.type) {
-    case 'watcher_feed':
-      addWatcherFeedItem(ev.data); break;
-    case 'watcher_status':
-      setWpStatus(ev.data); break;
-    case 'watcher_error':
-      setWpStatus(ev.data, true); break;
+  switch(ev.type){
+    case 'watcher_feed':   addAgentFeedItem(ev.data); break;
+    case 'watcher_status': setAgentStatus(ev.data); break;
+    case 'watcher_error':  setAgentStatus(ev.data, true); break;
   }
 });
 
-function setWpStatus(msg, isErr) {
-  const el = document.getElementById('wp-status');
-  el.textContent = msg;
-  el.className = 'wp-status' + (isErr ? ' err' : '');
-}
-
-function addWatcherFeedItem(data) {
-  const feed = document.getElementById('wp-feed');
-  // 「まだありません」を削除
-  const empty = feed.querySelector('.wp-empty');
+function addAgentFeedItem(data){
+  const feed = document.getElementById('agent-feed');
+  // 空プレースホルダーを削除
+  const empty = feed.querySelector('.feed-empty');
   if (empty) empty.remove();
 
-  const now = new Date(data.ts || Date.now());
-  const tsStr = now.toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const ts = new Date(data.ts || Date.now());
+  const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
 
-  const srcLabels = { searxng:'SearXNG', discord:'Discord', telegram:'Telegram' };
-  const srcLabel = srcLabels[data.source] || data.source;
+  const srcClass = {discord:'discord', telegram:'telegram', searx: data.taskType==='url'?'searxurl':'searx'};
+  const srcLabels = {discord:'Discord', telegram:'Telegram', searx: data.taskType==='url'?'URL監視':'SearXNG'};
+  const cls   = srcClass[data.source]  || data.source;
+  const label = srcLabels[data.source] || data.source;
 
   const item = document.createElement('div');
-  item.className = 'wp-item';
+  item.className = 'feed-item';
   item.innerHTML =
-    '<div class="wp-item-hd">' +
-      '<span class="wp-item-src">' + esc(srcLabel) + (data.query ? ' · '+esc(data.query) : '') + '</span>' +
-      '<span class="wp-item-ts">' + tsStr + '</span>' +
+    '<div class="feed-hd">' +
+      '<span class="feed-src ' + esc(cls) + '">' + esc(label) + '</span>' +
+      '<span class="feed-label">' + esc(data.label||'') + '</span>' +
+      '<span class="feed-ts">' + tsStr + '</span>' +
     '</div>' +
-    '<div class="wp-item-body' + (data.raw ? ' raw' : '') + '">' + esc(data.summary || '') + '</div>';
+    '<div class="feed-body' + (data.raw?' raw':'') + '">' + esc(data.summary||'') + '</div>';
 
-  // 新しいものを上に
   feed.insertBefore(item, feed.firstChild);
+  while(feed.children.length > 30) feed.removeChild(feed.lastChild);
 
-  // 最大20件
-  while (feed.children.length > 20) feed.removeChild(feed.lastChild);
-
-  // パネルが閉じていたら通知
-  if (!watcherPanelOpen) {
-    document.getElementById('wp-sw').style.boxShadow = '0 0 0 2px var(--ok)';
-    setTimeout(()=>{ document.getElementById('wp-sw').style.boxShadow=''; }, 3000);
+  // エージェントビューが閉じていたらサイドバーボタンを光らせる
+  if (!agentViewOpen) {
+    const dot = document.getElementById('sb-agent-dot');
+    dot.style.boxShadow = '0 0 0 2px var(--ok)';
+    setTimeout(()=>{ dot.style.boxShadow=''; }, 3000);
   }
-  setWpStatus('𓅱 最終更新: ' + tsStr);
 }
 
-// ── ウォッチャー設定モーダル ────────────────────────────────────
-async function openWatcherSet() {
-  closeM('mS'); // 設定モーダルが開いていたら閉じる
+// ── 起動時初期化 ─────────────────────────────────────────────────
+async function initWatcher(){
+  try {
+    const st = await A.watcherStatus();
+    agentRunning = st.running;
+    updateAgentDot();
+    if (agentRunning) setAgentStatus('⏱ スケジュール動作中');
+  } catch(e){ console.error('[watcher init]',e); }
+}
+
+// ── 設定モーダル ─────────────────────────────────────────────────
+async function openWatcherSet(){
   const wcfg = await A.getWatcherCfg();
-  document.getElementById('wInterval').value    = wcfg.intervalMin || 5;
-  document.getElementById('wQuery').value       = wcfg.searchQuery || '';
-  document.getElementById('wDiscordToken').value= wcfg.discordToken || '';
-  document.getElementById('wDiscordCh').value   = wcfg.discordChannelId || '';
-  document.getElementById('wTeleToken').value   = wcfg.telegramToken || '';
-  document.getElementById('wTeleChatId').value  = wcfg.telegramChatId || '';
-  document.getElementById('wAiHost').value      = wcfg.watcherAiHost || '';
-  document.getElementById('wAiPort').value      = wcfg.watcherAiPort || 1234;
-  document.getElementById('wAiModel').value     = wcfg.watcherModelId || '';
-  selWsrc(wcfg.apiType || 'searxng');
-  // 既存モデル一覧を更新
-  await fetchWatcherModels(wcfg.watcherModelId);
+  document.getElementById('wAiHost').value  = wcfg.watcherAiHost||'localhost';
+  document.getElementById('wAiPort').value  = wcfg.watcherAiPort||1234;
+  document.getElementById('wAiModel').value = wcfg.watcherModelId||'';
+
+  wTmpDiscordEn  = !!wcfg.discordEnabled;
+  wTmpTelegramEn = !!wcfg.telegramEnabled;
+  wTmpSearxEn    = !!wcfg.searxEnabled;
+
+  document.getElementById('wDiscordSw').classList.toggle('on', wTmpDiscordEn);
+  document.getElementById('wTelegramSw').classList.toggle('on', wTmpTelegramEn);
+  document.getElementById('wSearxSw').classList.toggle('on', wTmpSearxEn);
+
+  document.getElementById('wDiscordToken').value = wcfg.discordToken||'';
+  document.getElementById('wTeleToken').value    = wcfg.telegramToken||'';
+  document.getElementById('wSearxInterval').value= wcfg.searxIntervalMin||5;
+
+  wTmpDiscordChs  = (wcfg.discordChannels||[]).map(c=>({...c}));
+  wTmpTeleChats   = (wcfg.telegramChats||[]).map(c=>({...c}));
+  wTmpSearxTasks  = (wcfg.searxTasks||[]).map(t=>({...t}));
+
+  renderDiscordChList();
+  renderTeleChList();
+  renderSearxTaskList();
+
+  // 既存モデル取得
+  fetchWatcherModels(wcfg.watcherModelId);
   openM('mW');
 }
 
-function selWsrc(src) {
-  watcherSrc = src;
-  ['searxng','discord','telegram'].forEach(s => {
-    const mc = document.getElementById('wSrc'+s[0].toUpperCase()+s.slice(1).replace('xng','XNG').replace('cord','cord'));
-    const sect = document.getElementById('wSet'+s[0].toUpperCase()+s.slice(1).replace('xng','Searx').replace('cord','Discord').replace('gram','Telegram'));
-    const isSelected = s === src;
-    if (mc) mc.classList.toggle('s', isSelected);
-    if (sect) sect.style.display = isSelected ? '' : 'none';
+function toggleWCfgSw(type){
+  if (type==='discord'){
+    wTmpDiscordEn=!wTmpDiscordEn;
+    document.getElementById('wDiscordSw').classList.toggle('on',wTmpDiscordEn);
+  } else if (type==='telegram'){
+    wTmpTelegramEn=!wTmpTelegramEn;
+    document.getElementById('wTelegramSw').classList.toggle('on',wTmpTelegramEn);
+  } else if (type==='searx'){
+    wTmpSearxEn=!wTmpSearxEn;
+    document.getElementById('wSearxSw').classList.toggle('on',wTmpSearxEn);
+  }
+}
+
+// ── Discord チャンネル管理 ────────────────────────────────────────
+function addDiscordCh(){
+  wTmpDiscordChs.push({ id:genId(), channelId:'', label:'チャンネル'+(wTmpDiscordChs.length+1), enabled:true });
+  renderDiscordChList();
+}
+function removeDiscordCh(id){
+  wTmpDiscordChs = wTmpDiscordChs.filter(c=>c.id!==id);
+  renderDiscordChList();
+}
+function renderDiscordChList(){
+  const el = document.getElementById('wDiscordChList'); el.innerHTML='';
+  wTmpDiscordChs.forEach(ch=>{
+    const row = document.createElement('div'); row.className='ch-item';
+    row.innerHTML=
+      '<input class="ch-inp" placeholder="チャンネルID" value="'+esc(ch.channelId||'')+'" oninput="wTmpDiscordChs.find(c=>c.id===\''+ch.id+'\').channelId=this.value" style="width:130px">'+
+      '<input class="ch-inp" placeholder="ラベル" value="'+esc(ch.label||'')+'" oninput="wTmpDiscordChs.find(c=>c.id===\''+ch.id+'\').label=this.value" style="width:100px">'+
+      '<button class="task-del" onclick="removeDiscordCh(\''+ch.id+'\')">×</button>';
+    el.appendChild(row);
   });
 }
 
-// mc要素のIDを正しく対応させる修正版
-function selWsrc(src) {
-  watcherSrc = src;
-  const map = { searxng: {mc:'wSrcSearx', sect:'wSetSearx'}, discord: {mc:'wSrcDiscord', sect:'wSetDiscord'}, telegram: {mc:'wSrcTelegram', sect:'wSetTelegram'} };
-  Object.entries(map).forEach(([key, {mc, sect}]) => {
-    const mcEl = document.getElementById(mc);
-    const sectEl = document.getElementById(sect);
-    if (mcEl) mcEl.classList.toggle('s', key === src);
-    if (sectEl) sectEl.style.display = key === src ? '' : 'none';
+// ── Telegram チャット管理 ─────────────────────────────────────────
+function addTeleChat(){
+  wTmpTeleChats.push({ id:genId(), chatId:'', label:'チャット'+(wTmpTeleChats.length+1), enabled:true });
+  renderTeleChList();
+}
+function removeTeleChat(id){
+  wTmpTeleChats = wTmpTeleChats.filter(c=>c.id!==id);
+  renderTeleChList();
+}
+function renderTeleChList(){
+  const el = document.getElementById('wTeleChList'); el.innerHTML='';
+  wTmpTeleChats.forEach(ch=>{
+    const row = document.createElement('div'); row.className='ch-item';
+    row.innerHTML=
+      '<input class="ch-inp" placeholder="チャットID(空=全て)" value="'+esc(ch.chatId||'')+'" oninput="wTmpTeleChats.find(c=>c.id===\''+ch.id+'\').chatId=this.value" style="width:130px">'+
+      '<input class="ch-inp" placeholder="ラベル" value="'+esc(ch.label||'')+'" oninput="wTmpTeleChats.find(c=>c.id===\''+ch.id+'\').label=this.value" style="width:100px">'+
+      '<button class="task-del" onclick="removeTeleChat(\''+ch.id+'\')">×</button>';
+    el.appendChild(row);
   });
 }
 
-async function fetchWatcherModels(currentModel) {
-  const host = document.getElementById('wAiHost').value || 'localhost';
-  const port = parseInt(document.getElementById('wAiPort').value) || 1234;
-  const sel = document.getElementById('wAiModel');
+// ── SearXNGタスク管理 ─────────────────────────────────────────────
+function addSearxTask(type){
+  const task = {
+    id: genId(), type, enabled: true,
+    label: type==='search' ? '検索タスク'+(wTmpSearxTasks.filter(t=>t.type==='search').length+1)
+                           : 'URL監視'+(wTmpSearxTasks.filter(t=>t.type==='url').length+1),
+    query:'', url:'', topic:'', systemPrompt:''
+  };
+  wTmpSearxTasks.push(task);
+  renderSearxTaskList();
+}
+function removeSearxTask(id){
+  wTmpSearxTasks = wTmpSearxTasks.filter(t=>t.id!==id);
+  renderSearxTaskList();
+}
+function toggleSearxTaskEnabled(id){
+  const t = wTmpSearxTasks.find(t=>t.id===id);
+  if(t) t.enabled=!t.enabled;
+  renderSearxTaskList();
+}
+function renderSearxTaskList(){
+  const el = document.getElementById('wSearxTaskList'); el.innerHTML='';
+  wTmpSearxTasks.forEach(task=>{
+    const div = document.createElement('div'); div.className='task-item';
+    const typeLabel = task.type==='search'?'🔍 検索':'🔗 URL監視';
+    const typeColor = task.type==='search'?'color:var(--prog-txt)':'color:var(--warn)';
+    div.innerHTML=
+      '<div class="task-item-hd">'+
+        '<span style="font-size:11px;'+typeColor+'">'+typeLabel+'</span>'+
+        '<input class="ch-inp" placeholder="タスク名" value="'+esc(task.label||'')+'" '+
+          'oninput="wTmpSearxTasks.find(t=>t.id===\''+task.id+'\').label=this.value" '+
+          'style="flex:1;margin:0 6px">'+
+        '<div class="task-toggle '+(task.enabled?'on':'')+'" onclick="toggleSearxTaskEnabled(\''+task.id+'\')"></div>'+
+        '<button class="task-del" onclick="removeSearxTask(\''+task.id+'\')">×</button>'+
+      '</div>'+
+      (task.type==='search'
+        ? '<input class="ch-inp" placeholder="検索ワード" value="'+esc(task.query||'')+'" '+
+          'oninput="wTmpSearxTasks.find(t=>t.id===\''+task.id+'\').query=this.value" '+
+          'style="width:100%;margin-bottom:5px">'
+        : '<input class="ch-inp" placeholder="URL (https://...)" value="'+esc(task.url||'')+'" '+
+          'oninput="wTmpSearxTasks.find(t=>t.id===\''+task.id+'\').url=this.value" '+
+          'style="width:100%;margin-bottom:5px">'+
+          '<input class="ch-inp" placeholder="注目トピック（任意）" value="'+esc(task.topic||'')+'" '+
+          'oninput="wTmpSearxTasks.find(t=>t.id===\''+task.id+'\').topic=this.value" '+
+          'style="width:100%;margin-bottom:5px">'
+      )+
+      '<textarea class="ch-inp" placeholder="要約システムプロンプト（省略可）" rows="2" '+
+        'oninput="wTmpSearxTasks.find(t=>t.id===\''+task.id+'\').systemPrompt=this.value" '+
+        'style="width:100%;resize:vertical;min-height:42px">'+esc(task.systemPrompt||'')+'</textarea>';
+    el.appendChild(div);
+  });
+}
+
+// ── モデル取得 ────────────────────────────────────────────────────
+async function fetchWatcherModels(currentModel){
+  const host = document.getElementById('wAiHost').value||'localhost';
+  const port = parseInt(document.getElementById('wAiPort').value)||1234;
+  const sel  = document.getElementById('wAiModel');
+  const prevVal = currentModel || sel.value;
   sel.innerHTML = '<option value="">メインAIと同じ</option>';
   try {
     const models = await A.getWatcherModels(host, port);
-    models.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m.id; opt.textContent = m.name || m.id;
-      if (m.id === currentModel) opt.selected = true;
+    models.forEach(m=>{
+      const opt=document.createElement('option');
+      opt.value=m.id; opt.textContent=m.name||m.id;
+      if(m.id===prevVal) opt.selected=true;
       sel.appendChild(opt);
     });
-    if (!models.length) {
-      const opt = document.createElement('option'); opt.value=''; opt.textContent='(取得できません)'; sel.appendChild(opt);
-    }
-  } catch {
-    const opt = document.createElement('option'); opt.value=''; opt.textContent='(取得エラー)'; sel.appendChild(opt);
-  }
+  } catch {}
 }
 
-async function saveWatcherSettings() {
+// ── 設定保存 ──────────────────────────────────────────────────────
+async function saveWatcherSettings(){
+  const interval = parseInt(document.getElementById('wSearxInterval').value)||5;
+  if(interval<1||interval>60){ alert('間隔は1〜60分で入力してください'); return; }
+
   const wcfg = {
-    intervalMin:      parseInt(document.getElementById('wInterval').value) || 5,
-    apiType:          watcherSrc,
-    searchQuery:      document.getElementById('wQuery').value.trim(),
-    discordToken:     document.getElementById('wDiscordToken').value.trim(),
-    discordChannelId: document.getElementById('wDiscordCh').value.trim(),
-    telegramToken:    document.getElementById('wTeleToken').value.trim(),
-    telegramChatId:   document.getElementById('wTeleChatId').value.trim(),
-    watcherAiHost:    document.getElementById('wAiHost').value.trim(),
-    watcherAiPort:    parseInt(document.getElementById('wAiPort').value) || 1234,
-    watcherModelId:   document.getElementById('wAiModel').value,
-    enabled:          watcherEnabled,
+    watcherAiHost:   document.getElementById('wAiHost').value.trim()||'localhost',
+    watcherAiPort:   parseInt(document.getElementById('wAiPort').value)||1234,
+    watcherModelId:  document.getElementById('wAiModel').value,
+
+    discordEnabled:  wTmpDiscordEn,
+    discordToken:    document.getElementById('wDiscordToken').value.trim(),
+    discordChannels: wTmpDiscordChs.filter(c=>c.channelId),
+
+    telegramEnabled: wTmpTelegramEn,
+    telegramToken:   document.getElementById('wTeleToken').value.trim(),
+    telegramChats:   wTmpTeleChats,
+
+    searxEnabled:    wTmpSearxEn,
+    searxIntervalMin:interval,
+    searxTasks:      wTmpSearxTasks,
   };
-  if (wcfg.intervalMin < 1 || wcfg.intervalMin > 60) { alert('間隔は1〜60分で入力してください'); return; }
-  if (wcfg.apiType === 'searxng' && !wcfg.searchQuery) { alert('検索ワードを入力してください'); return; }
-  if (wcfg.apiType === 'discord' && (!wcfg.discordToken || !wcfg.discordChannelId)) { alert('Discord Token と チャンネルIDを入力してください'); return; }
-  if (wcfg.apiType === 'telegram' && !wcfg.telegramToken) { alert('Telegram Bot Tokenを入力してください'); return; }
+
+  if(wcfg.discordEnabled && !wcfg.discordToken){ alert('Discord Bot Tokenを入力してください'); return; }
+  if(wcfg.telegramEnabled && !wcfg.telegramToken){ alert('Telegram Bot Tokenを入力してください'); return; }
+  if(wcfg.searxEnabled && !wcfg.searxTasks.some(t=>t.enabled)){ alert('SearXNGタスクを少なくとも1つ有効にしてください'); return; }
 
   await A.saveWatcherCfg(wcfg);
-  document.getElementById('wp-interval-label').textContent = wcfg.intervalMin + '分ごと';
   closeM('mW');
   addSN('𓅱 エージェント設定を保存しました', 'ok');
-  if (watcherEnabled) {
-    // 設定変更で再起動
+
+  // 動作中なら再起動
+  if(agentRunning){
     await A.watcherStop();
     await A.watcherStart();
-    setWpStatus('𓅱 設定更新 — エージェント再開');
+    setAgentStatus('⏱ 設定更新 — スケジュール動作中');
   }
+  updateAgentDot();
 }
 
 </script>
