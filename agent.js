@@ -115,25 +115,78 @@ async function detectChatModels(h,p) { return detectModelsAt(h,p); }
 async function detectWatcherModels(h,p) { return detectModelsAt(h,p); }
 
 // ── SearXNG ───────────────────────────────────────────────
+// 広告・スパム・ハルシネーション源となるドメインパターン
+const AD_SPAM_PATTERNS = [
+  /\.doubleclick\.net/, /\.googlesyndication\.com/, /\.adnxs\.com/,
+  /\.adsafeprotected\.com/, /\.amazon-adsystem\.com/, /affiliate/i,
+  /\.clickbank\./, /\.cj\.com/, /\.shareasale\.com/,
+  /pinterest\.com\/pin\//,  // Pinterestの画像ページ
+  /\.tumblr\.com/, // 低品質コンテンツ多
+];
+// 広告/スパムURLを検出
+function isAdOrSpamUrl(url) {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    const full = url.toLowerCase();
+    return AD_SPAM_PATTERNS.some(p => p.test(h) || p.test(full));
+  } catch { return true; } // パース失敗は除外
+}
+// 結果の品質スコア（高いほど良い）
+function scoreResult(r) {
+  let score = 0;
+  // snippetの長さ（短すぎは低品質）
+  const snippetLen = (r.snippet || '').length;
+  if (snippetLen > 100) score += 2;
+  if (snippetLen > 200) score += 1;
+  // エンジン数（複数のエンジンで引っかかるほど信頼性高い）
+  const engines = r.engines || r.engine || [];
+  const engineCount = Array.isArray(engines) ? engines.length : 1;
+  score += Math.min(engineCount, 3);
+  // HTTPSは信頼性が高い
+  if ((r.url || '').startsWith('https://')) score += 1;
+  // タイトルが存在する
+  if ((r.title || '').length > 5) score += 1;
+  return score;
+}
+
 function searxSearch(query, max=5) {
   return new Promise(resolve => {
     if (!cfg.searxngUrl) { resolve([]); return; }
     let url; try { url = new URL(cfg.searxngUrl); } catch { resolve([]); return; }
     const proto = url.protocol==='https:' ? https : http;
+    // news + general の両カテゴリを取得し結合する
+    const path = `/search?q=${encodeURIComponent(query)}&format=json&categories=general,news&language=auto`;
     const req = proto.request({
       hostname:url.hostname, port:url.port||(url.protocol==='https:'?443:80),
-      path:`/search?q=${encodeURIComponent(query)}&format=json&categories=general`,
-      method:'GET', timeout:12000,
+      path, method:'GET', timeout:15000,
       headers:{'Accept':'application/json','User-Agent':'PineChat/1.0'}
     }, res => {
       let raw=''; res.on('data', c=>raw+=c);
       res.on('end', () => {
         try {
           const j = JSON.parse(raw);
-          resolve((j.results||[]).slice(0,max).map(r=>({
-            title:r.title||'', url:r.url||'', snippet:r.content||r.snippet||'',
-            publishedDate: r.publishedDate||r.published_date||''
-          })));
+          const rawResults = j.results || [];
+          // フィルタリング: 広告・スパム除外、snippet最低長チェック
+          const filtered = rawResults.filter(r => {
+            if (!r.url || !r.title) return false;
+            if (isAdOrSpamUrl(r.url)) return false;
+            const snippet = r.content || r.snippet || '';
+            if (snippet.length < 20) return false; // 内容が薄すぎる結果を除外
+            return true;
+          });
+          // スコア順にソートして上位max件を返す
+          const sorted = filtered
+            .map(r => ({ r, score: scoreResult(r) }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, max)
+            .map(({ r }) => ({
+              title: r.title || '',
+              url: r.url || '',
+              snippet: r.content || r.snippet || '',
+              publishedDate: r.publishedDate || r.published_date || '',
+              engines: r.engines || [],
+            }));
+          resolve(sorted);
         } catch { resolve([]); }
       });
       res.on('error', ()=>resolve([]));
@@ -269,6 +322,11 @@ function buildChatSysPrompt(workDir, customSys) {
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
   return `あなたは有能なAIアシスタントです。ユーザーの質問に丁寧に回答し、必要に応じてツールを使います。制約: sudo・インストール系コマンドは不可。\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
 }
+// 設計分析専用システムプロンプト（analysisモード）
+function buildAnalysisSysPrompt(workDir, customSys) {
+  const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
+  return `あなたはアプリケーション設計の専門家AIです。提供された設計図・要件を分析し、詳細な開発計画を日本語で回答してください。\n\n【重要】必ず以下の形式で回答してください:\n1. アプリ概要(2-3文)\n2. 主要機能一覧\n3. 開発タスクリスト(番号付き、具体的に)\n4. 技術スタック\n5. ファイル構造\n\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
+}
 function buildDebugSysPrompt(workDir, customSys) {
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
   return `あなたはデバッグ・機能追加の専門AIエージェントです。既存コードを分析し、バグ修正・テスト・機能追加を行います。\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
@@ -314,7 +372,23 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
       onEvent({type:'text',data:`\n× 通信エラー: ${e.message}`});onEvent({type:'timeout',data:e.message});break;
     }
     const msg=data.choices?.[0]?.message;
-    if(!msg){onEvent({type:'text',data:'\n× 空の応答'});break;}
+    // 空の応答: 最大2回リトライ
+    if(!msg || (!msg.content && !msg.tool_calls?.length)) {
+      const retryKey = '_emptyRetry';
+      const emptyRetry = (msgs[retryKey] || 0) + 1;
+      msgs[retryKey] = emptyRetry;
+      if (emptyRetry <= 2) {
+        logWrite(sessId, 'WARN', `空の応答 - リトライ ${emptyRetry}/2`);
+        onEvent({ type:'system', data:`⚠ 応答が空でした。再試行中 (${emptyRetry}/2)...` });
+        await new Promise(r => setTimeout(r, 4000));
+        if (ac.signal.aborted) { onEvent({type:'text',data:'\n■ 停止'}); break; }
+        continue;
+      }
+      onEvent({ type:'text', data:'× AIからの応答が空です。モデルの起動状態やプロンプトを確認してください。' });
+      break;
+    }
+    msgs['_emptyRetry'] = 0;
+    if(!msg) break; // 念のため
     msgs.push(msg);
     if(msg.content){
       logWrite(sessId,'AI',msg.content.slice(0,200));onEvent({type:'text',data:msg.content});
@@ -698,7 +772,7 @@ module.exports = {
   getCfg, updateCfg, detectModel, detectModelsAt, detectChatModels, detectWatcherModels, searxSearch,
   runAgent, stopAgent, isAborted,
   saveResumeFile, loadResumeFile, deleteResumeFile,
-  makeDevSysPrompt, buildChatSysPrompt, buildDebugSysPrompt, buildAgentChatSysPrompt,
+  makeDevSysPrompt, buildChatSysPrompt, buildAnalysisSysPrompt, buildDebugSysPrompt, buildAgentChatSysPrompt,
   getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs,
   getWatcherCfg, saveWatcherCfg, getAgentAI,

@@ -373,7 +373,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <span class="sb-agent-icon">𓅱</span>
       <div class="sb-agent-info">
         <div class="sb-agent-nm">エージェント</div>
-        <div class="sb-agent-st" id="sb-agent-status">停止中</div>
+        <div class="sb-agent-st" id="sb-agent-status" style="display:none"></div>
       </div>
       <span class="sb-agent-dot" id="sb-agent-dot"></span>
     </button>
@@ -927,10 +927,10 @@ A.onChunk(ev=>{
   }
   switch(ev.type){
     case 'text':
+      if (!ev.data) break; // 空データは無視
       curFull += ev.data;
       if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
-      curBb.innerHTML = renderMd(curFull);
-      curBb.classList.add('md-rendered');
+      if(curBb) { curBb.innerHTML = renderMd(curFull); curBb.classList.add('md-rendered'); }
       dn(); break;
     case 'tool':
       if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
@@ -1178,20 +1178,15 @@ async function delP(e,id){
 }
 
 function renderHist(ms){
+  // 既存のtoolエントリが混入していてもスキップして安全に処理
   ms.forEach((m,i)=>{
-    if(m.role==='user') addUserBubble(m.content,i);
-    else if(m.role==='assistant') addAI(m.content);
-    else if(m.role==='tool'&&m.name){
-      // ツール実行ログを再表示
-      const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
-      const args=m.args||{};
-      const argStr=['command','path','url','query','reason'].filter(k=>args[k])
-        .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
-      const ts=m.ts?new Date(m.ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
-      const box=document.createElement('div'); box.className='tb';
-      box.innerHTML=`<div class="th2"><span>${icons[m.name]||'·'}</span><span class="tn2">${esc(m.name)}</span><span class="tt2">${ts}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
-      msgs().appendChild(box);
+    if(!m || !m.role) return; // 不正エントリはスキップ
+    if(m.role==='user'){
+      if(m.content) addUserBubble(m.content, i);
+    } else if(m.role==='assistant'){
+      if(m.content) addAI(m.content);
     }
+    // tool/system ロールはスキップ（横線の原因となるため表示しない）
   });
   dn();
 }
@@ -1301,10 +1296,35 @@ async function subDes(){
   if(ragFiles.length>0) ragCtx='\n\n【RAGライブラリ情報】\n'+ragFiles.map(r=>`--- ${r.path.split('/').pop()} ---\n${r.content}`).join('\n\n');
   dDat={spec:spec+ragCtx,langs,ragFiles};
   closeM('mD'); addSN('𓂀 設計を分析中...');
-  const prompt=`【設計分析】\n設計図:\n${spec}${langs?'\n\n優先言語: '+langs:''}${ragCtx}\n\n以下の形式で日本語で回答:\n1. アプリ概要(2-3文)\n2. 主要機能一覧\n3. 開発タスクリスト(番号付き、具体的に)\n4. 技術スタック\n5. ファイル構造`;
-  const sm=await chatInternal(prompt,'analysis');
-  dDat.summary=sm;
-  document.getElementById('dSu').textContent=sm||'（応答なし）';
+  // analysisモード: シンプルで明確なプロンプト
+  const specPreview = spec.slice(0, 3000); // 長すぎるプロンプトを短縮
+  const prompt=`以下のアプリ設計図を分析して、開発計画を日本語で作成してください。
+
+設計図:
+${specPreview}${langs?'\n\n優先言語: '+langs:''}
+
+回答形式:
+1. アプリ概要（2-3文で説明）
+2. 主要機能一覧（箇条書き）
+3. 開発タスクリスト（番号付きで具体的に）
+4. 技術スタック
+5. ファイル構造`;
+
+  let sm = '';
+  let retryCount = 0;
+  // 空応答の場合は最大2回リトライ
+  while(retryCount <= 2) {
+    sm = await chatInternal(prompt, 'analysis');
+    if(sm && sm.length > 50) break; // 十分な長さの応答が来たら完了
+    retryCount++;
+    if(retryCount <= 2) {
+      addSN(`⚠ 応答が不完全でした。再試行中 (${retryCount}/2)...`, 'warn');
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+  dDat.summary = sm;
+  const suEl = document.getElementById('dSu');
+  if(suEl) suEl.textContent = sm || '（AIからの応答が得られませんでした。モデルが起動しているか確認してください。）';
   document.getElementById('dRv').value=''; openM('mC');
 }
 async function revDes(){
@@ -1648,11 +1668,8 @@ function addTool(par,td){
     .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
   box.innerHTML=`<div class="th2"><span>${icons[td.name]||'·'}</span><span class="tn2">${esc(td.name)}</span><span class="tt2">${nowDateTs()}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
   par.appendChild(box);
-  // ツール実行をcur.messagesに保存（openP時に再表示するため）
-  if(cur&&cur.messages!==undefined){
-    const toolEntry={role:'tool',name:td.name,args:args,ts:Date.now()};
-    cur.messages.push(toolEntry);
-  }
+  // 注意: cur.messagesにはuser/assistantのみ保存する（toolは混入させない）
+  // ツールログはリアルタイム表示のみ（再表示は省略 - チャット履歴の断絶を防ぐため）
 }
 
 function addThk(){ const d=document.createElement('div'); d.className='thk'; d.innerHTML='<div class="ths"><span></span><span></span><span></span></div><span>処理中...</span>'; msgs().appendChild(d); dn(); return d; }
@@ -1909,9 +1926,9 @@ function setAgentStatus(msg, isErr){
 function updateAgentDot(){
   document.getElementById('agent-dot').classList.toggle('on', agentRunning);
   document.getElementById('sb-agent-dot').classList.toggle('on', agentRunning);
-  const s = UI_STRINGS[currentUiLang] || UI_STRINGS.ja;
-  document.getElementById('sb-agent-status').textContent = agentRunning ? s.agentRunning : s.agentStop;
-  // スライドスイッチはsearxScheduleOnで管理
+  // 問題4: 「停止中」など状態テキストは非表示（スライドスイッチで状態は分かる）
+  const statusEl = document.getElementById('sb-agent-status');
+  if(statusEl) statusEl.style.display = 'none';
   updateSbSwStyle(searxScheduleOn);
 }
 
@@ -2316,8 +2333,8 @@ const UI_STRINGS = {
     projects: 'PROJECTS',
     newBtn: '+ 新規',
     agent: 'エージェント',
-    agentStop: '停止中',
-    agentRunning: 'スケジュール動作中',
+    agentStop: '',
+    agentRunning: '',
     settings: '𓀂 設定',
     clear: 'クリア',
     handsOff: '𓅭 ほったらかし',
@@ -2330,13 +2347,56 @@ const UI_STRINGS = {
     sendBtn: '送信',
     agentEmpty: 'フィードはまだありません',
     agentEmptySub: '設定からソースを有効化するか、チャットで質問してください',
+    // ヘッダー・モーダル
+    headerTitle: 'Pine Chat',
+    newProject: '新規プロジェクト',
+    selectType: '種類を選択してください',
+    chatType: 'チャット',
+    chatDesc: '会話・調査',
+    designType: 'アプリ設計',
+    designDesc: '設計図から開発',
+    projName: 'プロジェクト名（省略で自動生成）',
+    projNamePlaceholder: '省略すると最初のメッセージから自動生成',
+    sysPrompt: 'システムプロンプト（任意）',
+    sysPromptPlaceholder: 'このプロジェクト専用の指示...',
+    designProjName: 'プロジェクト名',
+    designProjPlaceholder: '例: マイアプリ',
+    workFolder: '作業フォルダ',
+    notSelected: '未選択',
+    selectFolder: '選択...',
+    cancelBtn: 'キャンセル',
+    createBtn: '作成',
+    inpPlaceholder: 'メッセージを入力...',
+    inpHint: 'Enter で送信 · Shift+Enter で改行 · 変換中は送信されません',
+    searchLabel: '𓅱 調べる',
+    settingsTitle: '設定',
+    aiConn: 'AI接続',
+    serverAddr: 'サーバーアドレス',
+    port: 'ポート番号',
+    searxUrl: 'SearXNG URL',
+    timeout: 'タイムアウト (秒)',
+    langSection: '言語設定 / Language',
+    uiLangLabel: 'UI言語',
+    aiLangLabel: 'AI応答言語',
+    aiLangHint: 'AI応答言語はエージェントの要約・チャット回答に適用されます',
+    saveBtn: '保存',
+    agentTabTitle: '𓅱 エージェント',
+    agentRunNow: '▶ 今すぐ実行',
+    agentStop2: '■ 停止',
+    agentSchedule: '⏱ スケジュール動作',
+    agentSettings: '⚙ 設定',
+    agentClear: 'クリア',
+    agentStatus: '待機中',
+    agentNextTimer: '',
+    noFeedText: 'フィードはまだありません',
+    noFeedSub: '設定からソースを有効化するか、チャットで質問してください',
   },
   en: {
     projects: 'PROJECTS',
     newBtn: '+ New',
     agent: 'Agent',
-    agentStop: 'Stopped',
-    agentRunning: 'Scheduled',
+    agentStop: '',
+    agentRunning: '',
     settings: '𓀂 Settings',
     clear: 'Clear',
     handsOff: '𓅭 Hands-off',
@@ -2349,30 +2409,93 @@ const UI_STRINGS = {
     sendBtn: 'Send',
     agentEmpty: 'No feed yet',
     agentEmptySub: 'Enable sources in settings or ask a question',
+    // Header / Modal
+    headerTitle: 'Pine Chat',
+    newProject: 'New Project',
+    selectType: 'Select project type',
+    chatType: 'Chat',
+    chatDesc: 'Conversation & research',
+    designType: 'App Design',
+    designDesc: 'Develop from blueprint',
+    projName: 'Project name (auto-generated if blank)',
+    projNamePlaceholder: 'Blank = auto-generated from first message',
+    sysPrompt: 'System prompt (optional)',
+    sysPromptPlaceholder: 'Project-specific instructions...',
+    designProjName: 'Project Name',
+    designProjPlaceholder: 'e.g. MyApp',
+    workFolder: 'Work Folder',
+    notSelected: 'Not selected',
+    selectFolder: 'Select...',
+    cancelBtn: 'Cancel',
+    createBtn: 'Create',
+    inpPlaceholder: 'Type a message...',
+    inpHint: 'Enter to send · Shift+Enter for newline',
+    searchLabel: '𓅱 Search',
+    settingsTitle: 'Settings',
+    aiConn: 'AI Connection',
+    serverAddr: 'Server Address',
+    port: 'Port',
+    searxUrl: 'SearXNG URL',
+    timeout: 'Timeout (sec)',
+    langSection: 'Language / 言語設定',
+    uiLangLabel: 'UI Language',
+    aiLangLabel: 'AI Response Language',
+    aiLangHint: 'AI language applies to agent summaries and chat responses',
+    saveBtn: 'Save',
+    agentTabTitle: '𓅱 Agent',
+    agentRunNow: '▶ Run Now',
+    agentStop2: '■ Stop',
+    agentSchedule: '⏱ Schedule',
+    agentSettings: '⚙ Settings',
+    agentClear: 'Clear',
+    agentStatus: 'Idle',
+    agentNextTimer: '',
+    noFeedText: 'No feed yet',
+    noFeedSub: 'Enable sources in settings or ask a question',
   }
 };
 let currentUiLang = 'ja';
 function applyUiLanguage(lang) {
-  if(currentUiLang === lang) return;
+  if(currentUiLang === lang && lang === 'ja') return; // 初回は必ず通す
   currentUiLang = lang;
   const s = UI_STRINGS[lang] || UI_STRINGS.ja;
-  // サイドバー
+  // ── サイドバー ──
   const sbTtl = document.querySelector('.sb-ttl'); if(sbTtl) sbTtl.textContent = s.projects;
   const sbAdd = document.querySelector('.sb-add'); if(sbAdd) sbAdd.textContent = s.newBtn;
   const sbAgNm = document.querySelector('.sb-agent-nm'); if(sbAgNm) sbAgNm.textContent = s.agent;
-  // ヘッダー
+  // ── ヘッダー ──
   const hoLbl = document.querySelector('.ho-lbl'); if(hoLbl) hoLbl.textContent = s.handsOff;
-  const hbs = document.querySelectorAll('.hb');
-  hbs.forEach(b=>{ if(b.textContent.includes('設定')||b.textContent.includes('Settings')) b.textContent=s.settings; if(b.textContent==='クリア'||b.textContent==='Clear') b.textContent=s.clear; });
-  // エージェントビュー
-  const runBtn = document.querySelector('.acbtn.run'); if(runBtn) runBtn.textContent=s.runNow;
-  const stopBtnAg = document.querySelector('.acbtn.stop'); if(stopBtnAg) stopBtnAg.textContent=s.stopBtn;
-  const schBtn = document.querySelector('.acbtn.schedule'); if(schBtn) schBtn.textContent=s.schedule;
-  const agInp = document.getElementById('agent-inp'); if(agInp) agInp.placeholder=s.agentPlaceholder;
-  // エージェント状態テキスト更新
-  const stEl = document.getElementById('sb-agent-status');
-  if(stEl) stEl.textContent = agentRunning ? s.agentRunning : s.agentStop;
-  // html lang属性
+  document.querySelectorAll('.hb').forEach(b=>{
+    if(b.onclick && b.getAttribute('onclick') && b.getAttribute('onclick').includes('openSet'))
+      b.textContent = s.settings;
+    else if(b.onclick && b.getAttribute('onclick') && b.getAttribute('onclick').includes('clrChat'))
+      b.textContent = s.clear;
+  });
+  // ── チャット入力エリア ──
+  const inp = document.getElementById('inp'); if(inp) inp.placeholder = s.inpPlaceholder;
+  const ih = document.querySelector('.ih'); if(ih) ih.textContent = s.inpHint;
+  const swLbl = document.querySelector('.sw-lbl'); if(swLbl) swLbl.textContent = s.searchLabel;
+  // ── エージェントビュー ──
+  const runBtn  = document.querySelector('.acbtn.run');      if(runBtn)  runBtn.textContent  = s.agentRunNow;
+  const stpBtn  = document.querySelector('.acbtn.stop');     if(stpBtn)  stpBtn.textContent  = s.agentStop2;
+  const schBtn  = document.querySelector('.acbtn.schedule'); if(schBtn)  schBtn.textContent  = s.agentSchedule;
+  const agInp   = document.getElementById('agent-inp');      if(agInp)   agInp.placeholder   = s.agentPlaceholder;
+  const agTitle = document.querySelector('.agent-ctrl-title'); if(agTitle) agTitle.textContent = s.agentTabTitle;
+  // ── 設定モーダル ──
+  const langSecLbl = document.getElementById('lbl-lang-sec'); if(langSecLbl) langSecLbl.textContent = s.langSection;
+  const uiLangLbl  = document.getElementById('lbl-ui-lang');  if(uiLangLbl)  uiLangLbl.textContent  = s.uiLangLabel;
+  const aiLangLbl  = document.getElementById('lbl-ai-lang');  if(aiLangLbl)  aiLangLbl.textContent  = s.aiLangLabel;
+  const aiLangHint = document.getElementById('lbl-lang-hint'); if(aiLangHint) aiLangHint.textContent = s.aiLangHint;
+  // ── フィード空表示 ──
+  const feedEmpty = document.getElementById('agent-feed-empty');
+  if(feedEmpty) feedEmpty.innerHTML = s.noFeedText + '<br><small>' + s.noFeedSub + '</small>';
+  // ── ステータスバー ──
+  const statusBar = document.getElementById('agent-status-bar');
+  if(statusBar && (statusBar.textContent === '待機中' || statusBar.textContent === 'Idle'))
+    statusBar.textContent = s.agentStatus;
+  // sb-agent-status は表示しない（スライドスイッチで判断可能）
+  const stEl = document.getElementById('sb-agent-status'); if(stEl) stEl.style.display='none';
+  // ── html lang属性 ──
   document.documentElement.lang = lang;
 }
 

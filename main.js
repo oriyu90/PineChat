@@ -158,9 +158,10 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   }
 
   let sysPrompt;
-  if(mode==='dev') sysPrompt=agent.makeDevSysPrompt(workDir,proj?.systemPrompt,langs||'');
-  else if(mode==='debug') sysPrompt=agent.buildDebugSysPrompt(workDir,proj?.systemPrompt);
-  else sysPrompt=agent.buildChatSysPrompt(workDir,proj?.systemPrompt);
+  if(mode==='dev')       sysPrompt=agent.makeDevSysPrompt(workDir,proj?.systemPrompt,langs||'');
+  else if(mode==='debug')   sysPrompt=agent.buildDebugSysPrompt(workDir,proj?.systemPrompt);
+  else if(mode==='analysis') sysPrompt=agent.buildAnalysisSysPrompt(workDir,proj?.systemPrompt);
+  else                   sysPrompt=agent.buildChatSysPrompt(workDir,proj?.systemPrompt);
 
   let fullText='', wasAborted=false;
   activeSessions.set(sessId,{workDir,mode,lastText:'',projId:projectId});
