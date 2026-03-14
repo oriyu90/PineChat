@@ -1,5 +1,5 @@
 'use strict';
-// agent.js — Pine Chat AI通信・ツール実行・ループ検知・ほったらかしモード
+// agent.js — Pine Chat AI通信・ツール実行・ループ検知・ほったらかしモードについて
 const http  = require('http');
 const https = require('https');
 const fs    = require('fs');
