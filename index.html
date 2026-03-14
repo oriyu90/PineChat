@@ -764,10 +764,26 @@ async function loadPL(){
 }
 
 async function openP(id){
-  if (cur&&cur.id!==id) A.updateProject(cur.id,cur);
-  const p=await A.getProject(id); if(!p) return;
+  // ① 別プロジェクトから切り替える場合: 現在の状態を保存
+  if (cur && cur.id !== id) {
+    await A.updateProject(cur.id, cur);
+    // バックグラウンド処理中でも新しいプロジェクト表示に切り替えるため
+    // busyは新プロジェクト視点でfalseにリセット（処理自体はmain側で継続）
+    busy = false;
+  }
+  // ① 最新データをディスクから読み直す（AI処理中に追記された分も含む）
+  const p = await A.getProject(id); if(!p) return;
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
+
+  // ① 停止ボタン状態を新プロジェクト用にリセット（他PJの状態を引き継がない）
+  stopping=false;
+  const sb=document.getElementById('stop-btn');
+  sb.classList.remove('resume','stopping');
+  sb.textContent='■';
+  sb.style.display='none';
+  document.getElementById('send-btn').disabled=false;
+
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
   document.getElementById('msgs').innerHTML='';
@@ -1018,16 +1034,29 @@ async function doSend(){
 }
 
 async function chatInternal(msg,mode,attachments,ds){
+  // ① 開始時点のcur/sessIdをスナップショット(処理中に別PJへ切り替えられても元PJに保存する)
+  const snapProj = cur;
+  const snapSessId = curSid;
   const thk=addThk(); curEl=null; curBb=null; curFull='';
   try{
-    await A.startChat({sessId:curSid,message:msg,projectId:cur?cur.id:null,mode,attachments:attachments||[],deepSearch:!!ds,langs:dDat?.langs||''});
+    await A.startChat({sessId:snapSessId,message:msg,projectId:snapProj?snapProj.id:null,mode,attachments:attachments||[],deepSearch:!!ds,langs:dDat?.langs||''});
     if(thk.parentNode) thk.remove();
-    if(cur&&curFull&&mode!=='analysis'){
-      if(!cur.messages) cur.messages=[];
-      cur.messages.push({role:'assistant',content:curFull});
+    if(snapProj&&curFull&&mode!=='analysis'){
+      if(!snapProj.messages) snapProj.messages=[];
+      snapProj.messages.push({role:'assistant',content:curFull});
+      // ① 元PJのデータをディスクに保存（切り替え後でも確実に保存）
+      await A.updateProject(snapProj.id, snapProj);
     }
   }catch(e){ if(thk.parentNode)thk.remove(); addAI('× エラー: '+e.message); }
-  finally{ busy=false; stopping=false; setBusy(false); document.getElementById('inp').focus(); }
+  finally{
+    // ②/③ finallyでのbusyリセットは「現在表示しているPJ」と「処理していたPJ」が
+    // 一致している場合のみUIをリセットする。別PJに切り替えていたらUIには触れない。
+    if(curSid === snapSessId){
+      busy=false; stopping=false; setBusy(false);
+      document.getElementById('inp').focus();
+    }
+    // 別PJに切り替えていた場合: 元PJのbusy状態は既にopenPでリセット済み
+  }
   return curFull;
 }
 async function chatInternalDev(msg,mode){ return chatInternal(msg,mode||'dev',[],false); }
@@ -1036,6 +1065,10 @@ async function chatInternalDev(msg,mode){ return chatInternal(msg,mode||'dev',[]
 // 再開ボタンは別関数に分離してUIの整合性を確保
 async function doStop(){
   const btn=document.getElementById('stop-btn');
+
+  // ② stopping中(停止処理中)は再開ボタンを押せない
+  if(btn.classList.contains('stopping')) return;
+
   if(btn.classList.contains('resume')){
     // 再開ボタン: 再開ファイルがあれば直接再開
     btn.classList.remove('resume'); btn.textContent='■'; btn.style.display='none';
@@ -1047,26 +1080,27 @@ async function doStop(){
     addSN('𓂀 メッセージを入力して続きから再開できます。','ok');
     return;
   }
-  if(stopping) return; // ② 二重押し防止
+
+  if(stopping) return; // 二重押し防止(フラグでも)
   stopping=true;
   btn.classList.add('stopping'); btn.textContent='停止中...';
 
-  // ② 再開ファイルを先に保存
+  // 再開ファイルを先に保存
   if(cur&&cur.workDir){
     const checkpoint=curFull?('最後の出力: '+curFull.slice(-200)):'処理中断';
     await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'停止'});
   }
 
-  // ② AIに「まとめて終了」を指示してから止める（問題があれば即停止）
-  if(busy&&curSid){
-    // まず正常終了を試みる: main側のstartChatが返ってくるまで少し待つ
-    await A.stopChat(curSid);
-  }
+  // AIを停止
+  if(curSid) await A.stopChat(curSid);
 
-  // ③ busyフラグとUIを確実にリセット
+  // ②③ busyフラグとUIをリセット
+  // ※ chatInternalのfinallyも走るが、resumeクラスがついていればdisplay:noneにはならない
   busy=false; stopping=false;
   btn.classList.remove('stopping');
   btn.classList.add('resume'); btn.textContent='▷ 再開';
+  // ③ display:blockを強制設定(finallyがnoneにしないよう先に確定)
+  btn.style.display='block';
   document.getElementById('send-btn').disabled=false;
   addSN('𓅯 停止しました。再開ファイルを保存しました。','warn');
 }
@@ -1235,8 +1269,17 @@ function showChat(){ document.getElementById('wl').style.display='none'; const c
 function setBusy(b){
   document.getElementById('send-btn').disabled=b;
   const sb=document.getElementById('stop-btn');
-  if(b){ sb.style.display='block'; sb.classList.remove('resume','stopping'); sb.textContent='■'; }
-  else if(!sb.classList.contains('resume')){ sb.style.display='none'; }
+  if(b){
+    // ③ resume/stoppingクラスがついている場合はそれを優先（doStopが先に設定した状態を壊さない）
+    if(!sb.classList.contains('resume') && !sb.classList.contains('stopping')){
+      sb.style.display='block'; sb.textContent='■';
+    }
+  } else {
+    // ③ resumeクラスがついていれば消さない（再開ボタンを維持）
+    if(!sb.classList.contains('resume') && !sb.classList.contains('stopping')){
+      sb.style.display='none';
+    }
+  }
   if(!b) stopDevTimer();
 }
 
