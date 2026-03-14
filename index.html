@@ -10,7 +10,6 @@
   --bg:#000;--c1:#0d0d0d;--c2:#171717;--c3:#212121;
   --b1:#2e2e2e;--b2:#444;--b3:#666;
   --t1:#f0f0f0;--t2:#aaa;--t3:#666;
-  --acc:#888;
   --ok:#2ea87a;--ok2:#1a6e50;--ok-bg:#071a11;--ok-bdr:#134030;
   --warn:#c47c28;--warn-bg:#1a1000;--warn-bdr:#3a2800;
   --err:#c04040;
@@ -45,8 +44,6 @@ body{display:flex}
 
 /* ── メイン ── */
 #mn{flex:1;display:flex;flex-direction:column;min-width:0;height:100vh;overflow:hidden}
-
-/* ── ヘッダー ── */
 header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   border-bottom:1px solid var(--b1);background:var(--c1);flex-shrink:0;min-height:52px}
 #sb-btn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;padding:4px 8px;border-radius:4px}
@@ -61,8 +58,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .ho-lbl{font-size:11px;color:var(--t3);font-weight:600;white-space:nowrap}
 .ho-sw{width:36px;height:20px;background:var(--b2);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0}
 .ho-sw.on{background:var(--ok)}
-.ho-sw::after{content:'';width:14px;height:14px;background:#fff;border-radius:50%;
-  position:absolute;top:3px;left:3px;transition:left .2s}
+.ho-sw::after{content:'';width:14px;height:14px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:left .2s}
 .ho-sw.on::after{left:19px}
 .hb{background:none;border:1px solid var(--b2);color:var(--t2);
   padding:5px 13px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;font-weight:600}
@@ -70,106 +66,83 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 
 /* ── コンテンツ ── */
 #ct{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-
-/* ── ウェルカム ── */
 #wl{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center}
 .wg{font-size:36px;opacity:.1;margin-bottom:20px;letter-spacing:.1em}
 .wt{font-size:22px;font-weight:300;letter-spacing:.06em;margin-bottom:8px;color:var(--t1)}
 .ws{font-size:13px;color:var(--t3);line-height:2;margin-bottom:32px}
 .wcs{display:flex;gap:13px;flex-wrap:wrap;justify-content:center}
-.wc{background:var(--c2);border:1px solid var(--b1);border-radius:10px;
-  padding:22px 28px;min-width:160px;text-align:center;cursor:pointer;transition:all .15s}
+.wc{background:var(--c2);border:1px solid var(--b1);border-radius:10px;padding:22px 28px;min-width:160px;text-align:center;cursor:pointer;transition:all .15s}
 .wc:hover{background:var(--c3);border-color:var(--b2);transform:translateY(-2px)}
 .wc-g{font-size:22px;opacity:.5;margin-bottom:8px;line-height:1}
 .wc-l{font-size:13px;font-weight:700;margin-bottom:3px;color:var(--t1)}
 .wc-d{font-size:11px;color:var(--t3)}
 
-/* ── チャットエリア ── */
+/* ── チャット ── */
 #cw{flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden}
-
-/* モードバー */
-.mode-bar{display:flex;align-items:center;gap:6px;padding:8px 18px;
-  border-bottom:1px solid var(--b1);background:var(--c1);flex-shrink:0}
-.mt{background:none;border:1px solid transparent;color:var(--t3);
-  padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
+.mode-bar{display:flex;align-items:center;gap:6px;padding:8px 18px;border-bottom:1px solid var(--b1);background:var(--c1);flex-shrink:0}
+.mt{background:none;border:1px solid transparent;color:var(--t3);padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
 .mt:hover{color:var(--t2)}.mt.on{border-color:var(--b2);color:var(--t1);background:var(--c3)}
 #res-btn{display:none;background:none;border:1px solid var(--warn);color:var(--warn);
   padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;margin-left:auto;white-space:nowrap;font-weight:700}
 #res-btn:hover{background:var(--warn-bg);color:#f0a040}
 
 /* 進捗バー */
-#prog-bar{display:none;padding:7px 18px;background:var(--prog-bg);
-  border-bottom:1px solid var(--prog-bdr);flex-shrink:0;font-size:12px;color:var(--prog-txt)}
+#prog-bar{display:none;padding:7px 18px;background:var(--prog-bg);border-bottom:1px solid var(--prog-bdr);flex-shrink:0;font-size:12px;color:var(--prog-txt)}
 .prog-inner{display:flex;align-items:center;gap:10px}
 .prog-track{flex:1;height:4px;background:#0a2018;border-radius:2px;overflow:hidden}
 .prog-fill{height:100%;background:var(--ok);border-radius:2px;transition:width .4s}
 #prog-time{font-size:11px;color:var(--t3);flex-shrink:0;min-width:60px;text-align:right;font-family:'Menlo',monospace}
-
-/* デバッグバナー */
-#dbg-banner{display:none;background:#100e00;border-bottom:1px solid #302800;
-  padding:8px 18px;font-size:12px;color:#c8a030;flex-shrink:0;font-weight:600}
+#dbg-banner{display:none;background:#100e00;border-bottom:1px solid #302800;padding:8px 18px;font-size:12px;color:#c8a030;flex-shrink:0;font-weight:600}
 
 /* メッセージ */
 #msgs{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:13px}
 .msg{display:flex;flex-direction:column;gap:4px}
-
-/* ① メッセージヘッダー（ラベル＋時刻） */
 .msg-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .ml2{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)}
 .msg-ts{font-size:10px;color:var(--t3);font-family:'Menlo',monospace;opacity:.7}
-
-.mb{padding:11px 16px;border-radius:7px;line-height:1.85;word-break:break-word;font-size:14.5px;position:relative}
+.mb{padding:11px 16px;border-radius:7px;line-height:1.85;word-break:break-word;font-size:14.5px}
 .msg.user .mb{background:var(--c3);border:1px solid var(--b2);align-self:flex-end;max-width:82%}
 .msg.ai   .mb{background:var(--c2);border:1px solid var(--b1);max-width:100%}
 
-/* ① .sn にも時刻（右端） */
-.sn{display:flex;align-items:center;justify-content:center;gap:8px;
-  padding:4px 12px;font-size:11px;color:var(--t3);margin:2px 30px;border-radius:4px;font-weight:500}
+/* システム通知 */
+.sn{display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 12px;font-size:11px;color:var(--t3);margin:2px 30px;border-radius:4px;font-weight:500}
 .sn.warn{background:var(--warn-bg);color:#d08830;border:1px solid var(--warn-bdr)}
 .sn.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bdr)}
 .sn.err{background:#160404;color:#d05050;border:1px solid #3a0c0c}
 .sn-ts{font-size:10px;opacity:.6;font-family:'Menlo',monospace;flex-shrink:0}
 
-/* Markdownレンダリング */
+/* Markdown */
 .md-rendered h1{font-size:1.45em;font-weight:800;margin:.7em 0 .35em;color:#fff;border-bottom:1px solid var(--b1);padding-bottom:.3em}
 .md-rendered h2{font-size:1.25em;font-weight:700;margin:.65em 0 .3em;color:#fff}
 .md-rendered h3{font-size:1.1em;font-weight:700;margin:.5em 0 .25em;color:var(--t1)}
 .md-rendered p{margin:.3em 0;line-height:1.85}
 .md-rendered ul,.md-rendered ol{padding-left:1.5em;margin:.3em 0}
 .md-rendered li{margin:.2em 0;line-height:1.8}
-.md-rendered code{background:#0a0a0a;border:1px solid var(--b2);border-radius:4px;
-  padding:2px 6px;font-family:'Menlo','Monaco',monospace;font-size:.88em;color:#90c8ff}
-.md-rendered pre{background:#050505;border:1px solid var(--b2);border-radius:6px;
-  padding:13px;overflow-x:auto;margin:.5em 0}
+.md-rendered code{background:#0a0a0a;border:1px solid var(--b2);border-radius:4px;padding:2px 6px;font-family:'Menlo','Monaco',monospace;font-size:.88em;color:#90c8ff}
+.md-rendered pre{background:#050505;border:1px solid var(--b2);border-radius:6px;padding:13px;overflow-x:auto;margin:.5em 0}
 .md-rendered pre code{background:none;border:none;padding:0;color:#cde;font-size:.87em;line-height:1.6}
 .md-rendered blockquote{border-left:2px solid var(--b3);padding-left:12px;color:var(--t2);margin:.4em 0}
 .md-rendered hr{border:none;border-top:1px solid var(--b2);margin:.6em 0}
 .md-rendered strong{font-weight:800;color:#fff}
 .md-rendered em{font-style:italic;color:var(--t2)}
-.md-rendered a{color:#5a9fdf;text-decoration:none}
-.md-rendered a:hover{text-decoration:underline}
+.md-rendered a{color:#5a9fdf;text-decoration:none}.md-rendered a:hover{text-decoration:underline}
 .md-rendered table{border-collapse:collapse;margin:.4em 0;width:100%}
 .md-rendered th,.md-rendered td{border:1px solid var(--b2);padding:6px 10px;font-size:13px}
 .md-rendered th{background:var(--c3);font-weight:700;color:#fff}
 
-/* ⑧ 編集ボタン — バブル下部に配置 */
+/* 編集ボタン（バブル下部） */
 .edit-btn-row{display:flex;justify-content:flex-end;margin-top:4px;opacity:0;transition:opacity .15s}
 .msg.user:hover .edit-btn-row{opacity:1}
-.edit-btn{background:none;border:1px solid var(--b2);color:var(--t3);
-  cursor:pointer;font-size:11px;padding:2px 9px;border-radius:3px}
+.edit-btn{background:none;border:1px solid var(--b2);color:var(--t3);cursor:pointer;font-size:11px;padding:2px 9px;border-radius:3px}
 .edit-btn:hover{color:var(--t2);border-color:var(--b3)}
-.edit-area{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;
-  color:var(--t1);font-size:14px;padding:8px 12px;resize:vertical;min-height:64px;
-  line-height:1.75;outline:none;margin-top:6px}
+.edit-area{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:14px;padding:8px 12px;resize:vertical;min-height:64px;line-height:1.75;outline:none;margin-top:6px}
 .edit-foot{display:flex;gap:7px;margin-top:6px}
-.edit-foot button{background:none;border:1px solid var(--b2);color:var(--t2);
-  padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
+.edit-foot button{background:none;border:1px solid var(--b2);color:var(--t2);padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
 .edit-foot button:hover{border-color:var(--t2);color:var(--t1)}
 
-/* ツール表示 */
+/* ツール */
 .tb{margin:4px 0;border:1px solid var(--b1);border-radius:5px;background:#040404;overflow:hidden}
-.th2{display:flex;align-items:center;gap:8px;padding:5px 11px;font-size:11px;color:var(--t3);
-  border-bottom:1px solid var(--b1);justify-content:space-between}
+.th2{display:flex;align-items:center;gap:8px;padding:5px 11px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--b1);justify-content:space-between}
 .tn2{font-weight:700;color:var(--t2)}
 .tt2{font-size:10px;color:var(--t3);font-family:'Menlo',monospace;opacity:.7}
 .td2{padding:6px 11px;font-size:10px;color:var(--t3);font-family:'Menlo',monospace;line-height:1.6}
@@ -182,132 +155,108 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 @keyframes bl{0%,80%,100%{opacity:.15}40%{opacity:1}}
 
 /* 再開バナー */
-.resume-banner{margin:8px 0;padding:13px 18px;background:var(--ok-bg);
-  border:1px solid var(--ok);border-radius:8px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.resume-banner{margin:8px 0;padding:13px 18px;background:var(--ok-bg);border:1px solid var(--ok);border-radius:8px;display:flex;align-items:center;gap:12px;cursor:pointer}
 .resume-banner:hover{background:#0a2218;border-color:#3ed898}
 .resume-icon{font-size:22px;flex-shrink:0}
 .resume-info{flex:1}
 .resume-title{font-size:14px;font-weight:700;color:var(--ok);margin-bottom:3px}
 .resume-sub{font-size:11px;color:var(--t3)}
-.resume-act{font-size:12px;font-weight:700;color:var(--ok);white-space:nowrap;
-  border:1px solid var(--ok);padding:5px 14px;border-radius:5px}
+.resume-act{font-size:12px;font-weight:700;color:var(--ok);white-space:nowrap;border:1px solid var(--ok);padding:5px 14px;border-radius:5px}
 
 /* タスク進捗 */
-.task-card{display:flex;align-items:center;gap:10px;padding:9px 15px;
-  background:var(--prog-bg);border:1px solid var(--prog-bdr);border-radius:6px;margin:3px 0;font-size:13px}
+.task-card{display:flex;align-items:center;gap:10px;padding:9px 15px;background:var(--prog-bg);border:1px solid var(--prog-bdr);border-radius:6px;margin:3px 0;font-size:13px}
 .task-num{color:var(--prog-txt);font-weight:700;min-width:70px;flex-shrink:0;font-family:'Menlo',monospace}
 .task-name{color:#80d0a8;flex:1}
 .task-stat{font-size:11px;color:var(--ok2);flex-shrink:0}
 
 /* ── 入力エリア ── */
 .ia{padding:12px 18px;border-top:1px solid var(--b1);background:var(--c1);flex-shrink:0}
-/* ⑦ chat-opts: アプリ設計中は非表示、デバッグ/チャット時のみ */
 .chat-opts{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
-/* 添付ボタン */
-.att-add-btn{background:none;border:1px solid var(--b2);color:var(--t2);
-  padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
+.att-add-btn{background:none;border:1px solid var(--b2);color:var(--t2);padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600}
 .att-add-btn:hover{border-color:var(--ok);color:var(--ok)}
-/* ⑥ 調べるスライドスイッチ */
+/* 調べるスライドスイッチ */
 .sw-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
 .sw-lbl{font-size:12px;color:var(--t2);font-weight:600}
 .sw-track{width:34px;height:18px;background:var(--b2);border-radius:9px;position:relative;transition:background .2s;flex-shrink:0}
 .sw-track.on{background:var(--ok)}
-.sw-track::after{content:'';width:12px;height:12px;background:#fff;border-radius:50%;
-  position:absolute;top:3px;left:3px;transition:left .2s}
+.sw-track::after{content:'';width:12px;height:12px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:left .2s}
 .sw-track.on::after{left:19px}
 .att-list{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px}
-.att-item{display:flex;align-items:center;gap:5px;background:var(--c2);
-  border:1px solid var(--b1);border-radius:5px;padding:3px 9px;font-size:12px;color:var(--t2)}
+.att-item{display:flex;align-items:center;gap:5px;background:var(--c2);border:1px solid var(--b1);border-radius:5px;padding:3px 9px;font-size:12px;color:var(--t2)}
 .att-rm{background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:0 2px}
 .att-rm:hover{color:var(--t1)}
 .ir{display:flex;gap:8px;align-items:flex-end}
-#inp{flex:1;background:#0a0a0a;border:1px solid var(--b2);border-radius:6px;
-  color:var(--t1);font-size:14.5px;padding:10px 13px;resize:none;
-  min-height:46px;max-height:140px;line-height:1.65;outline:none}
+#inp{flex:1;background:#0a0a0a;border:1px solid var(--b2);border-radius:6px;color:var(--t1);font-size:14.5px;padding:10px 13px;resize:none;min-height:46px;max-height:140px;line-height:1.65;outline:none}
 #inp:focus{border-color:var(--b3)}
 #inp::placeholder{color:var(--t3)}
-/* ② 停止ボタン */
-#stop-btn{display:none;background:none;border:1px solid var(--b2);color:var(--t2);
-  border-radius:6px;padding:0 13px;cursor:pointer;font-size:14px;height:46px;white-space:nowrap;font-weight:700}
-#stop-btn:hover{border-color:var(--err);color:var(--err)}
-#stop-btn.resume{border-color:var(--ok)!important;color:var(--ok)!important;display:block!important}
-#stop-btn.resume:hover{background:var(--ok-bg);color:#4de8a8!important}
-/* ② stopping状態: 処理完了待ち中のスタイル */
-#stop-btn.stopping{border-color:var(--warn)!important;color:var(--warn)!important;cursor:not-allowed!important;opacity:.7}
-#send-btn{background:var(--c3);color:var(--t1);border:1px solid var(--b2);
-  border-radius:6px;padding:0 18px;cursor:pointer;font-size:13px;font-weight:800;
-  height:46px;white-space:nowrap;letter-spacing:.04em}
+
+/* ── 停止/再開ボタン ──
+   状態: [hidden] → busy時: [■ 停止中] → doStop押下: [停止中...] → 完了: [▷ 再開]
+   クラス管理のみで display制御し、インラインstyleは使わない
+*/
+#stop-btn{
+  display:none; /* デフォルト非表示 */
+  background:none;border:1px solid var(--b2);color:var(--t2);
+  border-radius:6px;padding:0 13px;cursor:pointer;font-size:14px;height:46px;white-space:nowrap;font-weight:700
+}
+#stop-btn.active       { display:block; border-color:var(--err);  color:var(--err); }
+#stop-btn.active:hover { background:#160404; }
+#stop-btn.stopping     { display:block; border-color:var(--warn); color:var(--warn); cursor:not-allowed; opacity:.7; }
+#stop-btn.resume-ready { display:block; border-color:var(--ok);   color:var(--ok); }
+#stop-btn.resume-ready:hover { background:var(--ok-bg); color:#4de8a8; }
+
+#send-btn{background:var(--c3);color:var(--t1);border:1px solid var(--b2);border-radius:6px;padding:0 18px;cursor:pointer;font-size:13px;font-weight:800;height:46px;white-space:nowrap;letter-spacing:.04em}
 #send-btn:hover{background:var(--b1)}
 #send-btn:disabled{opacity:.3;cursor:not-allowed}
 .ih{margin-top:5px;font-size:11px;color:var(--t3)}
 
 /* ── モーダル ── */
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.88);
-  display:flex;align-items:center;justify-content:center;z-index:9000}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:9000}
 .ov.h{display:none}
-.md{background:var(--c1);border:1px solid var(--b2);border-radius:12px;
-  padding:26px;width:480px;max-width:92vw;max-height:90vh;overflow-y:auto}
+.md{background:var(--c1);border:1px solid var(--b2);border-radius:12px;padding:26px;width:480px;max-width:92vw;max-height:90vh;overflow-y:auto}
 .md.w{width:560px}.md.xl{width:720px}
 .mt2{font-size:16px;font-weight:800;margin-bottom:4px;color:#fff}
 .ms2{font-size:12px;color:var(--t3);margin-bottom:18px;line-height:1.75}
 .lbl{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
-.inp2{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;
-  color:var(--t1);font-size:14px;padding:9px 12px;outline:none;margin-bottom:14px}
+.inp2{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:14px;padding:9px 12px;outline:none;margin-bottom:14px}
 .inp2:focus{border-color:var(--b3)}
-.ta2{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;
-  color:var(--t1);font-size:13px;padding:9px 12px;outline:none;resize:vertical;
-  min-height:80px;margin-bottom:14px;line-height:1.75}
+.ta2{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:13px;padding:9px 12px;outline:none;resize:vertical;min-height:80px;margin-bottom:14px;line-height:1.75}
 .ta2:focus{border-color:var(--b3)}
 .mcs{display:flex;gap:10px;margin-bottom:14px}
-.mc{flex:1;background:var(--c2);border:1px solid var(--b1);border-radius:8px;
-  padding:16px 12px;cursor:pointer;text-align:center;transition:all .15s}
+.mc{flex:1;background:var(--c2);border:1px solid var(--b1);border-radius:8px;padding:16px 12px;cursor:pointer;text-align:center;transition:all .15s}
 .mc:hover{background:var(--c3);border-color:var(--b2)}.mc.s{border-color:var(--t2);background:var(--c3)}
 .mc-g{font-size:20px;opacity:.55;margin-bottom:6px;line-height:1}
 .mc-l{font-size:13px;font-weight:700;color:var(--t1)}.mc-d{font-size:11px;color:var(--t3);margin-top:3px}
 .mf{display:flex;gap:7px;margin-bottom:14px}
-.mfd{flex:1;background:var(--bg);border:1px solid var(--b2);border-radius:5px;
-  color:var(--t3);font-family:'Menlo',monospace;font-size:11px;padding:8px 12px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mfb{background:var(--c2);border:1px solid var(--b2);color:var(--t2);
-  padding:8px 13px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;font-weight:600}
+.mfd{flex:1;background:var(--bg);border:1px solid var(--b2);border-radius:5px;color:var(--t3);font-family:'Menlo',monospace;font-size:11px;padding:8px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mfb{background:var(--c2);border:1px solid var(--b2);color:var(--t2);padding:8px 13px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;font-weight:600}
 .mfb:hover{border-color:var(--t2);color:var(--t1)}
-.lang-q{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;
-  color:var(--t1);font-size:13px;padding:7px 12px;outline:none;margin-bottom:8px}
+.lang-q{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:13px;padding:7px 12px;outline:none;margin-bottom:8px}
 .lang-q:focus{border-color:var(--b3)}
 .langs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;max-height:120px;overflow-y:auto}
-.lg{background:var(--c2);border:1px solid var(--b1);color:var(--t3);
-  padding:3px 11px;border-radius:5px;cursor:pointer;font-size:12px}
+.lg{background:var(--c2);border:1px solid var(--b1);color:var(--t3);padding:3px 11px;border-radius:5px;cursor:pointer;font-size:12px}
 .lg:hover{color:var(--t1);border-color:var(--b2)}.lg.s{border-color:var(--t2);color:var(--t1);background:var(--c3)}.lg.h{display:none}
 .rag-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
-.rag-item{display:flex;align-items:center;gap:7px;background:var(--c2);
-  border:1px solid var(--b1);border-radius:5px;padding:6px 11px;font-size:12px}
+.rag-item{display:flex;align-items:center;gap:7px;background:var(--c2);border:1px solid var(--b1);border-radius:5px;padding:6px 11px;font-size:12px}
 .rag-nm{flex:1;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rag-rm{background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px}
 .rag-rm:hover{color:var(--t1)}
-.rag-add{background:none;border:1px dashed var(--b2);color:var(--t3);
-  width:100%;padding:8px;border-radius:5px;cursor:pointer;font-size:12px;text-align:center;margin-bottom:14px}
+.rag-add{background:none;border:1px dashed var(--b2);color:var(--t3);width:100%;padding:8px;border-radius:5px;cursor:pointer;font-size:12px;text-align:center;margin-bottom:14px}
 .rag-add:hover{border-color:var(--b3);color:var(--t2)}
 .mft{display:flex;justify-content:flex-end;gap:8px;margin-top:6px;flex-wrap:wrap}
-.bc{background:none;border:1px solid var(--b2);color:var(--t2);
-  padding:7px 15px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600}
+.bc{background:none;border:1px solid var(--b2);color:var(--t2);padding:7px 15px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600}
 .bc:hover{border-color:var(--t2);color:var(--t1)}
-.bok{background:var(--c3);border:1px solid var(--b2);color:var(--t1);
-  padding:7px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:700}
+.bok{background:var(--c3);border:1px solid var(--b2);color:var(--t1);padding:7px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:700}
 .bok:hover{background:var(--b2)}.bok:disabled{opacity:.3;cursor:not-allowed}
-.msu{background:var(--bg);border:1px solid var(--b1);border-radius:5px;
-  padding:12px;font-size:13px;line-height:1.8;max-height:170px;overflow-y:auto;
-  margin-bottom:14px;white-space:pre-wrap;color:var(--t1)}
+.msu{background:var(--bg);border:1px solid var(--b1);border-radius:5px;padding:12px;font-size:13px;line-height:1.8;max-height:170px;overflow-y:auto;margin-bottom:14px;white-space:pre-wrap;color:var(--t1)}
 .set-sec{margin-bottom:18px}
 .set-stl{font-size:11px;font-weight:700;color:var(--t2);border-bottom:1px solid var(--b1);padding-bottom:6px;margin-bottom:12px}
 .set-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .set-lbl{font-size:13px;color:var(--t2);min-width:135px;flex-shrink:0}
-.set-inp{background:var(--bg);border:1px solid var(--b2);border-radius:5px;
-  color:var(--t1);font-family:'Menlo',monospace;font-size:13px;padding:7px 11px;outline:none;width:200px}
+.set-inp{background:var(--bg);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-family:'Menlo',monospace;font-size:13px;padding:7px 11px;outline:none;width:200px}
 .set-inp:focus{border-color:var(--b3)}
 .set-hint{font-size:11px;color:var(--t3);margin:-7px 0 10px 145px}
-.log-viewer{background:var(--bg);border:1px solid var(--b1);border-radius:5px;
-  padding:11px;font-family:'Menlo',monospace;font-size:10px;line-height:1.65;
-  color:var(--t3);max-height:260px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:12px}
+.log-viewer{background:var(--bg);border:1px solid var(--b1);border-radius:5px;padding:11px;font-family:'Menlo',monospace;font-size:10px;line-height:1.65;color:var(--t3);max-height:260px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:12px}
 .fin-opts{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .fin-opt{background:var(--c2);border:1px solid var(--b1);border-radius:8px;padding:14px;cursor:pointer;transition:all .15s}
 .fin-opt:hover{background:var(--c3);border-color:var(--b2)}.fin-opt.s{border-color:var(--t2)}
@@ -369,11 +318,9 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div id="dbg-banner">𓃗 デバッグ・機能追加モード — バグ修正・テスト・機能拡張</div>
       <div id="msgs"></div>
       <div class="ia">
-        <!-- ⑦ chat-optsはupdateModeUI()で制御 -->
         <div class="chat-opts" id="chat-opts" style="display:none">
           <button class="att-add-btn" id="btn-img">＋ 画像</button>
           <button class="att-add-btn" id="btn-file">＋ ファイル</button>
-          <!-- ⑥ 調べるをスライドスイッチに変更 -->
           <div class="sw-wrap" onclick="toggleDeep()" title="Web検索を使って調べながら回答">
             <div class="sw-track" id="deep-sw"></div>
             <span class="sw-lbl">𓅱 調べる</span>
@@ -382,7 +329,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <div class="att-list" id="att-list"></div>
         <div class="ir">
           <textarea id="inp" placeholder="メッセージを入力..." rows="1"></textarea>
-          <button id="stop-btn" onclick="doStop()">■</button>
+          <button id="stop-btn" onclick="handleStopBtn()">■</button>
           <button id="send-btn" onclick="doSend()">送信</button>
         </div>
         <div class="ih">Enter で送信 · Shift+Enter で改行 · 変換中は送信されません</div>
@@ -424,9 +371,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="mfd" id="dMdPath">未選択</div>
       <button class="mfb" onclick="pickDesignMd()">選択...</button>
     </div>
-    <div id="dMdPrev" style="display:none;background:var(--bg);border:1px solid var(--b1);
-      border-radius:4px;padding:8px;font-size:10px;color:var(--t2);max-height:70px;
-      overflow-y:auto;white-space:pre-wrap;margin-bottom:10px;font-family:'Menlo',monospace"></div>
+    <div id="dMdPrev" style="display:none;background:var(--bg);border:1px solid var(--b1);border-radius:4px;padding:8px;font-size:10px;color:var(--t2);max-height:70px;overflow-y:auto;white-space:pre-wrap;margin-bottom:10px;font-family:'Menlo',monospace"></div>
     <div class="lbl" style="margin-top:4px">補足・追記（任意）</div>
     <textarea class="ta2" id="dSp" placeholder="設計図への補足があれば..." style="min-height:60px"></textarea>
     <div class="lbl">使用言語・フレームワーク
@@ -506,7 +451,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     </div>
     <div class="set-sec">
       <div class="set-stl">ログ管理</div>
-      <div class="set-row"><span class="set-lbl">ログ有効</span><input type="checkbox" id="sLog" style="accent-color:var(--acc);cursor:pointer"></div>
+      <div class="set-row"><span class="set-lbl">ログ有効</span><input type="checkbox" id="sLog" style="accent-color:var(--ok);cursor:pointer"></div>
       <div class="set-row"><span class="set-lbl">保持日数</span><input class="set-inp" id="sLogDays" type="number" min="1" max="30" style="width:60px"></div>
       <button class="bc" onclick="viewLogs()" style="font-size:11px;padding:4px 10px">ログを見る</button>
       <button class="bc" onclick="delLogs()" style="font-size:11px;padding:4px 10px;margin-left:5px;color:#c85050;border-color:#c85050">ログ削除</button>
@@ -523,10 +468,9 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 'use strict';
 const A = window.api;
 
-// ── ① 現在時刻フォーマット ────────────────────────────────
+// ── 時刻フォーマット ────────────────────────────────────
 function nowTs() {
-  const d = new Date();
-  return d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  return new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 function nowDateTs() {
   const d = new Date();
@@ -534,12 +478,12 @@ function nowDateTs() {
          d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
-// ── Markdown パーサー ──────────────────────────────────────
+// ── Markdown パーサー ──────────────────────────────────
 function renderMd(src) {
   if (!src) return '';
   let s = src
-    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>`<pre><code class="lang-${lang||''}">${esc(code.trim())}</code></pre>`)
-    .replace(/`([^`]+)`/g, (_,c)=>`<code>${esc(c)}</code>`)
+    .replace(/```(\w*)\n?([\s\S]*?)```/g,(_,lang,code)=>`<pre><code class="lang-${lang||''}">${esc(code.trim())}</code></pre>`)
+    .replace(/`([^`]+)`/g,(_,c)=>`<code>${esc(c)}</code>`)
     .replace(/^(?:---|\*\*\*|___)\s*$/gm,'<hr>')
     .replace(/^######\s+(.+)$/gm,'<h6>$1</h6>').replace(/^#####\s+(.+)$/gm,'<h5>$1</h5>')
     .replace(/^####\s+(.+)$/gm,'<h4>$1</h4>').replace(/^###\s+(.+)$/gm,'<h3>$1</h3>')
@@ -573,7 +517,7 @@ function renderMd(src) {
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ── 状態 ──────────────────────────────────────────────────
+// ── グローバル状態 ─────────────────────────────────────
 let cur=null, curSid=null, busy=false;
 let curMode='chat';
 let sT=null, sF=null, sL=[], dMd=null, ragFiles=[], dDat=null;
@@ -583,12 +527,38 @@ let isComposing=false;
 let taskN=0, taskTotal=0;
 let curEl=null, curBb=null, curFull='';
 let handsOff=false;
-let deepSearch=false;  // ⑥ 調べるスライドスイッチ状態
+let deepSearch=false;
 let devStartTime=null, devElapsedBase=0, devTimerInterval=null;
-// ② 停止フラグ: stopping中はボタンを無効化
-let stopping=false;
 
-// ── 全言語リスト ───────────────────────────────────────────
+// ── 停止ボタン状態管理 ─────────────────────────────────
+// 状態: 'hidden' | 'active' | 'stopping' | 'resume'
+// クラスのみで制御し、インラインstyle.displayは一切使わない
+let stopState = 'hidden';
+
+function setStopState(state) {
+  stopState = state;
+  const btn = document.getElementById('stop-btn');
+  btn.className = ''; // クラスをリセット
+  switch(state) {
+    case 'hidden':
+      btn.textContent = '■';
+      break;
+    case 'active':
+      btn.classList.add('active');
+      btn.textContent = '■';
+      break;
+    case 'stopping':
+      btn.classList.add('stopping');
+      btn.textContent = '停止中...';
+      break;
+    case 'resume':
+      btn.classList.add('resume-ready');
+      btn.textContent = '▷ 再開';
+      break;
+  }
+}
+
+// 全言語リスト
 const ALL_LANGS=[
   'Python','JavaScript','TypeScript','Node.js','React','Next.js','Vue.js','Svelte','Angular',
   'Swift','SwiftUI','Kotlin','Java','C','C++','C#','Rust','Go','Zig','Dart','Flutter',
@@ -601,13 +571,12 @@ const ALL_LANGS=[
   'WebAssembly','GLSL','Metal','OpenGL','Vulkan',
 ];
 
-// ── ⑥ 調べるスイッチ ────────────────────────────────────
 function toggleDeep(){
   deepSearch=!deepSearch;
   document.getElementById('deep-sw').classList.toggle('on',deepSearch);
 }
 
-// ── チャンク受信 ───────────────────────────────────────────
+// ── チャンク受信 ────────────────────────────────────────
 A.onChunk(ev=>{
   if (ev.sessId && ev.sessId !== curSid) {
     markProjBusy(ev.sessId, ev.type); return;
@@ -634,8 +603,8 @@ A.onChunk(ev=>{
     case 'timeout':
       addSN('タイムアウト — ↺ 再起動ボタンで再試行できます','warn');
       document.getElementById('res-btn').style.display='block';
-      setBusy(false); break;
-    case 'user_input_required': addAI(ev.data); setBusy(false); break;
+      endBusy(); break;
+    case 'user_input_required': addAI(ev.data); endBusy(); break;
   }
 });
 
@@ -644,11 +613,10 @@ function markProjBusy(sessId, evType){
   if (!projId) return;
   const el = document.querySelector(`.pi[data-id="${projId}"] .pi-nm`);
   if (!el) return;
-  const finished = ['dev_complete','timeout','user_input_required'].includes(evType);
-  el.style.opacity = finished ? '' : '0.6';
+  el.style.opacity = ['dev_complete','timeout','user_input_required'].includes(evType) ? '' : '0.6';
 }
 
-// ── 起動 ──────────────────────────────────────────────────
+// ── 起動 ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   pollSt(); setInterval(pollSt,15000);
   loadPL(); setupInp(); buildLangs();
@@ -662,25 +630,13 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (r && !r.error) { atts.push({type:'file',name:r.name,content:r.content}); renderAtts(); }
   });
 
-  // ⑤ スリープ判定: tickベース（visibilitychangeだけに頼らない）
+  // スリープ判定: tickベース（60秒以上のギャップ = スリープ復帰）
   let lastTick = Date.now();
   setInterval(()=>{
     const now = Date.now(), gap = now - lastTick; lastTick = now;
-    // 60秒以上のギャップ = 確実にスリープ復帰
-    if (gap > 60000) onWakeFromSleep('tick');
+    if (gap > 60000) onWakeFromSleep();
   }, 5000);
-  // visibilitychangeはウィンドウ最小化では発火しない → focusで補完
-  document.addEventListener('visibilitychange', ()=>{
-    if (document.visibilityState === 'visible') {
-      // 最小化 → 復元はvisibilitychangeが来ないケースがある
-      // 少し待ってからtickチェックで判断するので何もしない
-    }
-  });
-  window.addEventListener('focus', ()=>{
-    // フォーカス復帰は普通の操作でも起こる → スリープ判定はtickに任せる
-    // ただし接続確認だけ行う
-    pollSt();
-  });
+  window.addEventListener('focus', ()=>{ pollSt(); });
 
   A.onWillQuit(async()=>{
     if (cur && curMode==='dev' && cur.workDir && busy){
@@ -690,30 +646,23 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
-// ⑤ スリープ復帰処理: 確実にAIを止めて再開ボタンを出す
-async function onWakeFromSleep(reason){
+// スリープ復帰: 確実にAIを止めて再開ボタンを表示
+async function onWakeFromSleep(){
   await pollSt();
   if (!busy) return;
-  addSN('💤 スリープから復帰しました。処理を確実に停止します...','warn');
-  // AIを強制停止
+  addSN('💤 スリープから復帰しました。処理を停止します...','warn');
   if (curSid) await A.stopChat(curSid);
-  // 再開ファイルを保存
   if (cur && cur.workDir){
     const checkpoint = curFull ? ('スリープ復帰前の出力: '+curFull.slice(-200)) : 'スリープ中断';
     await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'スリープ復帰'});
   }
-  busy=false; stopping=false;
-  // ③ 停止ボタンを確実に再開ボタンに変える
-  const btn=document.getElementById('stop-btn');
-  btn.classList.remove('stopping');
-  btn.classList.add('resume');
-  btn.textContent='▷ 再開';
-  btn.style.display='block';
-  document.getElementById('send-btn').disabled=false;
+  busy = false;
+  document.getElementById('send-btn').disabled = false;
+  setStopState('resume');
   addSN('▶ 再開ボタンで続きから再開できます','ok');
 }
 
-// ── ステータス ─────────────────────────────────────────────
+// ── ステータス ───────────────────────────────────────────
 async function pollSt(){
   try{
     const d=await A.getStatus();
@@ -731,7 +680,7 @@ async function toggleHO(){
   addSN(handsOff?'𓅭 ほったらかしモード ON':'𓅭 ほったらかしモード OFF', handsOff?'ok':'');
 }
 
-// ── 入力 ──────────────────────────────────────────────────
+// ── 入力 ─────────────────────────────────────────────────
 function setupInp(){
   const el=document.getElementById('inp');
   el.addEventListener('compositionstart',()=>isComposing=true);
@@ -746,7 +695,7 @@ let sbOn=false;
 function toggleSB(){ sbOn=!sbOn; document.getElementById('sb').classList.toggle('closed',!sbOn); }
 function openSB()  { sbOn=true;  document.getElementById('sb').classList.remove('closed'); }
 
-// ── プロジェクト ───────────────────────────────────────────
+// ── プロジェクト ─────────────────────────────────────────
 async function loadPL(){
   const list=await A.listProjects();
   const el=document.getElementById('pl');
@@ -764,24 +713,18 @@ async function loadPL(){
 }
 
 async function openP(id){
-  // ① 別プロジェクトから切り替える場合: 現在の状態を保存
+  // 別PJへ切り替え: 現在の状態を保存
   if (cur && cur.id !== id) {
     await A.updateProject(cur.id, cur);
-    // バックグラウンド処理中でも新しいプロジェクト表示に切り替えるため
-    // busyは新プロジェクト視点でfalseにリセット（処理自体はmain側で継続）
-    busy = false;
+    busy = false; // 新PJ視点ではbusy=false
   }
-  // ① 最新データをディスクから読み直す（AI処理中に追記された分も含む）
+  // 最新データをディスクから読む（AI処理中の追記分も含む）
   const p = await A.getProject(id); if(!p) return;
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
 
-  // ① 停止ボタン状態を新プロジェクト用にリセット（他PJの状態を引き継がない）
-  stopping=false;
-  const sb=document.getElementById('stop-btn');
-  sb.classList.remove('resume','stopping');
-  sb.textContent='■';
-  sb.style.display='none';
+  // 停止ボタン状態を新PJ用にリセット
+  setStopState('hidden');
   document.getElementById('send-btn').disabled=false;
 
   showChat();
@@ -804,8 +747,7 @@ async function openP(id){
 
 function showResumeBanner(r){
   const ex=document.getElementById('resume-banner'); if(ex) ex.remove();
-  const savedAt=new Date(r.savedAt);
-  const ts=savedAt.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const ts=new Date(r.savedAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const banner=document.createElement('div');
   banner.className='resume-banner'; banner.id='resume-banner';
   banner.innerHTML=`<span class="resume-icon">▶</span><div class="resume-info"><div class="resume-title">前回の続きから再開できます</div><div class="resume-sub">${ts} に中断 — ${esc(r.checkpoint||'処理中断')}</div></div><span class="resume-act">続きから開始</span>`;
@@ -829,7 +771,7 @@ function renderHist(ms){
   dn();
 }
 
-// ── 新規プロジェクト ───────────────────────────────────────
+// ── 新規プロジェクト ─────────────────────────────────────
 function openNew(){
   sT=null; sF=null;
   document.getElementById('nNm').value=''; document.getElementById('fD').textContent='未選択';
@@ -854,7 +796,7 @@ async function doCreate(){
   else addAI(`𓂀 プロジェクト「${esc(nm)}」を作成しました。\n作業フォルダ: ${sF}\n\nお気軽に話しかけてください。`);
 }
 
-// ── 設計フロー ─────────────────────────────────────────────
+// ── 設計フロー ───────────────────────────────────────────
 function buildLangs(){
   const box=document.getElementById('langBox'); box.innerHTML='';
   ALL_LANGS.forEach(l=>{ const d=document.createElement('div'); d.className='lg'; d.textContent=l; d.onclick=()=>togL(d,l); box.appendChild(d); });
@@ -908,19 +850,17 @@ async function revDes(){
   addUserBubble('修正: '+rv); await subDes();
 }
 async function startDev(){
-  closeM('mC');
-  taskN=0; taskTotal=0;
+  closeM('mC'); taskN=0; taskTotal=0;
   document.getElementById('prog-bar').style.display='block';
   updateProgress(0,0); startDevTimer();
   addSN('𓃭 開発を開始します。','ok');
   const prompt=`【開発開始】\n設計図:\n${dDat.spec}\n${dDat.langs?'優先言語: '+dDat.langs+'\n':''}作業フォルダ: ${cur?cur.workDir:'未設定'}\n\n今すぐ開発を開始してください。まず「=== タスクリスト ===」を表示してから1つずつ実行してください。`;
-  busy=true; setBusy(true);
+  startBusy();
   await chatInternalDev(prompt,dDat.langs);
-  stopDevTimer();
   if(cur) A.updateProject(cur.id,cur);
 }
 
-// ── タイマー ───────────────────────────────────────────────
+// ── タイマー ─────────────────────────────────────────────
 function startDevTimer(){
   devStartTime=Date.now();
   devElapsedBase=(cur&&cur._devElapsed)?cur._devElapsed:0;
@@ -938,14 +878,12 @@ function fmtSec(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;
   if(h>0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
 
-// ── 進捗 ───────────────────────────────────────────────────
+// ── 進捗 ─────────────────────────────────────────────────
 function addTaskCard(data){
   taskN=data.n; if(data.total) taskTotal=data.total;
   const d=document.createElement('div'); d.className='task-card';
   d.innerHTML=`<span class="task-num">タスク ${data.n}${taskTotal?'/'+taskTotal:''}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span></span>`;
   msgs().appendChild(d); dn();
-  document.querySelectorAll('.task-card .task-stat').forEach(s=>{ if(!s.textContent.includes('完了')) s.textContent=''; });
-  d.querySelector('.task-stat').innerHTML=`処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span>`;
   updateProgress(data.n-1,data.total||taskTotal);
 }
 function updateProgress(n,total){
@@ -959,7 +897,7 @@ function updateProgress(n,total){
   });
 }
 
-// ── 完了 ───────────────────────────────────────────────────
+// ── 完了 ─────────────────────────────────────────────────
 function selFin(v){
   finSel=v;
   ['output','build','debug'].forEach(k=>document.getElementById('finOpt'+k[0].toUpperCase()+k.slice(1)).classList.toggle('s',k===v));
@@ -979,7 +917,7 @@ async function execFin(){
   }
 }
 
-// ── モードUI ───────────────────────────────────────────────
+// ── モードUI ─────────────────────────────────────────────
 function updateModeUI(){
   const bar=document.getElementById('mode-bar'), dbg=document.getElementById('dbg-banner');
   const chatOpts=document.getElementById('chat-opts');
@@ -991,7 +929,6 @@ function updateModeUI(){
     document.getElementById('tab-chat').classList.toggle('on',curMode!=='debug');
     tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
-    // ⑦ アプリ設計中(dev)は画像/ファイル/調べるを非表示、debug/完成後のみ表示
     chatOpts.style.display=cur.devDone?'flex':'none';
     document.getElementById('prog-bar').style.display=(curMode==='dev'&&taskTotal>0)?'block':'none';
   } else {
@@ -1008,12 +945,26 @@ function switchMode(m){
   }
 }
 
-// ── チャット送信 ───────────────────────────────────────────
+// ── busy管理（シンプルな2関数） ──────────────────────────
+function startBusy(){
+  busy=true;
+  document.getElementById('send-btn').disabled=true;
+  setStopState('active');
+}
+function endBusy(){
+  busy=false;
+  stopDevTimer();
+  document.getElementById('send-btn').disabled=false;
+  // resumeボタンが表示中でなければ隠す
+  if(stopState !== 'resume') setStopState('hidden');
+}
+
+// ── チャット送信 ─────────────────────────────────────────
 async function doSend(){
   const el=document.getElementById('inp'), txt=el.value.trim();
   if(!txt) return;
   if(!cur){ openNew(); return; }
-  // 再開バナーが出ていて再開キーワードなら優先再開
+  // 再開バナーが出ていて再開キーワードなら優先
   const resumeBanner=document.getElementById('resume-banner');
   if(resumeBanner && /再開|続き|continue|resume/i.test(txt) && !busy){
     el.value=''; el.style.height='auto';
@@ -1027,85 +978,80 @@ async function doSend(){
   cur.messages.push({role:'user',content:txt});
   const msgIdx=cur.messages.length-1;
   addUserBubble(txt,msgIdx);
-  busy=true; setBusy(true);
+  startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
   await chatInternal(txt,sendMode,attachs,ds);
   if(cur) A.updateProject(cur.id,cur);
 }
 
+// ── chatInternal ─────────────────────────────────────────
+// snapProjとsnapSessIdで切り替え後も元PJに確実に保存する
 async function chatInternal(msg,mode,attachments,ds){
-  // ① 開始時点のcur/sessIdをスナップショット(処理中に別PJへ切り替えられても元PJに保存する)
-  const snapProj = cur;
-  const snapSessId = curSid;
+  const snapProj = cur;       // 開始時のプロジェクトをスナップショット
+  const snapSessId = curSid;  // 開始時のsessIdをスナップショット
   const thk=addThk(); curEl=null; curBb=null; curFull='';
   try{
-    await A.startChat({sessId:snapSessId,message:msg,projectId:snapProj?snapProj.id:null,mode,attachments:attachments||[],deepSearch:!!ds,langs:dDat?.langs||''});
+    await A.startChat({sessId:snapSessId,message:msg,projectId:snapProj?snapProj.id:null,
+      mode,attachments:attachments||[],deepSearch:!!ds,langs:dDat?.langs||''});
     if(thk.parentNode) thk.remove();
-    if(snapProj&&curFull&&mode!=='analysis'){
+    if(snapProj && curFull && mode!=='analysis'){
       if(!snapProj.messages) snapProj.messages=[];
       snapProj.messages.push({role:'assistant',content:curFull});
-      // ① 元PJのデータをディスクに保存（切り替え後でも確実に保存）
+      // 元PJにディスク保存（切り替え後でも確実に保存）
       await A.updateProject(snapProj.id, snapProj);
     }
   }catch(e){ if(thk.parentNode)thk.remove(); addAI('× エラー: '+e.message); }
   finally{
-    // ②/③ finallyでのbusyリセットは「現在表示しているPJ」と「処理していたPJ」が
-    // 一致している場合のみUIをリセットする。別PJに切り替えていたらUIには触れない。
+    // 現在表示中のPJと処理していたPJが同じ場合のみUIをリセット
     if(curSid === snapSessId){
-      busy=false; stopping=false; setBusy(false);
+      endBusy();
       document.getElementById('inp').focus();
     }
-    // 別PJに切り替えていた場合: 元PJのbusy状態は既にopenPでリセット済み
+    // 別PJに切り替えていた場合: openP内でbusy=falseに既になっている
   }
   return curFull;
 }
 async function chatInternalDev(msg,mode){ return chatInternal(msg,mode||'dev',[],false); }
 
-// ── ② 停止ボタン ─────────────────────────────────────────
-// 再開ボタンは別関数に分離してUIの整合性を確保
-async function doStop(){
-  const btn=document.getElementById('stop-btn');
-
-  // ② stopping中(停止処理中)は再開ボタンを押せない
-  if(btn.classList.contains('stopping')) return;
-
-  if(btn.classList.contains('resume')){
-    // 再開ボタン: 再開ファイルがあれば直接再開
-    btn.classList.remove('resume'); btn.textContent='■'; btn.style.display='none';
+// ── 停止ボタンハンドラ ────────────────────────────────────
+async function handleStopBtn(){
+  // resume状態: 再開処理
+  if(stopState === 'resume'){
+    setStopState('hidden');
     document.getElementById('send-btn').disabled=false;
-    if(cur&&cur.workDir){
+    if(cur && cur.workDir){
       const r=await A.loadResume(cur.workDir);
       if(r){ const b=document.getElementById('resume-banner'); if(b) b.remove(); await doResumeFromFile(r); return; }
     }
     addSN('𓂀 メッセージを入力して続きから再開できます。','ok');
     return;
   }
+  // stopping状態: 連打防止
+  if(stopState === 'stopping') return;
+  // active状態: 停止処理
+  if(stopState !== 'active') return;
 
-  if(stopping) return; // 二重押し防止(フラグでも)
-  stopping=true;
-  btn.classList.add('stopping'); btn.textContent='停止中...';
+  // ① 即座にstoppingに変更（UIを確定させる）
+  setStopState('stopping');
 
-  // 再開ファイルを先に保存
-  if(cur&&cur.workDir){
-    const checkpoint=curFull?('最後の出力: '+curFull.slice(-200)):'処理中断';
+  // ② 再開ファイルを先に保存（stopChatより前に保存することが重要）
+  if(cur && cur.workDir){
+    const checkpoint = curFull ? ('最後の出力: '+curFull.slice(-200)) : '処理中断';
     await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'停止'});
   }
 
-  // AIを停止
+  // ③ AIを停止（abortを送信）
   if(curSid) await A.stopChat(curSid);
 
-  // ②③ busyフラグとUIをリセット
-  // ※ chatInternalのfinallyも走るが、resumeクラスがついていればdisplay:noneにはならない
-  busy=false; stopping=false;
-  btn.classList.remove('stopping');
-  btn.classList.add('resume'); btn.textContent='▷ 再開';
-  // ③ display:blockを強制設定(finallyがnoneにしないよう先に確定)
-  btn.style.display='block';
+  // ④ busyフラグをリセットし、再開ボタンに変更
+  busy = false;
+  stopDevTimer();
   document.getElementById('send-btn').disabled=false;
+  setStopState('resume');
   addSN('𓅯 停止しました。再開ファイルを保存しました。','warn');
 }
 
-// ── 再起動 ────────────────────────────────────────────────
+// ── 再起動 ───────────────────────────────────────────────
 async function doRestart(){
   document.getElementById('res-btn').style.display='none';
   addSN('↺ 再起動します...','ok'); await pollSt(); if(!cur) return;
@@ -1115,7 +1061,7 @@ async function doRestart(){
   if(!lastUser) return;
   await A.setHistory({sessId:curSid,history:cleanHistory});
   cur.messages=cleanHistory;
-  busy=true; setBusy(true);
+  startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
   if(sendMode==='dev') startDevTimer();
   await chatInternal(lastUser.content,sendMode);
@@ -1123,19 +1069,19 @@ async function doRestart(){
   if(cur) A.updateProject(cur.id,cur);
 }
 
-// ── 再開ファイルから続き ───────────────────────────────────
+// ── 再開ファイルから続き ──────────────────────────────────
 async function doResumeFromFile(r){
   const banner=document.getElementById('resume-banner'); if(banner) banner.remove();
   addSN('▶ 前回の続きから再開します...','ok');
   const resumeMsg=`【再開指示】前回の作業を以下のチェックポイントから再開してください:\n${r.checkpoint}\n\n作業フォルダ: ${cur.workDir}\n\n前回の中断箇所から続きを実行してください。`;
-  busy=true; setBusy(true); startDevTimer();
+  startBusy(); startDevTimer();
   await chatInternalDev(resumeMsg,'dev');
   stopDevTimer();
   if(cur.workDir) await A.deleteResume(cur.workDir);
   if(cur) A.updateProject(cur.id,cur);
 }
 
-// ── 添付 ──────────────────────────────────────────────────
+// ── 添付 ─────────────────────────────────────────────────
 function renderAtts(){
   const el=document.getElementById('att-list'); el.innerHTML='';
   atts.forEach((a,i)=>{ const d=document.createElement('div'); d.className='att-item';
@@ -1144,7 +1090,7 @@ function renderAtts(){
 }
 function rmAtt(i){ atts.splice(i,1); renderAtts(); }
 
-// ── ⑧ メッセージ編集 ─────────────────────────────────────
+// ── メッセージ編集 ───────────────────────────────────────
 function startEdit(idx){
   const msg=cur&&cur.messages&&cur.messages[idx]; if(!msg||msg.role!=='user') return;
   const bubble=document.querySelector(`.msg[data-idx="${idx}"] .mb`); if(!bubble) return;
@@ -1156,30 +1102,26 @@ function startEdit(idx){
   const btnO=document.createElement('button'); btnO.textContent='送信して再実行'; btnO.style.color='var(--ok)';
   btnC.addEventListener('click',()=>{
     bubble.textContent=orig;
-    // 編集ボタン行を再追加
     const er=document.createElement('div'); er.className='edit-btn-row';
     const eb=document.createElement('button'); eb.className='edit-btn'; eb.textContent='編集';
     eb.addEventListener('click',()=>startEdit(idx)); er.appendChild(eb);
-    const msgEl=document.querySelector(`.msg[data-idx="${idx}"]`);
-    if(msgEl){ const old=msgEl.querySelector('.edit-btn-row'); if(old) old.remove(); msgEl.appendChild(er); }
+    const msgParent=document.querySelector(`.msg[data-idx="${idx}"]`);
+    if(msgParent){ const old=msgParent.querySelector('.edit-btn-row'); if(old) old.remove(); msgParent.appendChild(er); }
   });
   btnO.addEventListener('click',()=>commitEdit(idx,ta));
   foot.appendChild(btnC); foot.appendChild(btnO);
   bubble.appendChild(ta); bubble.appendChild(foot);
 }
-
 async function commitEdit(idx,ta){
   if(!ta) ta=document.querySelector(`.msg[data-idx="${idx}"] .edit-area`);
   if(!ta) return;
   const newText=ta.value.trim(); if(!newText) return;
   await A.editMessage({sessId:curSid,msgIndex:idx,newContent:newText});
   if(cur&&cur.messages){ cur.messages=cur.messages.slice(0,idx+1); cur.messages[idx].content=newText; }
-
-  // ⑧ 編集以降のDOM要素を全て削除
+  // 編集以降のDOM要素を削除
   const msgEl=document.getElementById('msgs');
-  const allNodes=Array.from(msgEl.children);
   let removeMode=false;
-  for(const el of allNodes){
+  for(const el of Array.from(msgEl.children)){
     if(el.dataset&&parseInt(el.dataset.idx)===idx){ removeMode=true; continue; }
     if(removeMode) el.remove();
   }
@@ -1193,28 +1135,24 @@ async function commitEdit(idx,ta){
     const msgParent=document.querySelector(`.msg[data-idx="${idx}"]`);
     if(msgParent){ const old=msgParent.querySelector('.edit-btn-row'); if(old) old.remove(); msgParent.appendChild(er); }
   }
-  // ⑧ 編集後のメッセージから以降を再実行
-  busy=true; setBusy(true);
+  startBusy();
   const sendMode=cur&&cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
   await chatInternal(newText,sendMode);
   if(cur) A.updateProject(cur.id,cur);
 }
 
-// ── DOM ヘルパー ───────────────────────────────────────────
+// ── DOM ヘルパー ─────────────────────────────────────────
 function msgs(){ return document.getElementById('msgs'); }
 function dn()  { const el=msgs(); el.scrollTop=el.scrollHeight; }
 
-// ① ユーザーバブル — ヘッダーに時刻、編集ボタンはバブル下
 function addUserBubble(t,idx){
   const d=document.createElement('div'); d.className='msg user';
   if(idx!==undefined) d.dataset.idx=idx;
-  // ① ヘッダー行（ラベル＋時刻）
   const hd=document.createElement('div'); hd.className='msg-hd';
   hd.innerHTML=`<span class="ml2">𓀀</span><span class="msg-ts">${nowDateTs()}</span>`;
   d.appendChild(hd);
   const b=document.createElement('div'); b.className='mb'; b.textContent=t;
   d.appendChild(b);
-  // ⑧ 編集ボタンをバブル下に
   if(idx!==undefined){
     const er=document.createElement('div'); er.className='edit-btn-row';
     const eb=document.createElement('button'); eb.className='edit-btn'; eb.textContent='編集';
@@ -1224,7 +1162,6 @@ function addUserBubble(t,idx){
   msgs().appendChild(d); dn(); return d;
 }
 
-// ① AIバブル — ヘッダーに時刻
 function addAI(t){
   const {el,bb}=mkAI();
   bb.innerHTML=renderMd(t); bb.classList.add('md-rendered');
@@ -1233,7 +1170,6 @@ function addAI(t){
 
 function mkAI(){
   const el=document.createElement('div'); el.className='msg ai';
-  // ① ヘッダー行
   const hd=document.createElement('div'); hd.className='msg-hd';
   hd.innerHTML=`<span class="ml2">𓂀</span><span class="msg-ts">${nowDateTs()}</span>`;
   el.appendChild(hd);
@@ -1241,7 +1177,6 @@ function mkAI(){
   return {el,bb};
 }
 
-// ① ツール表示 — 日時はすでに実装済み、統一形式に
 function addTool(par,td){
   const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
   const box=document.createElement('div'); box.className='tb';
@@ -1254,7 +1189,6 @@ function addTool(par,td){
 
 function addThk(){ const d=document.createElement('div'); d.className='thk'; d.innerHTML='<div class="ths"><span></span><span></span><span></span></div><span>処理中...</span>'; msgs().appendChild(d); dn(); return d; }
 
-// ① addSN — 時刻付き
 function addSN(t,cls){
   const d=document.createElement('div'); d.className='sn'+(cls?' '+cls:'');
   const txt=document.createElement('span'); txt.textContent=t;
@@ -1266,30 +1200,13 @@ function addSN(t,cls){
 function showWl(){ document.getElementById('wl').style.display='flex'; document.getElementById('cw').style.display='none'; document.getElementById('pn').textContent=''; }
 function showChat(){ document.getElementById('wl').style.display='none'; const cw=document.getElementById('cw'); Object.assign(cw.style,{display:'flex',flexDirection:'column',flex:'1',minHeight:'0',overflow:'hidden'}); }
 
-function setBusy(b){
-  document.getElementById('send-btn').disabled=b;
-  const sb=document.getElementById('stop-btn');
-  if(b){
-    // ③ resume/stoppingクラスがついている場合はそれを優先（doStopが先に設定した状態を壊さない）
-    if(!sb.classList.contains('resume') && !sb.classList.contains('stopping')){
-      sb.style.display='block'; sb.textContent='■';
-    }
-  } else {
-    // ③ resumeクラスがついていれば消さない（再開ボタンを維持）
-    if(!sb.classList.contains('resume') && !sb.classList.contains('stopping')){
-      sb.style.display='none';
-    }
-  }
-  if(!b) stopDevTimer();
-}
-
 async function clrChat(){
   if(!cur) return; if(!confirm('履歴をクリアしますか？')) return;
   await A.clearHistory(curSid); if(cur) cur.messages=[]; document.getElementById('msgs').innerHTML='';
   document.getElementById('prog-bar').style.display='none'; taskN=0; taskTotal=0;
 }
 
-// ── 設定 ──────────────────────────────────────────────────
+// ── 設定 ─────────────────────────────────────────────────
 async function openSet(){
   const c=await A.getCfg();
   document.getElementById('sHost').value=c.aiHost; document.getElementById('sPort').value=c.aiPort;

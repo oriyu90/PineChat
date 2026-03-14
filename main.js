@@ -57,9 +57,7 @@ ipcMain.handle('pick-image-file', async()=>{
   if(!win) return null;
   const r=await dialog.showOpenDialog(win,{properties:['openFile'],title:'画像を選択',filters:[{name:'Images',extensions:['jpg','jpeg','png','gif','webp']}]});
   if(r.canceled||!r.filePaths[0]) return null;
-  try{
-    return {path:r.filePaths[0], name:path.basename(r.filePaths[0])};
-  }catch(e){ return {error:e.message}; }
+  try{ return {path:r.filePaths[0], name:path.basename(r.filePaths[0])}; }catch(e){ return {error:e.message}; }
 });
 ipcMain.handle('pick-any-file', async()=>{
   if(!win) return null;
@@ -118,7 +116,7 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
 
   sess.history.push({role:'user',content:fullMessage});
 
-  // めっちゃ調べるモード
+  // 調べるモード
   if(deepSearch){
     safeChunk(event,sessId,{type:'system',data:'𓅱 検索中...'});
     try{
@@ -146,6 +144,7 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   }
 
   let fullText='';
+  let wasAborted = false; // BUG-10修正用: 停止されたかどうかを追跡
   activeSessions.set(sessId, {workDir, mode, lastText:''});
 
   try {
@@ -157,13 +156,17 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
           if(info) info.lastText=fullText;
         }
         safeChunk(event,sessId,ev);
-      },
-      {isHandsOff:cfg.handsOff}
+      }
     );
+    // runAgent完了後にabort済みかチェック
+    wasAborted = agent.isAborted(sessId);
   } finally {
     activeSessions.delete(sessId);
-    // 正常完了後に再開ファイルを削除
-    if(mode==='dev'&&workDir) agent.deleteResumeFile(workDir);
+    // BUG-10修正: 正常完了時のみ再開ファイルを削除する
+    // stopChat(abort)された場合は再開ファイルを残す
+    if(mode==='dev' && workDir && !wasAborted) {
+      agent.deleteResumeFile(workDir);
+    }
   }
 
   sess.history.push({role:'assistant',content:fullText});
