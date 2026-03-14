@@ -21,6 +21,8 @@ const DEFAULT_CFG = {
   handsOff: false,
   chatAiHost: '', chatAiPort: 0, chatModelId: '',    // チャット専用AI ④
   agentAiHost: '', agentAiPort: 0, agentModelId: '', // エージェント専用AI ④
+  uiLanguage: 'ja', // UI言語: 'ja' | 'en'
+  aiResponseLanguage: 'ja', // AI応答言語: 'ja' | 'en'
 };
 
 function loadCfg() {
@@ -272,7 +274,12 @@ function buildDebugSysPrompt(workDir, customSys) {
   return `あなたはデバッグ・機能追加の専門AIエージェントです。既存コードを分析し、バグ修正・テスト・機能追加を行います。\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
 }
 function buildAgentChatSysPrompt(calContext) {
-  return `あなたはPine Chatのエージェントアシスタントです。カレンダー予定の確認、Web検索の実行、情報の要約が得意です。\n現在時刻: ${new Date().toLocaleString('ja-JP')}${calContext||''}\n\n注意: チャット返答には処理状況を含めず、結果のみを返してください。`;
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const langInstr = lang === 'en'
+    ? 'Always respond in English.'
+    : '必ず日本語で回答してください。';
+  const timeStr = new Date().toLocaleString(lang==='en'?'en-US':'ja-JP');
+  return `You are Pine Chat's agent assistant. You excel at calendar queries, web searches, and summarization.\nCurrent time: ${timeStr}${calContext||''}\n\n${langInstr}\nImportant: Return only the result, do not include processing status in your response.`;
 }
 
 // ── エージェントループ ────────────────────────────────────
@@ -405,7 +412,14 @@ async function summarizeWithAI(texts, customSystemPrompt) {
   const useModel=getAgentAI().model||MODEL_ID;
   if(!useModel||!texts.length)return null;
   const content=texts.join('\n\n').slice(0,4000);
-  const sysPrompt=customSystemPrompt||'あなたはニュース要約AIです。与えられた情報を日本語でニュース形式に要約してください。重要ポイントを箇条書き3〜5項目でまとめ、最後に1文でまとめを書いてください。';
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const langInstr = lang === 'en'
+    ? 'Summarize in English in news format. List 3-5 key points as bullet points, then add a one-line summary at the end.'
+    : '必ず日本語でニュース形式に要約してください。重要ポイントを箇条書き3〜5項目でまとめ、最後に1文でまとめを書いてください。';
+  // customSystemPromptが空の場合はデフォルト+言語指定を使用
+  // customSystemPromptが設定されている場合も言語指定を末尾に追加
+  const basePrompt = customSystemPrompt || 'You are a news summarization AI.';
+  const sysPrompt = basePrompt + '\n\n' + langInstr;
   try{
     const d=await Promise.race([
       httpPost(host,port,'/v1/chat/completions',{model:useModel,messages:[{role:'system',content:sysPrompt},{role:'user',content}],temperature:0.4,max_tokens:900,stream:false},40000),
@@ -602,6 +616,28 @@ function startWatcher(){
   logWrite('watcher','INFO','startWatcher v3');
 }
 function stopWatcher(){Object.values(watcherTimers).forEach(t=>{if(t)clearInterval(t);});watcherTimers={};watcherRunState={discord:false,telegram:false,searx:false,calendar:false};watcherCommand='stop';watcherNextSearxTime=null;if(watcherWatchdogTimer){clearInterval(watcherWatchdogTimer);watcherWatchdogTimer=null;}logWrite('watcher','INFO','stopWatcher');}
+// SearXNG定期タスクのみ停止 (Discord/Telegram/Calendarは継続) - スライドスイッチ用
+function stopSearxOnly(){
+  if(watcherTimers.searx){clearInterval(watcherTimers.searx);watcherTimers.searx=null;}
+  watcherRunState.searx=false;watcherNextSearxTime=null;
+  logWrite('watcher','INFO','stopSearxOnly');
+}
+// SearXNG定期タスクのみ開始
+function startSearxOnly(){
+  const wcfg=getWatcherCfg();
+  if(!wcfg.searxEnabled||!wcfg.searxTasks?.some(t=>t.enabled))return;
+  const ms=Math.max(1,Math.min(60,wcfg.searxIntervalMin||5))*60000;
+  watcherRunState.searx=true;watcherNextSearxTime=Date.now()+ms;
+  if(watcherTimers.searx)clearInterval(watcherTimers.searx);
+  searxAllTasksTick(wcfg).then(()=>{watcherNextSearxTime=Date.now()+ms;}).catch(()=>{});
+  watcherTimers.searx=setInterval(()=>{
+    if(watcherCommand==='stop')return;
+    watcherNextSearxTime=Date.now()+ms;
+    searxAllTasksTick(getWatcherCfg()).catch(()=>{});
+  },ms);
+  logWrite('watcher','INFO','startSearxOnly');
+}
+function isSearxRunning(){return watcherRunState.searx;}
 async function runWatcherNow(){
   const wcfg=getWatcherCfg();watcherEmit('watcher_status','今すぐ実行中...');
   const proms=[];
@@ -646,6 +682,18 @@ async function runAgentChat(userMessage, onEvent) {
   if(watcherSkippedCount>0){watcherSkippedCount=0;setTimeout(()=>runWatcherNow().catch(()=>{}),2000);}
 }
 
+// フィード結果をエージェントチャット履歴に追記する
+function saveAgentFeedToHistory(feedData){
+  try{
+    const hist=loadAgentHistory();
+    const srcLabels={discord:'Discord',telegram:'Telegram',searx:feedData.taskType==='url'?'URL監視':'SearXNG検索',calendar:'カレンダー'};
+    const src=srcLabels[feedData.source]||feedData.source;
+    const summary=`[${src}フィード: ${feedData.label||''}]\n${feedData.summary||''}`;
+    hist.push({role:'assistant',content:summary,isFeed:true,feedData});
+    saveAgentHistory(hist);
+  }catch{}
+}
+
 module.exports = {
   getCfg, updateCfg, detectModel, detectModelsAt, detectChatModels, detectWatcherModels, searxSearch,
   runAgent, stopAgent, isAborted,
@@ -654,8 +702,9 @@ module.exports = {
   getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs,
   getWatcherCfg, saveWatcherCfg, getAgentAI,
-  startWatcher, stopWatcher, isWatcherRunning, runWatcherNow, getWatcherNextTime,
-  setWatcherCallback, runAgentChat,
+  startWatcher, stopWatcher, stopSearxOnly, startSearxOnly, isSearxRunning,
+  isWatcherRunning, runWatcherNow, getWatcherNextTime,
+  setWatcherCallback, runAgentChat, saveAgentFeedToHistory,
   loadAgentHistory, saveAgentHistory, clearAgentHistory,
   fetchDiscordMessages, fetchTelegramMessages,
   fetchGoogleCalendarEvents, fetchICloudCalendarEvents,

@@ -41,6 +41,10 @@ contextBridge.exposeInMainWorld('api', {
   watcherStop:         ()      => ipcRenderer.invoke('watcher-stop'),
   watcherRunNow:       ()      => ipcRenderer.invoke('watcher-run-now'),
   watcherStatus:       ()      => ipcRenderer.invoke('watcher-status'),
+  searxStop:           ()      => ipcRenderer.invoke('searx-stop'),
+  searxStart:          ()      => ipcRenderer.invoke('searx-start'),
+  searxStatus:         ()      => ipcRenderer.invoke('searx-status'),
+  saveAgentFeed:       d       => ipcRenderer.invoke('save-agent-feed', d),
   getWatcherModels:    (h,p)   => ipcRenderer.invoke('get-watcher-models', {host:h,port:p}),
   // エージェントチャット
   agentChat:           o       => ipcRenderer.invoke('agent-chat', o),

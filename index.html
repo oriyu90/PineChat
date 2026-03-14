@@ -377,10 +377,12 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       </div>
       <span class="sb-agent-dot" id="sb-agent-dot"></span>
     </button>
-    <!-- ⑤ スライドスイッチ: スケジュール動作ON/OFF -->
-    <div id="sb-agent-sw" onclick="toggleAgentSchedule(event)"
-      style="width:32px;height:18px;background:var(--b2);border-radius:9px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;margin-right:12px"
-      title="スケジュール動作 ON/OFF"></div>
+    <!-- スライドスイッチ: SearXNG定期タスクON/OFF -->
+    <div id="sb-agent-sw" onclick="toggleSearxSchedule(event)"
+      title="SearXNG定期タスク ON/OFF (Discord/Telegramは設定から制御)"
+      style="width:32px;height:18px;background:var(--b2);border-radius:9px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;margin-right:12px;flex-shrink:0">
+      <div id="sb-agent-sw-knob" style="width:12px;height:12px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:left .2s"></div>
+    </div>
   </div>
   <div id="pl"></div>
 </div>
@@ -414,8 +416,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 
     <div id="cw">
       <div class="mode-bar" id="mode-bar" style="display:none">
-        <button class="mt on" id="tab-chat"  onclick="switchMode('chat')">𓃰 チャット</button>
-        <button class="mt"    id="tab-debug" onclick="switchMode('debug')" style="display:none">𓃗 デバッグ</button>
+        <button class="mt on" id="tab-debug" onclick="switchMode('debug')" style="display:none">𓃗 デバッグ</button>
         <button id="res-btn"  onclick="doRestart()">↺ 再起動</button>
       </div>
       <div id="prog-bar">
@@ -713,6 +714,25 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 <div class="ov h" id="mS">
   <div class="md w">
     <div class="mt2">𓀂 設定</div>
+    <!-- 言語設定 -->
+    <div class="set-sec">
+      <div class="set-stl" id="lbl-lang-sec">言語設定 / Language</div>
+      <div class="set-row">
+        <span class="set-lbl" id="lbl-ui-lang">UI言語</span>
+        <select class="set-inp" id="sUiLang" style="width:150px;cursor:pointer;background:var(--bg)">
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl" id="lbl-ai-lang">AI応答言語</span>
+        <select class="set-inp" id="sAiLang" style="width:150px;cursor:pointer;background:var(--bg)">
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="set-hint" id="lbl-lang-hint">AI応答言語はエージェントの要約・チャット回答に適用されます</div>
+    </div>
     <div class="set-sec">
       <div class="set-stl">AI接続</div>
       <div class="set-row"><span class="set-lbl">サーバーアドレス</span><input class="set-inp" id="sHost" type="text" placeholder="localhost"></div>
@@ -1058,6 +1078,8 @@ async function pollSt(){
     document.getElementById('ml').textContent=d.online?(d.modelId||'model')+' :'+d.aiPort:'オフライン :'+d.aiPort;
     handsOff=d.handsOff||false;
     document.getElementById('ho-sw').classList.toggle('on',handsOff);
+    // UI言語を反映
+    if(d.uiLanguage) applyUiLanguage(d.uiLanguage);
   }catch(e){ document.getElementById('ml').textContent='接続エラー'; }
 }
 
@@ -1159,6 +1181,17 @@ function renderHist(ms){
   ms.forEach((m,i)=>{
     if(m.role==='user') addUserBubble(m.content,i);
     else if(m.role==='assistant') addAI(m.content);
+    else if(m.role==='tool'&&m.name){
+      // ツール実行ログを再表示
+      const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
+      const args=m.args||{};
+      const argStr=['command','path','url','query','reason'].filter(k=>args[k])
+        .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
+      const ts=m.ts?new Date(m.ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      const box=document.createElement('div'); box.className='tb';
+      box.innerHTML=`<div class="th2"><span>${icons[m.name]||'·'}</span><span class="tn2">${esc(m.name)}</span><span class="tt2">${ts}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
+      msgs().appendChild(box);
+    }
   });
   dn();
 }
@@ -1353,11 +1386,11 @@ function updateModeUI(){
   const chatOpts=document.getElementById('chat-opts');
   if(!cur) return;
   if(cur.type==='design'){
-    bar.style.display='flex';
+    // アプリ設計: デバッグタブのみ表示（チャットタブは削除済み）
     const tabDebug=document.getElementById('tab-debug');
-    tabDebug.style.display=cur.devDone?'':'none';
-    document.getElementById('tab-chat').classList.toggle('on',curMode!=='debug');
-    tabDebug.classList.toggle('on',curMode==='debug');
+    bar.style.display=cur.devDone?'flex':'none'; // デバッグタブが出る時のみ表示
+    if(tabDebug) tabDebug.style.display=cur.devDone?'':'none';
+    if(tabDebug) tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
     chatOpts.style.display=cur.devDone?'flex':'none';
     document.getElementById('prog-bar').style.display=(curMode==='dev'&&taskTotal>0)?'block':'none';
@@ -1615,6 +1648,11 @@ function addTool(par,td){
     .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
   box.innerHTML=`<div class="th2"><span>${icons[td.name]||'·'}</span><span class="tn2">${esc(td.name)}</span><span class="tt2">${nowDateTs()}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
   par.appendChild(box);
+  // ツール実行をcur.messagesに保存（openP時に再表示するため）
+  if(cur&&cur.messages!==undefined){
+    const toolEntry={role:'tool',name:td.name,args:args,ts:Date.now()};
+    cur.messages.push(toolEntry);
+  }
 }
 
 function addThk(){ const d=document.createElement('div'); d.className='thk'; d.innerHTML='<div class="ths"><span></span><span></span><span></span></div><span>処理中...</span>'; msgs().appendChild(d); dn(); return d; }
@@ -1673,14 +1711,17 @@ async function openSet(){
   document.getElementById('logArea').style.display='none';
   const ps=document.getElementById('projSetSec');
   if(cur){ ps.style.display='block'; document.getElementById('sySys').value=cur.systemPrompt||''; } else ps.style.display='none';
-  // ⑤ チャット/エージェントAI設定
+  // チャット/エージェントAI設定
   document.getElementById('sChatHost').value  = c.chatAiHost||'';
   document.getElementById('sChatPort').value  = c.chatAiPort||'';
-  document.getElementById('sAgentHost').value = c.watcherAiHost||'';
-  document.getElementById('sAgentPort').value = c.watcherAiPort||'';
+  document.getElementById('sAgentHost').value = c.agentAiHost||c.watcherAiHost||'';
+  document.getElementById('sAgentPort').value = c.agentAiPort||c.watcherAiPort||'';
+  // 言語設定
+  document.getElementById('sUiLang').value = c.uiLanguage||'ja';
+  document.getElementById('sAiLang').value = c.aiResponseLanguage||'ja';
   // モデル選択肢を非同期で取得
   loadChatModelSelect(c.chatModelId||'');
-  loadAgentModelSelect(c.watcherModelId||'');
+  loadAgentModelSelect(c.agentModelId||c.watcherModelId||'');
   openM('mS');
 }
 async function fetchChatModels(){
@@ -1731,17 +1772,21 @@ async function savSet(){
   const agentHost=document.getElementById('sAgentHost').value.trim();
   const agentPort=parseInt(document.getElementById('sAgentPort').value)||0;
   const agentModel=document.getElementById('sAgentModel').value;
-  // ④ エージェントAI設定を全体設定に保存
+  const uiLang = document.getElementById('sUiLang').value || 'ja';
+  const aiLang = document.getElementById('sAiLang').value || 'ja';
   await A.saveCfg({aiHost:host,aiPort:port,searxngUrl:searx,timeout:to,
     logEnabled:document.getElementById('sLog').checked,
     logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,handsOff,
     chatAiHost, chatAiPort, chatModelId,
-    agentAiHost:agentHost, agentAiPort:agentPort, agentModelId:agentModel});
+    agentAiHost:agentHost, agentAiPort:agentPort, agentModelId:agentModel,
+    uiLanguage:uiLang, aiResponseLanguage:aiLang});
   // ウォッチャー設定にも反映
   const wcfg=await A.getWatcherCfg();
   wcfg.agentAiHost=agentHost; wcfg.agentAiPort=agentPort; wcfg.agentModelId=agentModel;
   wcfg.watcherAiHost=agentHost; wcfg.watcherAiPort=agentPort; wcfg.watcherModelId=agentModel;
   await A.saveWatcherCfg(wcfg);
+  // UI言語を即時適用
+  applyUiLanguage(uiLang);
   await pollSt(); closeM('mS');
 }
 async function viewLogs(){
@@ -1850,23 +1895,10 @@ async function agentCmdRunNow(){
   } catch(e) { setAgentStatus('エラー: '+e.message, true); }
 }
 
-async function agentCmdStop(){
-  await A.watcherStop();
-  agentRunning = false;
-  updateAgentDot();
-  setAgentStatus('■ 停止しました');
-  addSN('𓅱 エージェント 停止');
-  stopNextTimerDisplay();
-}
+// agentCmdStop は下部でtoggleSearxSchedule対応版として再定義済み
+// この定義はtoggleSearxSchedule内のagentCmdStopに引き継がれる
 
-async function agentCmdSchedule(){
-  await A.watcherStart();
-  agentRunning = true;
-  updateAgentDot();
-  setAgentStatus('⏱ スケジュール動作中');
-  addSN('𓅱 エージェント スケジュール動作開始', 'ok');
-  startNextTimerDisplay();
-}
+// agentCmdSchedule は下部でtoggleSearxSchedule対応版として再定義済み
 
 function setAgentStatus(msg, isErr){
   const el = document.getElementById('agent-status-bar');
@@ -1877,10 +1909,10 @@ function setAgentStatus(msg, isErr){
 function updateAgentDot(){
   document.getElementById('agent-dot').classList.toggle('on', agentRunning);
   document.getElementById('sb-agent-dot').classList.toggle('on', agentRunning);
-  document.getElementById('sb-agent-status').textContent = agentRunning ? 'スケジュール動作中' : '停止中';
-  // ⑤ スライドスイッチ同期
-  const sw = document.getElementById('sb-agent-sw');
-  if(sw) sw.classList.toggle('on', agentRunning);
+  const s = UI_STRINGS[currentUiLang] || UI_STRINGS.ja;
+  document.getElementById('sb-agent-status').textContent = agentRunning ? s.agentRunning : s.agentStop;
+  // スライドスイッチはsearxScheduleOnで管理
+  updateSbSwStyle(searxScheduleOn);
 }
 
 // ── ウォッチャーイベント受信 ──────────────────────────────────────
@@ -1902,29 +1934,10 @@ A.onAgentChatEvent(ev => {
   }
 });
 
-// addAgentFeedItem は下の完全版で定義
+// addAgentFeedItem は下部で再定義済み（チャット形式）
 
 // ── 起動時初期化 ─────────────────────────────────────────────────
-async function initWatcher(){
-  try {
-    const st = await A.watcherStatus();
-    agentRunning = st.running;
-    updateAgentDot();
-    if (agentRunning) {
-      setAgentStatus('⏱ スケジュール動作中');
-      // ⑤ サイドバーのスライドスイッチをON
-      const sw = document.getElementById('sb-agent-sw');
-      if(sw) sw.classList.add('on');
-    }
-    // ⑫ エージェントチャット履歴を復元
-    try {
-      const hist = await A.getAgentHistory();
-      if(hist && hist.length > 0) renderAgentHistory(hist);
-    } catch {}
-    // ⑬ 次回実行タイマー表示を開始
-    startNextTimerDisplay();
-  } catch(e){ console.error('[watcher init]',e); }
-}
+// initWatcher は下部で再定義済み（searxStatus対応版）
 
 // ── 設定モーダル ─────────────────────────────────────────────────
 async function openWatcherSet(){
@@ -2163,40 +2176,7 @@ async function saveWatcherSettings(){
 }
 
 
-// ═══════════════════════════════════════════════════════════
-// ⑤ サイドバースライドスイッチ: スケジュール動作ON/OFF
-// ═══════════════════════════════════════════════════════════
-function toggleAgentSchedule(e){
-  e.stopPropagation(); // openAgentViewを防ぐ
-  const sw = document.getElementById('sb-agent-sw');
-  if(agentRunning){
-    agentCmdStop();
-  } else {
-    agentCmdSchedule();
-  }
-}
-
-// スライドスイッチCSSを動的に設定 (inline styleで制御)
-function updateSbAgentSwStyle(){
-  const sw = document.getElementById('sb-agent-sw');
-  if(!sw) return;
-  sw.style.background = agentRunning ? 'var(--ok)' : 'var(--b2)';
-  // 疑似要素はinlineでは設定できないので、追加のdivで代替
-  let knob = sw.querySelector('.sw-knob');
-  if(!knob){
-    knob = document.createElement('div');
-    knob.className = 'sw-knob';
-    Object.assign(knob.style, {width:'12px',height:'12px',background:'#fff',borderRadius:'50%',position:'absolute',top:'3px',transition:'left .2s'});
-    sw.appendChild(knob);
-  }
-  knob.style.left = agentRunning ? '17px' : '3px';
-}
-// updateAgentDotにswStyleも追加
-const _origUpdateAgentDot = updateAgentDot;
-function updateAgentDot(){
-  _origUpdateAgentDot();
-  updateSbAgentSwStyle();
-}
+// toggleAgentSchedule / updateSbAgentSwStyle は下部のtoggleSearxSchedule/updateSbSwStyleに統一済み
 
 // ═══════════════════════════════════════════════════════════
 // ⑧⑨ エージェントチャット機能
@@ -2325,6 +2305,235 @@ function stopNextTimerDisplay(){
   if(nextTimerInterval){ clearInterval(nextTimerInterval); nextTimerInterval=null; }
   const el = document.getElementById('agent-next-timer');
   if(el) el.textContent = '';
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// 問題2: UI言語切替
+// ═══════════════════════════════════════════════════════════
+const UI_STRINGS = {
+  ja: {
+    projects: 'PROJECTS',
+    newBtn: '+ 新規',
+    agent: 'エージェント',
+    agentStop: '停止中',
+    agentRunning: 'スケジュール動作中',
+    settings: '𓀂 設定',
+    clear: 'クリア',
+    handsOff: '𓅭 ほったらかし',
+    runNow: '▶ 今すぐ実行',
+    stopBtn: '■ 停止',
+    schedule: '⏱ スケジュール動作',
+    settingsBtn: '⚙ 設定',
+    clearBtn: 'クリア',
+    agentPlaceholder: 'エージェントに質問... (例: 今日の予定は? / AIニュースを調べて)',
+    sendBtn: '送信',
+    agentEmpty: 'フィードはまだありません',
+    agentEmptySub: '設定からソースを有効化するか、チャットで質問してください',
+  },
+  en: {
+    projects: 'PROJECTS',
+    newBtn: '+ New',
+    agent: 'Agent',
+    agentStop: 'Stopped',
+    agentRunning: 'Scheduled',
+    settings: '𓀂 Settings',
+    clear: 'Clear',
+    handsOff: '𓅭 Hands-off',
+    runNow: '▶ Run Now',
+    stopBtn: '■ Stop',
+    schedule: '⏱ Schedule',
+    settingsBtn: '⚙ Settings',
+    clearBtn: 'Clear',
+    agentPlaceholder: 'Ask agent... (e.g., What are my plans? / Search AI news)',
+    sendBtn: 'Send',
+    agentEmpty: 'No feed yet',
+    agentEmptySub: 'Enable sources in settings or ask a question',
+  }
+};
+let currentUiLang = 'ja';
+function applyUiLanguage(lang) {
+  if(currentUiLang === lang) return;
+  currentUiLang = lang;
+  const s = UI_STRINGS[lang] || UI_STRINGS.ja;
+  // サイドバー
+  const sbTtl = document.querySelector('.sb-ttl'); if(sbTtl) sbTtl.textContent = s.projects;
+  const sbAdd = document.querySelector('.sb-add'); if(sbAdd) sbAdd.textContent = s.newBtn;
+  const sbAgNm = document.querySelector('.sb-agent-nm'); if(sbAgNm) sbAgNm.textContent = s.agent;
+  // ヘッダー
+  const hoLbl = document.querySelector('.ho-lbl'); if(hoLbl) hoLbl.textContent = s.handsOff;
+  const hbs = document.querySelectorAll('.hb');
+  hbs.forEach(b=>{ if(b.textContent.includes('設定')||b.textContent.includes('Settings')) b.textContent=s.settings; if(b.textContent==='クリア'||b.textContent==='Clear') b.textContent=s.clear; });
+  // エージェントビュー
+  const runBtn = document.querySelector('.acbtn.run'); if(runBtn) runBtn.textContent=s.runNow;
+  const stopBtnAg = document.querySelector('.acbtn.stop'); if(stopBtnAg) stopBtnAg.textContent=s.stopBtn;
+  const schBtn = document.querySelector('.acbtn.schedule'); if(schBtn) schBtn.textContent=s.schedule;
+  const agInp = document.getElementById('agent-inp'); if(agInp) agInp.placeholder=s.agentPlaceholder;
+  // エージェント状態テキスト更新
+  const stEl = document.getElementById('sb-agent-status');
+  if(stEl) stEl.textContent = agentRunning ? s.agentRunning : s.agentStop;
+  // html lang属性
+  document.documentElement.lang = lang;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 問題3: スライドスイッチ - SearXNG定期タスクのみON/OFF
+// Discord/Telegram/Calendarは設定から無効化しない限り常時動作
+// ═══════════════════════════════════════════════════════════
+let searxScheduleOn = false;
+
+function updateSbSwStyle(isOn) {
+  const sw    = document.getElementById('sb-agent-sw');
+  const knob  = document.getElementById('sb-agent-sw-knob');
+  if(!sw || !knob) return;
+  sw.style.background = isOn ? 'var(--ok)' : 'var(--b2)';
+  knob.style.left = isOn ? '17px' : '3px';
+  searxScheduleOn = isOn;
+}
+
+async function toggleSearxSchedule(e) {
+  if(e) e.stopPropagation();
+  if(searxScheduleOn) {
+    // SearXNGのみ停止 (Discord/Telegram/Calendarは継続)
+    await A.searxStop();
+    searxScheduleOn = false;
+    updateSbSwStyle(false);
+    setAgentStatus('SearXNG定期タスク停止 (他APIは継続動作)');
+    addSN('SearXNG定期タスクを停止しました', 'warn');
+  } else {
+    // SearXNG開始
+    await A.searxStart();
+    searxScheduleOn = true;
+    updateSbSwStyle(true);
+    setAgentStatus('SearXNG定期タスク動作中');
+    addSN('SearXNG定期タスクを開始しました', 'ok');
+    startNextTimerDisplay();
+  }
+}
+
+// agentCmdStop/Scheduleのスライドスイッチ同期を修正
+// (エージェントビューのボタンとスライドスイッチが同期)
+const _origAgentCmdStop = agentCmdStop;
+async function agentCmdStop() {
+  await A.searxStop();
+  searxScheduleOn = false;
+  updateSbSwStyle(false);
+  agentRunning = false;
+  updateAgentDot();
+  setAgentStatus('■ SearXNG定期タスク停止');
+  addSN('𓅱 SearXNG定期タスク停止');
+  stopNextTimerDisplay();
+}
+const _origAgentCmdSchedule = agentCmdSchedule;
+async function agentCmdSchedule() {
+  await A.searxStart();
+  searxScheduleOn = true;
+  updateSbSwStyle(true);
+  agentRunning = true;
+  updateAgentDot();
+  setAgentStatus('⏱ SearXNG定期タスク動作中');
+  addSN('𓅱 SearXNG定期タスク開始', 'ok');
+  startNextTimerDisplay();
+}
+
+// initWatcherにsearxStatusチェックを追加
+const _origInitWatcher = initWatcher;
+async function initWatcher() {
+  try {
+    // SearXNGの動作状態を確認
+    const st = await A.searxStatus();
+    searxScheduleOn = st.searxRunning || false;
+    updateSbSwStyle(searxScheduleOn);
+    agentRunning = st.watcherRunning || false;
+    updateAgentDot();
+    if(searxScheduleOn) {
+      setAgentStatus('⏱ SearXNG定期タスク動作中');
+      startNextTimerDisplay();
+    }
+    // エージェントチャット履歴を復元
+    try {
+      const hist = await A.getAgentHistory();
+      if(hist && hist.length > 0) renderAgentHistory(hist);
+    } catch {}
+  } catch(e){ console.error('[watcher init]',e); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 問題1: addAgentFeedItem - チャット形式で表示
+// フィードカードではなくAIメッセージとして表示 + 履歴保存
+// ═══════════════════════════════════════════════════════════
+// 既存のaddAgentFeedItemを上書き（チャット形式に変更）
+function addAgentFeedItem(data) {
+  const container = document.getElementById('agent-msgs');
+  if(!container) return;
+  const empty = document.getElementById('agent-feed-empty');
+  if(empty) empty.remove();
+
+  const ts = new Date(data.ts || Date.now());
+  const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG検索',calendar:'📅 カレンダー'};
+  const srcLabel  = srcLabels[data.source] || data.source;
+  const labelTxt  = data.label ? ` · ${data.label}` : '';
+
+  // AIメッセージとして表示（チャット形式）
+  const msgEl = document.createElement('div');
+  msgEl.className = 'msg ai';
+  const hd = document.createElement('div'); hd.className = 'msg-hd';
+  hd.innerHTML = `<span class="ml2">𓂀 ${esc(srcLabel)}${esc(labelTxt)}</span><span class="msg-ts">${tsStr}</span>`;
+  msgEl.appendChild(hd);
+  const bb = document.createElement('div'); bb.className = 'mb';
+  bb.innerHTML = renderMd(data.summary || '');
+  bb.classList.add('md-rendered');
+  msgEl.appendChild(bb);
+  container.appendChild(msgEl);
+  container.scrollTop = container.scrollHeight;
+
+  // エージェントビューが閉じていたら通知
+  if(!agentViewOpen) {
+    const dot = document.getElementById('sb-agent-dot');
+    if(dot) { dot.style.boxShadow='0 0 0 2px var(--ok)'; setTimeout(()=>{ dot.style.boxShadow=''; },3000); }
+  }
+
+  // 問題5: フィード内容をエージェント履歴に保存
+  A.saveAgentFeed(data).catch(()=>{});
+}
+
+// renderAgentHistoryでfeedロールも表示
+function renderAgentHistory(hist) {
+  if(!hist || !hist.length) return;
+  const container = document.getElementById('agent-msgs');
+  if(!container) return;
+  const empty = document.getElementById('agent-feed-empty');
+  if(empty) empty.remove();
+  hist.forEach(m => {
+    if(m.role === 'user') {
+      addAgentChatMsg('user', m.content || '');
+    } else if(m.role === 'assistant' && !m.isFeed) {
+      addAgentChatMsg('ai', m.content || '');
+    } else if(m.role === 'assistant' && m.isFeed && m.feedData) {
+      // フィード項目を再表示（チャット形式）
+      addAgentFeedItemFromHistory(m.feedData);
+    }
+  });
+}
+
+function addAgentFeedItemFromHistory(data) {
+  const container = document.getElementById('agent-msgs');
+  if(!container) return;
+  const ts = new Date(data.ts || Date.now());
+  const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG検索',calendar:'📅 カレンダー'};
+  const srcLabel  = srcLabels[data.source] || data.source;
+  const labelTxt  = data.label ? ` · ${data.label}` : '';
+  const msgEl = document.createElement('div'); msgEl.className = 'msg ai';
+  const hd = document.createElement('div'); hd.className = 'msg-hd';
+  hd.innerHTML = `<span class="ml2">𓂀 ${esc(srcLabel)}${esc(labelTxt)}</span><span class="msg-ts">${tsStr}</span>`;
+  msgEl.appendChild(hd);
+  const bb = document.createElement('div'); bb.className = 'mb';
+  bb.innerHTML = renderMd(data.summary || '');
+  bb.classList.add('md-rendered');
+  msgEl.appendChild(bb);
+  container.appendChild(msgEl);
 }
 
 </script>

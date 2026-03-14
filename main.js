@@ -76,7 +76,8 @@ ipcMain.handle('get-status', async()=>{
     aiHost:c.aiHost, aiPort:c.aiPort,
     searxngUrl:c.searxngUrl, handsOff:c.handsOff,
     chatAiHost:c.chatAiHost, chatAiPort:c.chatAiPort, chatModelId:c.chatModelId,
-    agentAiHost:c.agentAiHost, agentAiPort:c.agentAiPort, agentModelId:c.agentModelId  // ④
+    agentAiHost:c.agentAiHost, agentAiPort:c.agentAiPort, agentModelId:c.agentModelId,
+    uiLanguage:c.uiLanguage||'ja', aiResponseLanguage:c.aiResponseLanguage||'ja'
   };
 });
 // ④ 任意ホスト/ポートのモデル一覧
@@ -253,6 +254,12 @@ ipcMain.handle('save-watcher-cfg', async(_,data)=>{
 });
 ipcMain.handle('watcher-start',   async()=>{ agent.startWatcher(); return {ok:true}; });
 ipcMain.handle('watcher-stop',    async()=>{ agent.stopWatcher();  return {ok:true}; });
+// SearXNG定期タスクのみ停止/開始（スライドスイッチ用）
+ipcMain.handle('searx-stop',   async()=>{ agent.stopSearxOnly(); return {ok:true,searxRunning:false}; });
+ipcMain.handle('searx-start',  async()=>{ agent.startSearxOnly(); return {ok:true,searxRunning:true}; });
+ipcMain.handle('searx-status', ()=>({ searxRunning:agent.isSearxRunning(), watcherRunning:agent.isWatcherRunning() }));
+// フィード履歴保存
+ipcMain.handle('save-agent-feed', async(_,feedData)=>{ agent.saveAgentFeedToHistory(feedData); return {ok:true}; });
 ipcMain.handle('watcher-run-now', async()=>{ await agent.runWatcherNow(); return {ok:true}; });
 ipcMain.handle('watcher-status',  ()=>({
   running: agent.isWatcherRunning(),
