@@ -148,9 +148,13 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .td2{padding:6px 11px;font-size:10px;color:var(--t3);font-family:'Menlo',monospace;line-height:1.6}
 
 /* シンキング */
-.thk{display:flex;align-items:center;gap:10px;color:var(--t3);font-size:12px;padding:4px 0}
-.ths{display:flex;gap:4px}
-.ths span{width:4px;height:4px;border-radius:50%;background:var(--t3);animation:bl 1.2s infinite}
+/* 処理中インジケータ（大型・視認性向上）*/
+.thk{display:flex;align-items:center;gap:12px;color:var(--prog-txt);font-size:13px;
+  padding:10px 16px;background:var(--prog-bg);border:1px solid var(--prog-bdr);
+  border-radius:7px;margin:4px 0;font-weight:600}
+.thk-proj{font-size:11px;color:var(--t3);margin-left:4px;font-weight:400}
+.ths{display:flex;gap:6px;align-items:center}
+.ths span{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:bl 1.2s infinite}
 .ths span:nth-child(2){animation-delay:.2s}.ths span:nth-child(3){animation-delay:.4s}
 @keyframes bl{0%,80%,100%{opacity:.15}40%{opacity:1}}
 
@@ -929,11 +933,15 @@ A.onChunk(ev=>{
     case 'text':
       if (!ev.data) break; // 空データは無視
       curFull += ev.data;
-      if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
+      // 問題2対策: curElがDOMからデタッチされていたら再構築（同PJ再表示時）
+      if(!curEl || isMsgDetached()){
+        const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl);
+      }
       if(curBb) { curBb.innerHTML = renderMd(curFull); curBb.classList.add('md-rendered'); }
       dn(); break;
     case 'tool':
-      if (!curEl){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
+      // curElがデタッチされていたら再構築
+      if(!curEl || isMsgDetached()){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
       addTool(curEl, ev.data); dn(); break;
     case 'task_start': addTaskCard(ev.data); dn(); break;
     case 'task_done':  updateProgress(ev.data.n, ev.data.total); dn(); break;
@@ -1033,10 +1041,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   window.addEventListener('focus', ()=>{ pollSt(); });
 
   A.onWillQuit(async()=>{
-    if (cur && curMode==='dev' && cur.workDir && busy){
-      await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint:'アプリ終了による中断',state:'終了'});
+    // アプリ終了時: devモードで実際に処理中の場合のみresumeFile保存
+    // agentViewOpen時はDOMの視点からbusy=falseなので保存しない
+    if (cur && curMode==='dev' && cur.workDir && busy && !agentViewOpen){
+      await A.saveResume({
+        sessId:curSid, workDir:cur.workDir, history:cur.messages||[],
+        checkpoint:'アプリ終了による中断', state:'終了'
+      });
     }
-    if (cur) A.updateProject(cur.id,cur);
+    if (cur) await A.updateProject(cur.id,cur);
   });
 
   // エージェント初期化
@@ -1124,25 +1137,39 @@ async function loadPL(){
 }
 
 async function openP(id){
-  // ② エージェントビューを閉じてプロジェクト表示に切り替え
+  // エージェントビューを閉じる
   if(agentViewOpen) closeAgentView();
-  // 別PJへ切り替え: 現在の状態を保存
-  if (cur && cur.id !== id) {
-    await A.updateProject(cur.id, cur);
-    busy = false; // 新PJ視点ではbusy=false
+
+  const isSameProj = (cur && cur.id === id);
+
+  if (!isSameProj) {
+    // 別PJへ切替: 現在PJを保存してbusy=false
+    if(cur) await A.updateProject(cur.id, cur);
+    busy = false;
   }
-  // 最新データをディスクから読む（AI処理中の追記分も含む）
+
+  // 最新データをディスクから読む
   const p = await A.getProject(id); if(!p) return;
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
 
-  // 停止ボタン: 別PJに切替時は停止ボタンを隠す
-  // (AIが動いていても別PJでは送信/停止は使わない)
-  setStopState('hidden');
-  document.getElementById('send-btn').disabled=false;
-
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
+
+  // 問題2の根本修正:
+  // 同じPJに戻ってきた場合 かつ busy=true → DOMをクリアしない（処理継続中）
+  // curBbがデタッチされるのを防ぐため、DOMを保持する
+  if(isSameProj && busy){
+    // 処理継続中: UIを現状維持
+    setStopState('active'); // 停止ボタンを再表示
+    document.getElementById('send-btn').disabled=true;
+    loadPL(); updateModeUI();
+    return; // DOMクリアしない
+  }
+
+  // 別PJか、同PJでidle: 通常の初期化
+  setStopState('hidden');
+  document.getElementById('send-btn').disabled=false;
   document.getElementById('msgs').innerHTML='';
   taskN=0; taskTotal=0;
   document.getElementById('prog-bar').style.display='none';
@@ -1172,21 +1199,47 @@ function showResumeBanner(r){
 async function delP(e,id){
   e.stopPropagation();
   if(!confirm('削除しますか？')) return;
+  // 実行中セッションを停止してから削除
+  const sessId='P'+id;
+  await A.stopChat(sessId).catch(()=>{});
+  await A.clearHistory(sessId).catch(()=>{});
+  // deleteProject側でresumeFileも削除される（main.js修正済み）
   await A.deleteProject(id);
-  if(cur&&cur.id===id){ cur=null; showWl(); }
+  if(cur&&cur.id===id){
+    cur=null; busy=false; setStopState('hidden');
+    removeBgBusyBanner(id);
+    showWl();
+  }
   loadPL();
 }
 
 function renderHist(ms){
-  // 既存のtoolエントリが混入していてもスキップして安全に処理
+  const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
   ms.forEach((m,i)=>{
-    if(!m || !m.role) return; // 不正エントリはスキップ
+    if(!m || !m.role) return;
     if(m.role==='user'){
       if(m.content) addUserBubble(m.content, i);
     } else if(m.role==='assistant'){
       if(m.content) addAI(m.content);
+    } else if(m.role==='system' && m.content){
+      // 問題4: システムメッセージを再表示（永続化対応）
+      const d=document.createElement('div'); d.className='sn'+(m.cls?' '+m.cls:'');
+      const txt=document.createElement('span'); txt.textContent=m.content;
+      const ts=document.createElement('span'); ts.className='sn-ts';
+      ts.textContent=m.ts?new Date(m.ts).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      d.appendChild(txt); d.appendChild(ts);
+      msgs().appendChild(d);
+    } else if(m.role==='tool_call' && m.name){
+      // 問題1: ツール実行ログを再表示
+      const args=m.args||{};
+      const argStr=['command','path','url','query','reason'].filter(k=>args[k])
+        .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
+      const tsStr=m.ts?new Date(m.ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      const box=document.createElement('div'); box.className='tb';
+      box.innerHTML=`<div class="th2"><span>${icons[m.name]||'·'}</span><span class="tn2">${esc(m.name)}</span><span class="tt2">${tsStr}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
+      msgs().appendChild(box);
     }
-    // tool/system ロールはスキップ（横線の原因となるため表示しない）
+    // 旧role:'tool'エントリは安全にスキップ（横線防止）
   });
   dn();
 }
@@ -1477,11 +1530,13 @@ async function chatInternal(msg,mode,attachments,ds){
     await A.startChat({sessId:snapSessId,message:msg,projectId:snapProj?snapProj.id:null,
       mode,attachments:attachments||[],deepSearch:!!ds,langs:dDat?.langs||''});
     if(thk.parentNode) thk.remove();
-    if(snapProj && curFull && mode!=='analysis'){
+    if(snapProj && mode!=='analysis'){
       if(!snapProj.messages) snapProj.messages=[];
-      snapProj.messages.push({role:'assistant',content:curFull});
+      if(curFull) snapProj.messages.push({role:'assistant',content:curFull});
       // 元PJにディスク保存（切り替え後でも確実に保存）
-      await A.updateProject(snapProj.id, snapProj);
+      // _saveTimerで遅延保存されている場合もクリアして即時保存
+      if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
+      await A.updateProject(snapProj.id, snapProj).catch(()=>{});
     }
   }catch(e){ if(thk.parentNode)thk.remove(); addAI('× エラー: '+e.message); }
   finally{
@@ -1668,20 +1723,36 @@ function addTool(par,td){
     .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
   box.innerHTML=`<div class="th2"><span>${icons[td.name]||'·'}</span><span class="tn2">${esc(td.name)}</span><span class="tt2">${nowDateTs()}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
   par.appendChild(box);
-  // 注意: cur.messagesにはuser/assistantのみ保存する（toolは混入させない）
-  // ツールログはリアルタイム表示のみ（再表示は省略 - チャット履歴の断絶を防ぐため）
+  // 問題1: ツール実行ログをcur.messagesに保存（role:'tool_call'で区別）
+  if(cur && cur.messages !== undefined){
+    cur.messages.push({role:'tool_call', name:td.name, args:args, ts:Date.now()});
+    scheduleProjectSave();
+  }
 }
 
-function addThk(){ const d=document.createElement('div'); d.className='thk'; d.innerHTML='<div class="ths"><span></span><span></span><span></span></div><span>処理中...</span>'; msgs().appendChild(d); dn(); return d; }
+function addThk(){
+  // 重複防止: 既存の処理中インジケータがあれば再利用
+  const existing = msgs().querySelector('.thk');
+  if(existing) return existing;
+  const d = document.createElement('div'); d.className='thk';
+  const projLabel = cur ? `<span class="thk-proj">— ${esc(cur.name||'')}</span>` : '';
+  d.innerHTML = '<div class="ths"><span></span><span></span><span></span></div><span>処理中...</span>' + projLabel;
+  msgs().appendChild(d); dn(); return d;
+}
 
 function addSN(t,cls){
-  // ② エージェントビューが開いていてもプロジェクトのsystem通知は#msgsへ送る
-  // エージェントビュー中でもchat-chunk由来の通知はmsgに追加する必要がある
   const d=document.createElement('div'); d.className='sn'+(cls?' '+cls:'');
   const txt=document.createElement('span'); txt.textContent=t;
+  const tsStr=nowDateTs();
   const ts=document.createElement('span'); ts.className='sn-ts'; ts.textContent=nowTs();
   d.appendChild(txt); d.appendChild(ts);
   msgs().appendChild(d); dn();
+  // 問題4: システムメッセージをcur.messagesに保存（永続化）
+  if(cur && cur.messages !== undefined){
+    cur.messages.push({role:'system', content:t, cls:cls||'', ts:Date.now()});
+    // 保存は自動的に次のupdateProject時に行われる（即時保存はthrottle）
+    scheduleProjectSave();
+  }
 }
 
 // ══ 表示切替: 3ビュー(wl/cw/agent-view)を排他的に管理 ══
@@ -2657,6 +2728,32 @@ function addAgentFeedItemFromHistory(data) {
   bb.classList.add('md-rendered');
   msgEl.appendChild(bb);
   container.appendChild(msgEl);
+}
+
+
+// ══════════════════════════════════════════════════
+// scheduleProjectSave: 遅延保存（500ms後）
+// addSN/addToolが高頻度で呼ばれる場合にまとめて保存
+// ══════════════════════════════════════════════════
+let _saveTimer = null;
+function scheduleProjectSave(){
+  if(!cur) return;
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async ()=>{
+    if(cur) await A.updateProject(cur.id, cur).catch(()=>{});
+    _saveTimer = null;
+  }, 500);
+}
+
+// ══════════════════════════════════════════════════
+// chatInternal修正: バックグラウンド処理中のDOM更新
+// curElが孤立ノードになった場合は再構築する
+// ══════════════════════════════════════════════════
+// チャンク受信ハンドラの修正: curElがDOMからデタッチされていたら再構築
+const _origOnChunkText = null; // 既存ハンドラを上書き確認済み
+// onChunkのtext処理でDOMデタッチ検出
+function isMsgDetached(){
+  return curEl && !document.getElementById('msgs').contains(curEl);
 }
 
 </script>

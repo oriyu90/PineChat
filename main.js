@@ -121,8 +121,16 @@ ipcMain.handle('update-project',(_,id,data)=>{
   return {ok:true};
 });
 ipcMain.handle('delete-project',(_,id)=>{
+  // プロジェクトファイルを読んでworkDirを取得し、resumeFileも削除
+  try {
+    const proj = agent.loadProj(id);
+    if(proj && proj.workDir) {
+      agent.deleteResumeFile(proj.workDir); // 再開ファイルも必ず削除
+    }
+  } catch {}
   const p=agent.projPath(id); try{if(fs.existsSync(p))fs.unlinkSync(p);}catch{}
-  agent.saveIndex(agent.loadIndex().filter(x=>x.id!==id)); return {ok:true};
+  agent.saveIndex(agent.loadIndex().filter(x=>x.id!==id));
+  return {ok:true};
 });
 
 // ── チャット ─────────────────────────────────────────────
