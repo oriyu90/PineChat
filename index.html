@@ -1081,11 +1081,24 @@ document.addEventListener('DOMContentLoaded',()=>{
 async function onWakeFromSleep(){
   await pollSt();
   if (!busy) return;
+  // スリープ復帰前に、途中のAI出力を正しく再レンダリング（横線バグ防止）
+  if (curBb && curFull) {
+    curBb.innerHTML = renderMd(curFull);
+    curBb.classList.add('md-rendered');
+  }
   addSN('💤 スリープから復帰しました。処理を停止します...','warn');
   if (curSid) await A.stopChat(curSid);
   if (cur && cur.workDir){
     const checkpoint = curFull ? ('スリープ復帰前の出力: '+curFull.slice(-200)) : 'スリープ中断';
     await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'スリープ復帰'});
+  }
+  // 途中のAI出力をmessagesに確実に保存（未保存の場合）
+  if (curFull && cur && cur.messages) {
+    const lastMsg = cur.messages[cur.messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.content !== curFull) {
+      cur.messages.push({role:'assistant', content:curFull});
+      await A.updateProject(cur.id, cur).catch(()=>{});
+    }
   }
   busy = false;
   document.getElementById('send-btn').disabled = false;
@@ -1155,15 +1168,18 @@ async function openP(id){
   if(agentViewOpen) closeAgentView();
 
   const isSameProj = (cur && cur.id === id);
+  const prevSid = curSid; // 切替前のsessIdを記録
 
   if (!isSameProj) {
-    // 別PJへ切替: 現在PJを保存してbusy=false
+    // 別PJへ切替: 即座にcurSidを更新して古いチャンクの混入を防ぐ
+    curSid = 'P'+id;
+    // 現在PJを保存してbusy=false
     if(cur) await A.updateProject(cur.id, cur);
     busy = false;
   }
 
   // 最新データをディスクから読む
-  const p = await A.getProject(id); if(!p) return;
+  const p = await A.getProject(id); if(!p){ curSid=prevSid; return; }
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
 
@@ -1182,6 +1198,7 @@ async function openP(id){
   }
 
   // 別PJか、同PJでidle: 通常の初期化
+  curEl=null; curBb=null; curFull=''; // 旧ストリームの残留データをクリア
   setStopState('hidden');
   document.getElementById('send-btn').disabled=false;
   document.getElementById('msgs').innerHTML='';
@@ -1231,6 +1248,8 @@ function renderHist(ms){
   const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
   ms.forEach((m,i)=>{
     if(!m || !m.role) return;
+    // role:'tool' (AI向けtoolResult) は横線防止のため必ずスキップ
+    if(m.role==='tool') return;
     if(m.role==='user'){
       if(m.content) addUserBubble(m.content, i);
     } else if(m.role==='assistant'){
@@ -1550,7 +1569,20 @@ async function doSend(){
   startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
   await chatInternal(txt,sendMode,attachs,ds);
-  if(cur) A.updateProject(cur.id,cur);
+  if(cur) {
+    // チャットPJの名前が「新規チャット」のまま → 最初のメッセージから自動生成
+    if(cur.type==='chat' && cur.name==='新規チャット' && txt){
+      try{
+        const r = await A.generateProjectName({message:txt});
+        if(r && r.name && r.name !== '新規チャット'){
+          cur.name = r.name;
+          document.getElementById('pn').textContent=' · '+cur.name;
+        }
+      }catch{}
+    }
+    A.updateProject(cur.id,cur);
+    loadPL(); // サイドバーのPJ名を更新
+  }
 }
 
 // ── chatInternal ─────────────────────────────────────────
@@ -1630,7 +1662,7 @@ async function doRestart(){
   const cleanHistory=history[history.length-1]?.role==='assistant'?history.slice(0,-1):[...history];
   const lastUser=[...cleanHistory].reverse().find(m=>m.role==='user');
   if(!lastUser) return;
-  await A.setHistory({sessId:curSid,history:cleanHistory});
+  await A.setHistory({sessId:curSid,history:cleanHistory.filter(m=>m.role==='user'||m.role==='assistant')});
   cur.messages=cleanHistory;
   startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
@@ -1804,8 +1836,7 @@ function showWl(){
 }
 function showChat(){
   _hideAllViews();
-  const cw=document.getElementById('cw');
-  Object.assign(cw.style,{display:'flex',flexDirection:'column',flex:'1',minHeight:'0',overflow:'hidden'});
+  document.getElementById('cw').style.display='flex';
   agentViewOpen=false;
 }
 function showAgent(){
@@ -1964,8 +1995,13 @@ async function ctxDelete(){
   document.getElementById('ctx-menu').style.display='none';
   if(!ctxTargetId) return;
   if(!confirm(`「${ctxTargetName}」を削除しますか？`)) return;
+  // 実行中セッションを停止してから削除（delPと同等の処理）
+  const sessId='P'+ctxTargetId;
+  await A.stopChat(sessId).catch(()=>{});
+  await A.clearHistory(sessId).catch(()=>{});
+  removeBgBusyBanner(ctxTargetId);
   await A.deleteProject(ctxTargetId);
-  if(cur&&cur.id===ctxTargetId){ cur=null; showWl(); }
+  if(cur&&cur.id===ctxTargetId){ cur=null; busy=false; setStopState('hidden'); showWl(); }
   loadPL();
 }
 
@@ -2004,10 +2040,6 @@ function closeAgentView(){
   document.getElementById('sb-agent-btn').classList.remove('on');
 }
 
-// openP等でプロジェクトを開いたらエージェントビューを閉じる
-// (既存のopenP先頭にフック)
-const _origOpenP = window._origOpenP || null;
-
 // ── エージェントコマンド ──────────────────────────────────────────
 async function agentCmdRunNow(){
   setAgentStatus('▶ 今すぐ実行中...');
@@ -2015,11 +2047,6 @@ async function agentCmdRunNow(){
     await A.watcherRunNow();
   } catch(e) { setAgentStatus('エラー: '+e.message, true); }
 }
-
-// agentCmdStop は下部でtoggleSearxSchedule対応版として再定義済み
-// この定義はtoggleSearxSchedule内のagentCmdStopに引き継がれる
-
-// agentCmdSchedule は下部でtoggleSearxSchedule対応版として再定義済み
 
 function setAgentStatus(msg, isErr){
   const el = document.getElementById('agent-status-bar');
@@ -2054,11 +2081,6 @@ A.onAgentChatEvent(ev => {
       setAgentStatus(ev.data); break;
   }
 });
-
-// addAgentFeedItem は下部で再定義済み（チャット形式）
-
-// ── 起動時初期化 ─────────────────────────────────────────────────
-// initWatcher は下部で再定義済み（searxStatus対応版）
 
 // ── 設定モーダル ─────────────────────────────────────────────────
 async function openWatcherSet(){
@@ -2297,8 +2319,6 @@ async function saveWatcherSettings(){
 }
 
 
-// toggleAgentSchedule / updateSbAgentSwStyle は下部のtoggleSearxSchedule/updateSbSwStyleに統一済み
-
 // ═══════════════════════════════════════════════════════════
 // ⑧⑨ エージェントチャット機能
 // ═══════════════════════════════════════════════════════════
@@ -2345,59 +2365,12 @@ function addAgentChatMsg(role, text){
   container.scrollTop = container.scrollHeight;
 }
 
-// ⑫ エージェント履歴レンダリング（起動時）
-function renderAgentHistory(hist){
-  if(!hist || !hist.length) return;
-  const container = document.getElementById('agent-msgs');
-  if(!container) return;
-  const empty = document.getElementById('agent-feed-empty');
-  if(empty) empty.remove();
-  hist.forEach(m=>{
-    if(m.role==='user' || m.role==='assistant'){
-      addAgentChatMsg(m.role==='user'?'user':'ai', m.content||'');
-    }
-  });
-}
-
 // クリア（フィード+チャット履歴）
 async function clearAgentFeedAndHistory(){
   if(!confirm('エージェントのフィードとチャット履歴をクリアしますか？')) return;
   const container = document.getElementById('agent-msgs');
   if(container) container.innerHTML = '<div class="feed-empty" id="agent-feed-empty">フィードはまだありません<br><small>設定からソースを有効化するか、チャットで質問してください</small></div>';
   try { await A.clearAgentHistory(); } catch {}
-}
-
-// ═════ addAgentFeedItem: エージェントフィード表示（統一版）═════
-function addAgentFeedItem(data){
-  const container = document.getElementById('agent-msgs');
-  if(!container) return;
-  const empty = document.getElementById('agent-feed-empty');
-  if(empty) empty.remove();
-
-  const ts = new Date(data.ts || Date.now());
-  const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  const srcClass  = {discord:'discord',telegram:'telegram',searx:data.taskType==='url'?'searxurl':'searx',calendar:'calendar'};
-  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG',calendar:'📅 カレンダー'};
-  const cls   = srcClass[data.source]  || data.source;
-  const label = srcLabels[data.source] || data.source;
-
-  const item = document.createElement('div');
-  item.className = 'feed-item';
-  item.innerHTML =
-    '<div class="feed-hd">' +
-      '<span class="feed-src ' + esc(cls) + '">' + esc(label) + '</span>' +
-      '<span class="feed-label">' + esc(data.label||'') + '</span>' +
-      '<span class="feed-ts">' + tsStr + '</span>' +
-    '</div>' +
-    '<div class="feed-body' + (data.raw?' raw':'') + '">' + esc(data.summary||'') + '</div>';
-  container.insertBefore(item, container.firstChild);
-  while(container.children.length > 60) container.removeChild(container.lastChild);
-
-  // エージェントビューが閉じていたら通知
-  if(!agentViewOpen){
-    const dot = document.getElementById('sb-agent-dot');
-    if(dot){ dot.style.boxShadow='0 0 0 2px var(--ok)'; setTimeout(()=>{ dot.style.boxShadow=''; },3000); }
-  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2690,9 +2663,7 @@ async function toggleSearxSchedule(e) {
   }
 }
 
-// agentCmdStop/Scheduleのスライドスイッチ同期を修正
-// (エージェントビューのボタンとスライドスイッチが同期)
-const _origAgentCmdStop = agentCmdStop;
+// agentCmdStop/Scheduleのスライドスイッチ同期
 async function agentCmdStop() {
   await A.searxStop();
   searxScheduleOn = false;
@@ -2703,7 +2674,6 @@ async function agentCmdStop() {
   addSN('𓅱 SearXNG定期タスク停止');
   stopNextTimerDisplay();
 }
-const _origAgentCmdSchedule = agentCmdSchedule;
 async function agentCmdSchedule() {
   await A.searxStart();
   searxScheduleOn = true;
@@ -2715,8 +2685,7 @@ async function agentCmdSchedule() {
   startNextTimerDisplay();
 }
 
-// initWatcherにsearxStatusチェックを追加
-const _origInitWatcher = initWatcher;
+// initWatcher: searxStatus対応版
 async function initWatcher() {
   try {
     // SearXNGの動作状態を確認
@@ -2834,8 +2803,6 @@ function scheduleProjectSave(){
 // chatInternal修正: バックグラウンド処理中のDOM更新
 // curElが孤立ノードになった場合は再構築する
 // ══════════════════════════════════════════════════
-// チャンク受信ハンドラの修正: curElがDOMからデタッチされていたら再構築
-const _origOnChunkText = null; // 既存ハンドラを上書き確認済み
 // onChunkのtext処理でDOMデタッチ検出
 function isMsgDetached(){
   return curEl && !document.getElementById('msgs').contains(curEl);
@@ -2872,7 +2839,7 @@ async function scheduleAutoRecovery(type) {
       autoRecoveryInProgress = false;
       if(!cur || !busy) { endBusy(); return; }
       // 最後のユーザーメッセージにスキップ指示を追加
-      await A.setHistory({sessId:curSid, history:cur.messages||[]});
+      await A.setHistory({sessId:curSid, history:(cur.messages||[]).filter(m=>m.role==='user'||m.role==='assistant')});
       const skipMsg = '前のステップが不明の場合はスキップして、次のタスクに進んでください。';
       startBusy();
       if(curMode==='dev') startDevTimer();

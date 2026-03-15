@@ -208,7 +208,9 @@ ipcMain.handle('edit-message',(_,{sessId,msgIndex,newContent})=>{
 });
 ipcMain.handle('set-history',(_,{sessId,history})=>{
   const sess=agent.getSession(sessId);
-  sess.history=(history||[]).slice(-40);
+  // AI向けコンテキストにはuser/assistant/toolのみ許可（system/tool_callはUI専用）
+  const validRoles = ['user','assistant','tool'];
+  sess.history=(history||[]).filter(m=>m&&validRoles.includes(m.role)).slice(-40);
   return {ok:true};
 });
 
