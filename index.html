@@ -381,11 +381,9 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       </div>
       <span class="sb-agent-dot" id="sb-agent-dot"></span>
     </button>
-    <!-- スライドスイッチ: SearXNG定期タスクON/OFF -->
-    <div id="sb-agent-sw" onclick="toggleSearxSchedule(event)"
-      title="SearXNG定期タスク ON/OFF (Discord/Telegramは設定から制御)"
-      style="width:32px;height:18px;background:var(--b2);border-radius:9px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;margin-right:12px;flex-shrink:0">
-      <div id="sb-agent-sw-knob" style="width:12px;height:12px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:left .2s"></div>
+    <!-- SearXNGスライドスイッチ: 問題④により非表示 -->
+    <div id="sb-agent-sw" style="display:none">
+      <div id="sb-agent-sw-knob"></div>
     </div>
   </div>
   <div id="pl"></div>
@@ -485,8 +483,8 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 <!-- 新規プロジェクト -->
 <div class="ov h" id="mN">
   <div class="md">
-    <div class="mt2">新規プロジェクト</div>
-    <div class="ms2">種類を選択してください</div>
+    <div class="mt2" id="lbl-new-proj">新規プロジェクト</div>
+    <div class="ms2" id="lbl-select-type">種類を選択してください</div>
     <div class="lbl">種類</div>
     <div class="mcs">
       <div class="mc" id="mCC" onclick="selT('chat')"><div class="mc-g">𓃰</div><div class="mc-l">チャット</div><div class="mc-d">会話・調査</div></div>
@@ -645,8 +643,8 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       </div>
     </div>
 
-    <!-- SearXNG -->
-    <div class="set-sec">
+    <!-- SearXNG: 問題④ により一時非表示（同時AI実行によるバグ防止）-->
+    <div class="set-sec" style="display:none" id="searxSection">
       <div class="set-stl" style="display:flex;align-items:center;gap:10px">
         <span style="flex:1">SearXNG 定期検索</span>
         <div class="sw-sm" id="wSearxSw" onclick="toggleWCfgSw('searx')"></div>
@@ -654,12 +652,9 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div id="wSearxBody">
         <div class="set-row"><span class="set-lbl">間隔（分）</span>
           <input class="set-inp" id="wSearxInterval" type="number" min="1" max="60" style="width:65px">
-          <span style="font-size:12px;color:var(--t3);margin-left:6px">1〜60分</span>
         </div>
-        <!-- ③ 件数設定 -->
         <div class="set-row"><span class="set-lbl">取得件数</span>
           <input class="set-inp" id="wSearxMaxResults" type="number" min="10" max="30" style="width:65px" value="15">
-          <span style="font-size:12px;color:var(--t3);margin-left:6px">10〜30件</span>
         </div>
         <div class="lbl" style="margin-top:4px">タスク一覧</div>
         <div id="wSearxTaskList" class="task-list"></div>
@@ -717,7 +712,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 <!-- 設定 -->
 <div class="ov h" id="mS">
   <div class="md w">
-    <div class="mt2">𓀂 設定</div>
+    <div class="mt2" id="lbl-settings-title">𓀂 設定</div>
     <!-- 言語設定 -->
     <div class="set-sec">
       <div class="set-stl" id="lbl-lang-sec">言語設定 / Language</div>
@@ -738,7 +733,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="set-hint" id="lbl-lang-hint">AI応答言語はエージェントの要約・チャット回答に適用されます</div>
     </div>
     <div class="set-sec">
-      <div class="set-stl">AI接続</div>
+      <div class="set-stl" id="lbl-ai-conn">AI接続</div>
       <div class="set-row"><span class="set-lbl">サーバーアドレス</span><input class="set-inp" id="sHost" type="text" placeholder="localhost"></div>
       <div class="set-row"><span class="set-lbl">ポート番号</span><input class="set-inp" id="sPort" type="number" min="1" max="65535" style="width:80px"></div>
       <div class="set-row"><span class="set-lbl">SearXNG URL</span><input class="set-inp" id="sSearx" type="text" placeholder="http://localhost:8080" style="width:210px"></div>
@@ -953,10 +948,25 @@ A.onChunk(ev=>{
     case 'paused':   addSN(ev.data,'warn'); break;
     case 'resumed':  addSN(ev.data,'ok'); break;
     case 'timeout':
-      addSN('タイムアウト — ↺ 再起動ボタンで再試行できます','warn');
-      document.getElementById('res-btn').style.display='block';
-      endBusy(); break;
-    case 'user_input_required': addAI(ev.data); endBusy(); break;
+      // 問題⑤: タイムアウト・エラー時に自動復旧を試みる
+      if(cur && (curMode==='dev' || curMode==='debug') && !autoRecoveryInProgress){
+        addSN('⚠ 処理が中断されました。自動復旧を試みます...', 'warn');
+        scheduleAutoRecovery();
+      } else {
+        addSN('タイムアウト — ↺ 再起動ボタンで再試行できます', 'warn');
+        document.getElementById('res-btn').style.display='block';
+        endBusy();
+      }
+      break;
+    case 'user_input_required':
+      // ほったらかしモードなら自動でスキップして続行
+      if(handsOff && (curMode==='dev'||curMode==='debug') && !autoRecoveryInProgress){
+        addSN('𓅭 ほったらかし: ユーザー入力が必要でしたが自動スキップします。', 'warn');
+        scheduleAutoRecovery('skip');
+      } else {
+        addAI(ev.data); endBusy();
+      }
+      break;
   }
 });
 
@@ -1101,6 +1111,10 @@ async function toggleHO(){
   document.getElementById('ho-sw').classList.toggle('on',handsOff);
   await A.saveCfg({handsOff});
   addSN(handsOff?'𓅭 ほったらかしモード ON':'𓅭 ほったらかしモード OFF', handsOff?'ok':'');
+  // 問題①: ほったらかし切替時は処理を止めない
+  // runAgent側でcfg.handsOffを毎ターン参照するため、即座に反映される
+  // busyな場合は何もしない（AIループは継続中）
+  if(busy) addSN('𓅭 次のターンから新しいモードが適用されます', 'ok');
 }
 
 // ── 入力 ─────────────────────────────────────────────────
@@ -1420,7 +1434,15 @@ function addTaskCard(data){
   const d=document.createElement('div'); d.className='task-card';
   d.innerHTML=`<span class="task-num">タスク ${data.n}${taskTotal?'/'+taskTotal:''}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span></span>`;
   msgs().appendChild(d); dn();
-  updateProgress(data.n-1,data.total||taskTotal);
+  updateProgress(data.n-1, data.total||taskTotal);
+  // 問題⑥: チャット欄にもタスク進行状況を表示
+  const total = data.total || taskTotal;
+  const pct = total > 0 ? Math.round((data.n-1)/total*100) : 0;
+  addSN(`📋 タスク ${data.n}${total?'/'+total:''}: ${esc(data.name)}${total?' ('+pct+'%完了)':''}`, 'ok');
+  // prog-barが非表示ならここで表示
+  if(document.getElementById('prog-bar').style.display==='none'){
+    document.getElementById('prog-bar').style.display='block';
+  }
 }
 function updateProgress(n,total){
   taskN=n; if(total) taskTotal=total;
@@ -1459,14 +1481,15 @@ function updateModeUI(){
   const chatOpts=document.getElementById('chat-opts');
   if(!cur) return;
   if(cur.type==='design'){
-    // アプリ設計: デバッグタブのみ表示（チャットタブは削除済み）
     const tabDebug=document.getElementById('tab-debug');
-    bar.style.display=cur.devDone?'flex':'none'; // デバッグタブが出る時のみ表示
+    bar.style.display=cur.devDone?'flex':'none';
     if(tabDebug) tabDebug.style.display=cur.devDone?'':'none';
     if(tabDebug) tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
     chatOpts.style.display=cur.devDone?'flex':'none';
-    document.getElementById('prog-bar').style.display=(curMode==='dev'&&taskTotal>0)?'block':'none';
+    // 問題③: devモード中は常にprog-barを表示（taskTotal=0でも）
+    const showProg = curMode==='dev' && busy;
+    document.getElementById('prog-bar').style.display = showProg ? 'block' : (taskTotal>0 ? 'block' : 'none');
   } else {
     bar.style.display='none'; dbg.style.display='none';
     chatOpts.style.display='flex';
@@ -1486,13 +1509,23 @@ function startBusy(){
   busy=true;
   document.getElementById('send-btn').disabled=true;
   setStopState('active');
+  // 問題③: devモードでは常にprog-barを表示
+  if(cur && cur.type==='design' && curMode==='dev'){
+    document.getElementById('prog-bar').style.display='block';
+    if(!document.getElementById('prog-txt').textContent || document.getElementById('prog-txt').textContent==='準備中...'){
+      document.getElementById('prog-txt').textContent='開発中...';
+    }
+  }
+  // autoRecoveryをリセット（新規のBusy開始時）
+  cancelAutoRecovery();
 }
 function endBusy(){
   busy=false;
   stopDevTimer();
   document.getElementById('send-btn').disabled=false;
-  // resumeボタンが表示中でなければ隠す
   if(stopState !== 'resume') setStopState('hidden');
+  // 自動復旧タイマーはbusyが正常終了した時にキャンセル
+  // (handleStopBtn等で手動停止した時もキャンセル)
 }
 
 // ── チャット送信 ─────────────────────────────────────────
@@ -2461,6 +2494,17 @@ const UI_STRINGS = {
     agentNextTimer: '',
     noFeedText: 'フィードはまだありません',
     noFeedSub: '設定からソースを有効化するか、チャットで質問してください',
+    // ウェルカム
+    welcomeTitle: 'Pine Chat',
+    welcomeSub: '自立思考型 AI エージェント\nプロジェクトを選択または新規作成してください',
+    newProjLabel: '新規プロジェクト', newProjDesc: 'チャット / アプリ設計',
+    existProjLabel: '既存プロジェクト', existProjDesc: 'サイドバーを開く',
+    // 新規モーダル
+    newProject: '新規プロジェクト', selectType: '種類を選択してください',
+    chatType: 'チャット', chatDesc: '会話・調査',
+    designType: 'アプリ設計', designDesc: '設計図から開発',
+    // ヘッダーボタン
+    settingsBtn: '𓀂 設定', clearBtn: 'クリア',
   },
   en: {
     projects: 'PROJECTS',
@@ -2523,50 +2567,91 @@ const UI_STRINGS = {
     agentNextTimer: '',
     noFeedText: 'No feed yet',
     noFeedSub: 'Enable sources in settings or ask a question',
+    // Welcome
+    welcomeTitle: 'Pine Chat',
+    welcomeSub: 'Autonomous AI Agent\nSelect or create a project to get started',
+    newProjLabel: 'New Project', newProjDesc: 'Chat / App Design',
+    existProjLabel: 'Existing Projects', existProjDesc: 'Open Sidebar',
+    // New project modal
+    newProject: 'New Project', selectType: 'Select type',
+    chatType: 'Chat', chatDesc: 'Conversation & research',
+    designType: 'App Design', designDesc: 'Develop from blueprint',
+    // Header buttons
+    settingsBtn: '𓀂 Settings', clearBtn: 'Clear',
   }
 };
 let currentUiLang = 'ja';
 function applyUiLanguage(lang) {
-  if(currentUiLang === lang && lang === 'ja') return; // 初回は必ず通す
   currentUiLang = lang;
   const s = UI_STRINGS[lang] || UI_STRINGS.ja;
+  const set = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+  const setQ = (sel, text) => { const el = document.querySelector(sel); if(el) el.textContent = text; };
+  const setAttr = (id, attr, text) => { const el = document.getElementById(id); if(el) el[attr] = text; };
+  const setHtml = (id, html_) => { const el = document.getElementById(id); if(el) el.innerHTML = html_; };
+
   // ── サイドバー ──
-  const sbTtl = document.querySelector('.sb-ttl'); if(sbTtl) sbTtl.textContent = s.projects;
-  const sbAdd = document.querySelector('.sb-add'); if(sbAdd) sbAdd.textContent = s.newBtn;
-  const sbAgNm = document.querySelector('.sb-agent-nm'); if(sbAgNm) sbAgNm.textContent = s.agent;
+  setQ('.sb-ttl', s.projects);
+  setQ('.sb-add', s.newBtn);
+  setQ('.sb-agent-nm', s.agent);
+
   // ── ヘッダー ──
-  const hoLbl = document.querySelector('.ho-lbl'); if(hoLbl) hoLbl.textContent = s.handsOff;
+  setQ('.ho-lbl', s.handsOff);
   document.querySelectorAll('.hb').forEach(b=>{
-    if(b.onclick && b.getAttribute('onclick') && b.getAttribute('onclick').includes('openSet'))
-      b.textContent = s.settings;
-    else if(b.onclick && b.getAttribute('onclick') && b.getAttribute('onclick').includes('clrChat'))
-      b.textContent = s.clear;
+    const oc = b.getAttribute('onclick')||'';
+    if(oc.includes('openSet'))   b.textContent = s.settingsBtn;
+    else if(oc.includes('clrChat')) b.textContent = s.clearBtn;
   });
-  // ── チャット入力エリア ──
-  const inp = document.getElementById('inp'); if(inp) inp.placeholder = s.inpPlaceholder;
-  const ih = document.querySelector('.ih'); if(ih) ih.textContent = s.inpHint;
-  const swLbl = document.querySelector('.sw-lbl'); if(swLbl) swLbl.textContent = s.searchLabel;
+
+  // ── ウェルカム画面 ──
+  setQ('.wt', s.welcomeTitle);
+  setQ('.ws', s.welcomeSub);
+  const wcs = document.querySelectorAll('.wc');
+  if(wcs[0]) { wcs[0].querySelector('.wc-l').textContent=s.newProjLabel; wcs[0].querySelector('.wc-d').textContent=s.newProjDesc; }
+  if(wcs[1]) { wcs[1].querySelector('.wc-l').textContent=s.existProjLabel; wcs[1].querySelector('.wc-d').textContent=s.existProjDesc; }
+
+  // ── チャット入力 ──
+  setAttr('inp', 'placeholder', s.inpPlaceholder);
+  setQ('.ih', s.inpHint);
+  setQ('.sw-lbl', s.searchLabel);
+  const stopBtnEl = document.getElementById('stop-btn');
+  if(stopBtnEl && stopBtnEl.textContent !== '停止中...') {} // 停止ボタンはstateで管理
+
   // ── エージェントビュー ──
-  const runBtn  = document.querySelector('.acbtn.run');      if(runBtn)  runBtn.textContent  = s.agentRunNow;
-  const stpBtn  = document.querySelector('.acbtn.stop');     if(stpBtn)  stpBtn.textContent  = s.agentStop2;
-  const schBtn  = document.querySelector('.acbtn.schedule'); if(schBtn)  schBtn.textContent  = s.agentSchedule;
-  const agInp   = document.getElementById('agent-inp');      if(agInp)   agInp.placeholder   = s.agentPlaceholder;
-  const agTitle = document.querySelector('.agent-ctrl-title'); if(agTitle) agTitle.textContent = s.agentTabTitle;
+  setQ('.acbtn.run', s.agentRunNow);
+  setQ('.acbtn.stop', s.agentStop2);
+  setQ('.acbtn.schedule', s.agentSchedule);
+  setAttr('agent-inp', 'placeholder', s.agentPlaceholder);
+  setQ('.agent-ctrl-title', s.agentTabTitle);
+
   // ── 設定モーダル ──
-  const langSecLbl = document.getElementById('lbl-lang-sec'); if(langSecLbl) langSecLbl.textContent = s.langSection;
-  const uiLangLbl  = document.getElementById('lbl-ui-lang');  if(uiLangLbl)  uiLangLbl.textContent  = s.uiLangLabel;
-  const aiLangLbl  = document.getElementById('lbl-ai-lang');  if(aiLangLbl)  aiLangLbl.textContent  = s.aiLangLabel;
-  const aiLangHint = document.getElementById('lbl-lang-hint'); if(aiLangHint) aiLangHint.textContent = s.aiLangHint;
+  set('lbl-settings-title', s.settingsTitle);
+  set('lbl-ai-conn', s.aiConn);
+  set('lbl-lang-sec', s.langSection);
+  set('lbl-ui-lang', s.uiLangLabel);
+  set('lbl-ai-lang', s.aiLangLabel);
+  set('lbl-lang-hint', s.aiLangHint);
+
+  // ── 新規プロジェクトモーダル ──
+  set('lbl-new-proj', s.newProject);
+  set('lbl-select-type', s.selectType);
+  const chatCard = document.getElementById('mCC');
+  if(chatCard){ chatCard.querySelector('.mc-l').textContent=s.chatType; chatCard.querySelector('.mc-d').textContent=s.chatDesc; }
+  const designCard = document.getElementById('mCD');
+  if(designCard){ designCard.querySelector('.mc-l').textContent=s.designType; designCard.querySelector('.mc-d').textContent=s.designDesc; }
+
   // ── フィード空表示 ──
   const feedEmpty = document.getElementById('agent-feed-empty');
   if(feedEmpty) feedEmpty.innerHTML = s.noFeedText + '<br><small>' + s.noFeedSub + '</small>';
-  // ── ステータスバー ──
+
+  // ── エージェントステータスバー ──
   const statusBar = document.getElementById('agent-status-bar');
-  if(statusBar && (statusBar.textContent === '待機中' || statusBar.textContent === 'Idle'))
+  if(statusBar && ['待機中','Idle'].includes(statusBar.textContent))
     statusBar.textContent = s.agentStatus;
-  // sb-agent-status は表示しない（スライドスイッチで判断可能）
+
+  // sb-agent-status は非表示
   const stEl = document.getElementById('sb-agent-status'); if(stEl) stEl.style.display='none';
-  // ── html lang属性 ──
+
+  // ── html lang ──
   document.documentElement.lang = lang;
 }
 
@@ -2754,6 +2839,86 @@ const _origOnChunkText = null; // 既存ハンドラを上書き確認済み
 // onChunkのtext処理でDOMデタッチ検出
 function isMsgDetached(){
   return curEl && !document.getElementById('msgs').contains(curEl);
+}
+
+
+// ══════════════════════════════════════════════════════════
+// 問題⑤: 自動復旧システム
+// タイムアウト・エラー・user_input_required時に自動再起動
+// ══════════════════════════════════════════════════════════
+let autoRecoveryInProgress = false;
+let autoRecoveryTimer = null;
+let autoRecoveryCount = 0;
+const MAX_AUTO_RECOVERY = 5; // 最大5回
+
+async function scheduleAutoRecovery(type) {
+  if(autoRecoveryInProgress) return;
+  if(autoRecoveryCount >= MAX_AUTO_RECOVERY){
+    addSN(`⚠ 自動復旧を${MAX_AUTO_RECOVERY}回試みましたが回復しませんでした。手動で再起動してください。`, 'warn');
+    document.getElementById('res-btn').style.display = 'block';
+    endBusy();
+    autoRecoveryCount = 0;
+    return;
+  }
+
+  autoRecoveryInProgress = true;
+  autoRecoveryCount++;
+  const wait = Math.min(autoRecoveryCount * 8, 30); // 8s, 16s, 24s, 30s, 30s
+
+  if(type === 'skip'){
+    // user_input_required: スキップして続行
+    addSN(`𓅭 自動続行 (${autoRecoveryCount}/${MAX_AUTO_RECOVERY}) — ${wait}秒後に再開...`, 'ok');
+    autoRecoveryTimer = setTimeout(async ()=>{
+      autoRecoveryInProgress = false;
+      if(!cur || !busy) { endBusy(); return; }
+      // 最後のユーザーメッセージにスキップ指示を追加
+      await A.setHistory({sessId:curSid, history:cur.messages||[]});
+      const skipMsg = '前のステップが不明の場合はスキップして、次のタスクに進んでください。';
+      startBusy();
+      if(curMode==='dev') startDevTimer();
+      await chatInternal(skipMsg, curMode);
+      if(curMode==='dev') stopDevTimer();
+      if(cur) A.updateProject(cur.id, cur);
+    }, wait * 1000);
+  } else {
+    // timeout/error: 再起動
+    addSN(`♻ 自動再起動 (${autoRecoveryCount}/${MAX_AUTO_RECOVERY}) — ${wait}秒後...`, 'warn');
+    endBusy();
+    autoRecoveryTimer = setTimeout(async ()=>{
+      autoRecoveryInProgress = false;
+      if(!cur) return;
+      // 再開ファイルがあれば再開、なければ最後のメッセージで再送
+      if(cur.workDir){
+        const r = await A.loadResume(cur.workDir).catch(()=>null);
+        if(r){
+          addSN('▶ 再開ファイルから自動復旧します...', 'ok');
+          await doResumeFromFile(r);
+          autoRecoveryCount = 0;
+          return;
+        }
+      }
+      // 再開ファイルなし: 最後のユーザーメッセージで再起動
+      const history = cur.messages || [];
+      const lastUser = [...history].reverse().find(m => m.role==='user');
+      if(!lastUser){ addSN('× 再起動に必要なメッセージが見つかりません', 'warn'); return; }
+      const cleanHistory = history.slice(0, history.lastIndexOf(history.find(m=>m===lastUser))+1);
+      await A.setHistory({sessId:curSid, history:cleanHistory.filter(m=>m.role==='user'||m.role==='assistant')});
+      cur.messages = cleanHistory;
+      addSN('↺ 前回のメッセージで自動再起動します...', 'ok');
+      startBusy();
+      if(curMode==='dev') startDevTimer();
+      await chatInternal(lastUser.content, curMode);
+      if(curMode==='dev') stopDevTimer();
+      if(cur) A.updateProject(cur.id, cur);
+      autoRecoveryCount = 0;
+    }, wait * 1000);
+  }
+}
+
+function cancelAutoRecovery(){
+  if(autoRecoveryTimer){ clearTimeout(autoRecoveryTimer); autoRecoveryTimer=null; }
+  autoRecoveryInProgress = false;
+  autoRecoveryCount = 0;
 }
 
 </script>

@@ -316,7 +316,20 @@ async function handsOffBreakLoop(sessId, msgs, workDir, onEvent) {
 function makeDevSysPrompt(workDir, customSys, langs) {
   const langNote=langs&&langs.length>0?`\n優先言語: ${langs}\n※ 設計図の要件に応じて他の言語・ライブラリも適宜使用して良い。`:'';
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
-  return `あなたはアプリ開発専門AIエージェントです。設計図に従い、タスクを1つずつ実行して開発を完成させます。\n\n【必須ルール】\n1. 最初に「=== タスクリスト ===」として全タスクを番号付きで表示する\n2. 各タスク開始前に「--- タスクN/合計: [タスク名] ---」と宣言してから作業開始\n3. 各タスク完了後に「[完] タスクN 完了 (進捗: N/合計)」と報告する\n4. エラー時は必ずweb_searchツールで解決策を調べてから修正する\n5. 全タスク完了時に「=== 開発完了 ===」と報告する\n6. ファイルは作業フォルダに作成。sudo・パッケージインストール系は不可${langNote}\n\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
+  return `あなたはアプリ開発専門AIエージェントです。設計図に従い、タスクを1つずつ着実に実行して開発を完成させます。${langNote}
+
+【絶対に守るルール】
+1. 必ず最初の返答で「=== タスクリスト ===」として全タスクを番号付きで列挙する
+2. タスクの実行前に必ず「--- タスクN/合計: [タスク名] ---」を出力してから作業を開始する
+3. 各タスク完了後に必ず「[完] タスクN 完了 (進捗: N/合計)」を出力する
+4. エラーが発生したらweb_searchツールで解決策を調べて修正する（あきらめない）
+5. 全タスク完了時に「=== 開発完了 ===」を出力する
+6. ファイルは作業フォルダ内に作成する。sudo・パッケージインストール系コマンドは実行しない
+7. 途中で止まらず最後まで実行する。ユーザーへの確認は最小限にする
+8. 問題が発生しても自力で解決して続行する
+
+現在時刻: ${new Date().toLocaleString('ja-JP')}
+作業フォルダ: ${workDir||os.homedir()}${custom}`;
 }
 function buildChatSysPrompt(workDir, customSys) {
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
@@ -346,80 +359,149 @@ function stopAgent(sessId){abortMap.get(sessId)?.abort();abortMap.delete(sessId)
 function isAborted(sessId){const ac=abortMap.get(sessId);return !ac||ac.signal.aborted;}
 
 async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
-  const host=cfg.chatAiHost||cfg.aiHost||'127.0.0.1',port=cfg.chatAiPort||cfg.aiPort;
-  let useModelId=cfg.chatModelId;
-  if(!useModelId){if(!MODEL_ID)await detectModel();useModelId=MODEL_ID;}
-  if(!useModelId){onEvent({type:'text',data:'× AIに接続できません。設定を確認してください。'});logWrite(sessId,'ERROR','モデル未検出');return;}
-  const ac=new AbortController();abortMap.set(sessId,ac);
-  const devMode=sysPrompt.includes('タスクリスト');
-  const msgs=[{role:'system',content:sysPrompt},...messages];
-  let loopCount=0,sameCount=0,lastContent='';
-  for(let turn=0;turn<60;turn++){
-    if(ac.signal.aborted){onEvent({type:'text',data:'\n■ 停止しました。'});break;}
-    const isHandsOff=cfg.handsOff;
+  const getHost = () => cfg.chatAiHost || cfg.aiHost || '127.0.0.1';
+  const getPort = () => cfg.chatAiPort || cfg.aiPort;
+  const getModel = () => cfg.chatModelId || MODEL_ID;
+
+  // モデル確認
+  if (!getModel()) { await detectModel(); }
+  if (!getModel()) {
+    onEvent({ type:'text', data:'× AIに接続できません。設定を確認してください。' });
+    logWrite(sessId, 'ERROR', 'モデル未検出'); return;
+  }
+
+  const ac = new AbortController();
+  abortMap.set(sessId, ac);
+  const devMode = sysPrompt.includes('タスクリスト');
+  const msgs = [{ role:'system', content:sysPrompt }, ...messages];
+  let loopCount = 0, sameCount = 0, lastContent = '';
+  let consecutiveErrors = 0; // 連続エラーカウント
+
+  for (let turn = 0; turn < 80; turn++) {
+    if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止しました。' }); break; }
+
+    // ほったらかしモードは毎ターン最新を読む（ON/OFF切替に即対応）
+    const isHandsOff = cfg.handsOff;
+
     let data;
-    try{
-      logWrite(sessId,'INFO',`Turn${turn+1}`);
-      data=await httpPost(host,port,'/v1/chat/completions',{model:useModelId,messages:msgs,tools:TOOLS,tool_choice:'auto',temperature:0.6,max_tokens:4096,stream:false});
+    try {
+      logWrite(sessId, 'INFO', `Turn${turn+1} handsOff=${isHandsOff}`);
+      data = await httpPost(getHost(), getPort(), '/v1/chat/completions', {
+        model: getModel(), messages: msgs, tools: TOOLS, tool_choice: 'auto',
+        temperature: 0.6, max_tokens: 4096, stream: false
+      });
+      consecutiveErrors = 0; // 成功時リセット
       retryCountMap.delete(sessId);
-    }catch(e){
-      logWrite(sessId,'ERROR',`APIエラー:${e.message}`);
-      if(ac.signal.aborted){onEvent({type:'text',data:'\n■ 停止'});break;}
-      if(isHandsOff&&e.message.includes('タイムアウト')){
-        const retries=(retryCountMap.get(sessId)||0)+1;retryCountMap.set(sessId,retries);
-        if(retries<=3){onEvent({type:'system',data:`⏳ タイムアウト — ${retries}/3回目の自動再試行を30秒後に実行...`});await new Promise(r=>setTimeout(r,30000));if(ac.signal.aborted){onEvent({type:'text',data:'\n■ 停止'});break;}await detectModel();if(!MODEL_ID){onEvent({type:'timeout',data:'AI接続できず'});break;}onEvent({type:'system',data:`↺ 再試行中 (${retries}/3)...`});continue;}
-      }
-      onEvent({type:'text',data:`\n× 通信エラー: ${e.message}`});onEvent({type:'timeout',data:e.message});break;
-    }
-    const msg=data.choices?.[0]?.message;
-    // 空の応答: 最大2回リトライ
-    if(!msg || (!msg.content && !msg.tool_calls?.length)) {
-      const retryKey = '_emptyRetry';
-      const emptyRetry = (msgs[retryKey] || 0) + 1;
-      msgs[retryKey] = emptyRetry;
-      if (emptyRetry <= 2) {
-        logWrite(sessId, 'WARN', `空の応答 - リトライ ${emptyRetry}/2`);
-        onEvent({ type:'system', data:`⚠ 応答が空でした。再試行中 (${emptyRetry}/2)...` });
-        await new Promise(r => setTimeout(r, 4000));
-        if (ac.signal.aborted) { onEvent({type:'text',data:'\n■ 停止'}); break; }
+    } catch(e) {
+      logWrite(sessId, 'ERROR', `APIエラー:${e.message}`);
+      if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止' }); break; }
+
+      consecutiveErrors++;
+      const retries = (retryCountMap.get(sessId) || 0) + 1;
+      retryCountMap.set(sessId, retries);
+
+      // 問題①②⑤: handsOffに関わらず最大5回まで自動リトライ
+      if (retries <= 5) {
+        const wait = Math.min(retries * 15, 60); // 15s, 30s, 45s, 60s, 60s
+        onEvent({ type:'system', data:`⚠ 通信エラー (${e.message.slice(0,60)}) — ${retries}/5回目 ${wait}秒後に自動再試行...` });
+        await new Promise(r => setTimeout(r, wait * 1000));
+        if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止' }); break; }
+        // モデルを再検出してリトライ
+        await detectModel();
+        if (!MODEL_ID) {
+          onEvent({ type:'system', data:`⚠ AI再接続を試みています...` });
+          await new Promise(r => setTimeout(r, 10000));
+        }
+        onEvent({ type:'system', data:`↺ 再試行中 (${retries}/5)...` });
         continue;
       }
-      onEvent({ type:'text', data:'× AIからの応答が空です。モデルの起動状態やプロンプトを確認してください。' });
+      // 5回失敗: タイムアウトイベントでUI側に通知（自動再起動を促す）
+      onEvent({ type:'text', data:`
+× 通信エラー: ${e.message}` });
+      onEvent({ type:'timeout', data: e.message });
+      break;
+    }
+
+    const msg = data.choices?.[0]?.message;
+    // 空の応答リトライ（問題③）
+    if (!msg || (!msg.content && !msg.tool_calls?.length)) {
+      const emptyRetry = (msgs['_emptyRetry'] || 0) + 1;
+      msgs['_emptyRetry'] = emptyRetry;
+      if (emptyRetry <= 3) {
+        logWrite(sessId, 'WARN', `空の応答 - リトライ ${emptyRetry}/3`);
+        onEvent({ type:'system', data:`⚠ 応答が空でした。再試行中 (${emptyRetry}/3)...` });
+        await new Promise(r => setTimeout(r, 5000));
+        if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止' }); break; }
+        continue;
+      }
+      onEvent({ type:'text', data:'× AIからの応答が空です。モデルを確認してください。' });
+      onEvent({ type:'timeout', data: '空の応答' });
       break;
     }
     msgs['_emptyRetry'] = 0;
-    if(!msg) break; // 念のため
     msgs.push(msg);
-    if(msg.content){
-      logWrite(sessId,'AI',msg.content.slice(0,200));onEvent({type:'text',data:msg.content});
-      if(devMode){
-        const totMatch=msg.content.match(/タスクリスト[\s\S]*?(\d+)\./g);
-        if(totMatch&&!msgs._totalTasksSet){msgs._totalTasksSet=true;onEvent({type:'progress',data:`タスクリスト: ${totMatch.length}件のタスクを確認`});}
-        const sm=msg.content.match(/---\s*タスク(\d+)\/(\d+)[:\s]+(.+?)\s*---/);
-        if(sm)onEvent({type:'task_start',data:{n:parseInt(sm[1]),total:parseInt(sm[2]),name:sm[3].trim()}});
-        const dm=msg.content.match(/\[完\]\s*タスク(\d+)\s*完了.*?(\d+)\/(\d+)/);
-        if(dm)onEvent({type:'task_done',data:{n:parseInt(dm[1]),total:parseInt(dm[3])}});
-        if(msg.content.includes('=== 開発完了 ==='))onEvent({type:'dev_complete',data:''});
+
+    if (msg.content) {
+      logWrite(sessId, 'AI', msg.content.slice(0, 200));
+      onEvent({ type:'text', data: msg.content });
+
+      if (devMode) {
+        // タスクリスト総数検出
+        const totMatch = msg.content.match(/タスクリスト[\s\S]*?(\d+)\./g);
+        if (totMatch && !msgs._totalTasksSet) {
+          msgs._totalTasksSet = true;
+          onEvent({ type:'progress', data:`タスクリスト: ${totMatch.length}件のタスクを確認` });
+        }
+        // タスク開始検出
+        const sm = msg.content.match(/---\s*タスク(\d+)\/(\d+)[:\s]+(.+?)\s*---/);
+        if (sm) onEvent({ type:'task_start', data:{ n:parseInt(sm[1]), total:parseInt(sm[2]), name:sm[3].trim() } });
+        // タスク完了検出
+        const dm = msg.content.match(/\[完\]\s*タスク(\d+)\s*完了.*?(\d+)\/(\d+)/);
+        if (dm) onEvent({ type:'task_done', data:{ n:parseInt(dm[1]), total:parseInt(dm[3]) } });
+        // 開発完了
+        if (msg.content.includes('=== 開発完了 ===')) onEvent({ type:'dev_complete', data:'' });
       }
-      if(msg.content===lastContent){sameCount++;}else{sameCount=0;lastContent=msg.content;}
-      if(detectLoop(msgs))loopCount++;
-      if(sameCount>=3||loopCount>=2){
-        const br=await handsOffBreakLoop(sessId,msgs,workDir,onEvent);sameCount=0;loopCount=0;
-        if(br.resolved&&br.suggestion)msgs.push({role:'user',content:`【ループ打開指示】\n${br.suggestion}\n\n別のアプローチで続行してください。`});
-        else if(!isHandsOff){onEvent({type:'user_input_required',data:'× 別の指示を入力するか「スキップ」と入力してください。'});break;}
+
+      // ループ検知
+      if (msg.content === lastContent) { sameCount++; } else { sameCount = 0; lastContent = msg.content; }
+      if (detectLoop(msgs)) loopCount++;
+
+      if (sameCount >= 3 || loopCount >= 2) {
+        const br = await handsOffBreakLoop(sessId, msgs, workDir, onEvent);
+        sameCount = 0; loopCount = 0;
+        if (br.resolved && br.suggestion) {
+          msgs.push({ role:'user', content:`【ループ打開指示】
+${br.suggestion}
+
+別のアプローチで続行してください。` });
+        } else {
+          // 問題①②: ほったらかしモードでは user_input_required を発生させない
+          if (!isHandsOff) {
+            onEvent({ type:'user_input_required', data:'× 別の指示を入力するか「スキップ」と入力してください。' });
+            break;
+          } else {
+            // ほったらかし: 強制スキップして続行
+            msgs.push({ role:'user', content:'このステップをスキップして次のタスクに進んでください。' });
+            onEvent({ type:'system', data:'𓅭 ループを検知したためスキップして続行します。' });
+          }
+        }
         continue;
       }
     }
-    if(!msg.tool_calls?.length)break;
-    for(const tc of msg.tool_calls){
-      if(ac.signal.aborted)break;
-      let args={};try{args=JSON.parse(tc.function?.arguments||'{}');}catch{}
-      onEvent({type:'tool',data:{id:tc.id,name:tc.function?.name||'',args}});
-      const result=await runTool(tc.function?.name||'',args,workDir,sessId).catch(e=>({error:e.message}));
-      msgs.push({role:'tool',tool_call_id:tc.id,content:JSON.stringify(result)});
+
+    if (!msg.tool_calls?.length) break;
+    for (const tc of msg.tool_calls) {
+      if (ac.signal.aborted) break;
+      let args = {}; try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+      onEvent({ type:'tool', data:{ id:tc.id, name:tc.function?.name||'', args } });
+      const result = await runTool(tc.function?.name||'', args, workDir, sessId).catch(e => ({ error: e.message }));
+      msgs.push({ role:'tool', tool_call_id:tc.id, content:JSON.stringify(result) });
     }
   }
-  abortMap.delete(sessId);retryCountMap.delete(sessId);deleteOldLogs();
+
+  abortMap.delete(sessId);
+  retryCountMap.delete(sessId);
+  deleteOldLogs();
 }
 
 // ── 再開ファイル ──────────────────────────────────────────
