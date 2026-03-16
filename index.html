@@ -178,6 +178,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .bp-chip{background:var(--c3);border:1px solid var(--b2);color:var(--t1);padding:7px 15px;
   border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;line-height:1.4}
 .bp-chip:hover{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);transform:translateY(-1px)}
+.bp-chip.selected{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);box-shadow:0 0 0 2px var(--ok)}
 .bp-chip.gen{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);font-weight:700}
 .bp-chip.gen:hover{background:#0a2a1a;color:#4de8a8}
 
@@ -3121,52 +3122,132 @@ function parseBpChoices(text) {
   return {mainText, choiceGroups:groups, choices:allChoices};
 }
 
-// 選択肢チップを質問グループごとに描画（質問ラベル付き）
+// 選択肢チップを質問グループごとに描画（全回答→まとめて送信）
+let _bpSelectedAnswers = {}; // {groupIdx: 'answer'}
+
 function renderBpChips(parentEl, choiceGroups) {
   if(!parentEl) return;
-  // フラット配列→グループ化
   let groups = choiceGroups;
   if(groups.length > 0 && typeof groups[0] === 'string') groups = [{label:'', items:groups}];
 
-  parentEl.querySelectorAll('.bp-chips').forEach(e=>e.remove());
+  parentEl.querySelectorAll('.bp-chips-area').forEach(e=>e.remove());
+  _bpSelectedAnswers = {};
 
-  groups.forEach(group => {
-    if(!group || (!group.items && !group.length)) return;
+  const area = document.createElement('div'); area.className = 'bp-chips-area';
+  area.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-top:8px';
+
+  groups.forEach((group, gIdx) => {
+    if(!group) return;
     const items = group.items || group;
     const label = group.label || '';
-    if(!items.length) return;
+    if(!items || !items.length) return;
 
-    const wrap = document.createElement('div'); wrap.className = 'bp-chips';
-    // 質問ラベルを表示
+    const qWrap = document.createElement('div');
+    qWrap.style.cssText = 'border:1px solid var(--b1);border-radius:8px;padding:10px 12px;background:var(--c2)';
+
     if(label){
       const lbl = document.createElement('div');
-      lbl.style.cssText = 'width:100%;font-size:11px;color:var(--t2);font-weight:700;margin-bottom:2px;padding-left:2px';
-      lbl.textContent = '▸ ' + label;
-      wrap.appendChild(lbl);
+      lbl.style.cssText = 'font-size:12px;color:var(--t1);font-weight:700;margin-bottom:6px';
+      lbl.textContent = label;
+      qWrap.appendChild(lbl);
     }
+
+    const chipsRow = document.createElement('div'); chipsRow.className = 'bp-chips';
     items.forEach(c => {
+      // 設計図生成は即時実行
+      if(/設計図を生成|generate/i.test(c)){
+        const chip = document.createElement('button'); chip.className = 'bp-chip gen';
+        chip.textContent = c;
+        chip.addEventListener('click', ()=>doBlueprintGenerate());
+        chipsRow.appendChild(chip);
+        return;
+      }
       const chip = document.createElement('button'); chip.className = 'bp-chip';
-      if(/設計図を生成|generate/i.test(c)) chip.classList.add('gen');
       chip.textContent = c;
-      chip.addEventListener('click', ()=>doBpChipClick(c));
-      wrap.appendChild(chip);
+      chip.addEventListener('click', ()=>{
+        // 選択状態をトグル（同グループ内は排他）
+        chipsRow.querySelectorAll('.bp-chip').forEach(b=>b.classList.remove('selected'));
+        chip.classList.add('selected');
+        _bpSelectedAnswers[gIdx] = c;
+        // 「その他」入力をクリア
+        const otherInp = qWrap.querySelector('.bp-other-inp');
+        if(otherInp) otherInp.value = '';
+        updateBpSendBtn();
+      });
+      chipsRow.appendChild(chip);
     });
+
     // その他テキストボックス
-    const customWrap = document.createElement('div');
-    customWrap.style.cssText = 'display:inline-flex;align-items:center;gap:4px';
-    const customInp = document.createElement('input'); customInp.type='text'; customInp.placeholder='その他...';
-    customInp.style.cssText = 'background:var(--bg);border:1px solid var(--b2);border-radius:16px;color:var(--t1);font-size:12px;padding:6px 12px;width:110px;outline:none';
-    customInp.addEventListener('keydown', e=>{ if(e.key==='Enter'&&customInp.value.trim()){ e.preventDefault(); doBpChipClick(customInp.value.trim()); }});
-    const customBtn = document.createElement('button'); customBtn.className='bp-chip'; customBtn.textContent='→'; customBtn.style.cssText='padding:6px 10px;min-width:auto';
-    customBtn.addEventListener('click', ()=>{ if(customInp.value.trim()) doBpChipClick(customInp.value.trim()); });
-    customWrap.appendChild(customInp); customWrap.appendChild(customBtn);
-    wrap.appendChild(customWrap);
-    parentEl.appendChild(wrap);
+    const otherInp = document.createElement('input'); otherInp.type='text'; otherInp.placeholder='その他...';
+    otherInp.className = 'bp-other-inp';
+    otherInp.style.cssText = 'background:var(--bg);border:1px solid var(--b2);border-radius:16px;color:var(--t1);font-size:12px;padding:6px 12px;width:130px;outline:none;display:inline-block;vertical-align:middle';
+    otherInp.addEventListener('input', ()=>{
+      if(otherInp.value.trim()){
+        chipsRow.querySelectorAll('.bp-chip').forEach(b=>b.classList.remove('selected'));
+        _bpSelectedAnswers[gIdx] = otherInp.value.trim();
+      } else {
+        delete _bpSelectedAnswers[gIdx];
+      }
+      updateBpSendBtn();
+    });
+    chipsRow.appendChild(otherInp);
+    qWrap.appendChild(chipsRow);
+    area.appendChild(qWrap);
   });
+
+  // まとめて送信ボタン
+  const sendRow = document.createElement('div');
+  sendRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:4px';
+  const sendBtn = document.createElement('button');
+  sendBtn.id = 'bp-send-answers';
+  sendBtn.className = 'bp-chip gen';
+  sendBtn.textContent = '回答を送信';
+  sendBtn.style.opacity = '0.4';
+  sendBtn.style.cursor = 'not-allowed';
+  sendBtn.disabled = true;
+  sendBtn.addEventListener('click', ()=>submitBpAnswers(groups));
+  sendRow.appendChild(sendBtn);
+  area.appendChild(sendRow);
+
+  parentEl.appendChild(area);
   dn();
 }
 
-// 修正5: チャット→設計図作成に引き継ぎ
+function updateBpSendBtn(){
+  const btn = document.getElementById('bp-send-answers');
+  if(!btn) return;
+  const hasAny = Object.keys(_bpSelectedAnswers).length > 0;
+  btn.style.opacity = hasAny ? '1' : '0.4';
+  btn.style.cursor = hasAny ? 'pointer' : 'not-allowed';
+  btn.disabled = !hasAny;
+}
+
+function submitBpAnswers(groups){
+  if(busy) return;
+  const answers = [];
+  groups.forEach((g, i) => {
+    const label = g.label || g.items?.[0] || '';
+    const ans = _bpSelectedAnswers[i];
+    if(ans) answers.push(`${label ? label+': ' : ''}${ans}`);
+  });
+  if(!answers.length) return;
+  _bpSelectedAnswers = {};
+  const el = document.getElementById('inp');
+  el.value = answers.join('\n');
+  doSend();
+}
+
+// 選択肢チップクリック → 単発送信（設計図生成のみ即時）
+function doBpChipClick(text) {
+  if(busy) return;
+  if(/設計図を生成|generate/i.test(text)){
+    doBlueprintGenerate();
+    return;
+  }
+  const el = document.getElementById('inp');
+  el.value = text;
+  doSend();
+}
 async function chatToBlueprintHandoff(){
   if(!cur || busy) return;
   if(cur.type !== 'chat'){ addSN('チャットプロジェクトからのみ引き継ぎできます','warn'); return; }
@@ -3192,20 +3273,6 @@ async function chatToBlueprintHandoff(){
   if(cur) A.updateProject(cur.id, cur);
 }
 
-// 選択肢チップクリック → メッセージとして送信
-function doBpChipClick(text) {
-  if(busy) return;
-  // 「設計図を生成」系の選択肢の場合
-  if(/設計図を生成|generate/i.test(text)){
-    doBlueprintGenerate();
-    return;
-  }
-  // 通常の選択肢: メッセージとして送信
-  const el = document.getElementById('inp');
-  el.value = text;
-  doSend();
-}
-
 // 設計図生成（選択肢チップからのトリガー）
 async function doBlueprintGenerate() {
   if(!cur || busy) return;
@@ -3216,23 +3283,21 @@ async function doBlueprintGenerate() {
   }
   if(!cur.messages) cur.messages = [];
 
-  // 技術キーワードをプロンプト内に直接埋め込み（別セッション不要）
+  // ユーザーが実際に回答した内容からのみ技術キーワードを抽出
   let techHint = '';
-  const convText = cur.messages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>m.content||'').join(' ').slice(0,1000);
-  const kws = convText.match(/[A-Z][a-z]+(?:\.[a-z]+)?|Flutter|React|Kotlin|Swift|Firebase|Supabase|SQLite|Node\.js|Next\.js|Electron|Tauri|PostgreSQL|MongoDB|Redis|Docker/gi);
-  if(kws && kws.length > 0){
-    techHint = '\n\n【技術コンテキスト】使用予定の技術: ' + [...new Set(kws)].join(', ') + '\nこれらの技術のベストプラクティスに従い、最新のAPI・設定方法を反映してください。';
+  const userAnswers = cur.messages.filter(m=>m.role==='user').map(m=>m.content||'').join(' ');
+  // 明示的な技術名のみ（大文字始まりの一般単語は除外）
+  const techNames = ['Flutter','React','React Native','Kotlin','Swift','SwiftUI','Firebase','Supabase','SQLite','Room',
+    'Node.js','Next.js','Electron','Tauri','PostgreSQL','MongoDB','Redis','Docker','Vue.js','Angular','Django','Flask',
+    'FastAPI','Express','Spring','Laravel','Rails','Dart','TypeScript','Python','Java','Go','Rust','C#','.NET','Jetpack Compose'];
+  const found = techNames.filter(t => userAnswers.toLowerCase().includes(t.toLowerCase()));
+  if(found.length > 0){
+    techHint = '\n\n会話で決定した使用技術: ' + found.join(', ');
   }
 
   addSN('𓏛 設計図を生成・検証中...','ok');
   const genMsg = `これまでの会話で決定した全仕様をもとに、設計図(.md)を生成してください。${techHint}
-
-【生成後の自己検証を必ず実施】
-- データモデルの各カラムがAPIやUIから正しく参照されているか
-- 画面遷移に抜け漏れがないか
-- 開発タスクリストが実装順序として矛盾していないか
-- ファイル構造が技術スタックと整合しているか
-問題があれば修正した上で最終版を出力してください。`;
+生成後は設計の整合性を自己検証し、問題があれば修正した上で最終版を出力してください。`;
 
   cur.messages.push({role:'user', content:genMsg});
   addUserBubble(genMsg, cur.messages.length-1);
@@ -3397,7 +3462,10 @@ function renderHistBpHook(ms) {
       if(choiceGroups.length > 0) {
         const allMsgs = document.getElementById('msgs').querySelectorAll('.msg.ai');
         const lastMsgEl = allMsgs[allMsgs.length-1];
-        if(lastMsgEl) renderBpChips(lastMsgEl, choiceGroups);
+        if(lastMsgEl) {
+          lastMsgEl.querySelectorAll('.bp-chips-area').forEach(e=>e.remove());
+          renderBpChips(lastMsgEl, choiceGroups);
+        }
       }
     }
   }

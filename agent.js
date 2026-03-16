@@ -303,11 +303,24 @@ function buildBlueprintGenerateSysPrompt(workDir, customSys) {
 ${isJa?'これまでの会話で決定した全仕様をもとに、AIが自動開発するための完全な設計書(.md)を出力してください。':'Based on all specifications decided in the conversation, output a complete design document (.md) for automated AI development.'}
 
 ${isJa?'【絶対ルール】':'【Rules】'}
-${isJa?'- 必ず日本語のみで出力すること':'- Output in specified language only'}
-${isJa?'- この設計書を読んだAIが「このアプリのソースコードを作成する」ために使う。設計書自体を作成するのではない':'- An AI will read this to CREATE THE APP SOURCE CODE. NOT to create a design document.'}
-${isJa?'- 開発期間やスケジュールは一切記載しない（AIが即時開発するため不要）':'- Do NOT include timelines or schedules (AI develops immediately)'}
-${isJa?'- 曖昧な表現は禁止。全ての仕様を具体的に記述すること':'- No ambiguity. All specs must be concrete and implementable.'}
-${isJa?'- 出力前に設計の整合性を自己検証すること（データモデルとAPI、画面遷移と機能の矛盾がないか確認）':'- Self-verify design consistency before output.'}
+${isJa?`- 必ず日本語のみで出力すること
+- この設計書を読んだAIが「このアプリのソースコードを作成する」ために使う
+- 開発期間やスケジュールは一切記載しない（AIが即時開発するため不要）
+- 「〜を推奨」「〜または〜」のような曖昧な表現は絶対禁止。全て断定で書くこと
+- 使用するライブラリは具体名を明記（例:「SMBライブラリ」ではなく「jcifs-ng 2.1.0」）
+- アーキテクチャパターン（MVVM/MVI/MVP等）を明確に1つ選定し記載すること
+- データの真のソース（Single Source of Truth）を明確にすること
+- 設計書は途中で切れないこと。全セクションを完結させること
+- 出力前に以下を自己検証: データモデルとAPIの整合性、画面遷移の完全性、タスク順序の矛盾`
+:`- Output in specified language only
+- An AI reads this to CREATE SOURCE CODE
+- No timelines/schedules
+- No ambiguity - be definitive, not suggestive
+- Name specific libraries with versions
+- Specify one architecture pattern explicitly
+- Define Single Source of Truth for data
+- Complete all sections - never cut off
+- Self-verify consistency before output`}
 
 ${isJa?'【出力形式】':'【Format】'}
 
@@ -673,12 +686,13 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
 
   const ac = new AbortController();
   abortMap.set(sessId, ac);
-  const devMode = sysPrompt.includes('タスクリスト');
+  const devMode = sysPrompt.includes('タスクリスト') || sysPrompt.includes('ソースコード');
   const msgs = [{ role:'system', content:sysPrompt }, ...messages];
   let loopCount = 0, sameCount = 0, lastContent = '';
-  let consecutiveErrors = 0; // 連続エラーカウント
+  let consecutiveErrors = 0;
+  let noToolTurns = 0; // ツール呼び出しなしのターン数（ストール検出）
 
-  for (let turn = 0; turn < 80; turn++) {
+  for (let turn = 0; turn < 150; turn++) {
     if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止しました。' }); break; }
 
     // ほったらかしモードは毎ターン最新を読む（ON/OFF切替に即対応）
@@ -747,20 +761,45 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
       onEvent({ type:'text', data: msg.content });
 
       if (devMode) {
-        // タスクリスト総数検出
-        const totMatch = msg.content.match(/タスクリスト[\s\S]*?(\d+)\./g);
-        if (totMatch && !msgs._totalTasksSet) {
-          msgs._totalTasksSet = true;
-          onEvent({ type:'progress', data:`タスクリスト: ${totMatch.length}件のタスクを確認` });
+        // タスクリスト総数検出（柔軟パターン）
+        const totPatterns = [
+          /タスクリスト[\s\S]*?(\d+)\./g,
+          /=== タスクリスト ===/,
+          /タスク一覧/,
+          /(\d+)[\s.．]+[^\n]{3,}/g  // 番号付きリスト
+        ];
+        if (!msgs._totalTasksSet) {
+          const listMatch = msg.content.match(/(?:^|\n)\s*(\d+)[.\s．]/gm);
+          if (listMatch && listMatch.length >= 2) {
+            msgs._totalTasksSet = true;
+            onEvent({ type:'progress', data:`タスクリスト: ${listMatch.length}件のタスクを確認` });
+          }
         }
-        // タスク開始検出
-        const sm = msg.content.match(/---\s*タスク(\d+)\/(\d+)[:\s]+(.+?)\s*---/);
-        if (sm) onEvent({ type:'task_start', data:{ n:parseInt(sm[1]), total:parseInt(sm[2]), name:sm[3].trim() } });
-        // タスク完了検出
-        const dm = msg.content.match(/\[完\]\s*タスク(\d+)\s*完了.*?(\d+)\/(\d+)/);
-        if (dm) onEvent({ type:'task_done', data:{ n:parseInt(dm[1]), total:parseInt(dm[3]) } });
-        // 開発完了
-        if (msg.content.includes('=== 開発完了 ===')) onEvent({ type:'dev_complete', data:'' });
+        // タスク開始検出（複数パターン対応）
+        const startPatterns = [
+          /---\s*タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：\s]+(.+?)\s*---/,
+          /タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]\s*(.+)/,
+          /【タスク\s*(\d+)\s*[/／]\s*(\d+)】\s*(.+)/,
+          /#+\s*タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]?\s*(.+)/
+        ];
+        for(const p of startPatterns){
+          const sm = msg.content.match(p);
+          if(sm){ onEvent({type:'task_start',data:{n:parseInt(sm[1]),total:parseInt(sm[2]),name:sm[3].trim()}}); break; }
+        }
+        // タスク完了検出（複数パターン対応）
+        const donePatterns = [
+          /\[完\]\s*タスク\s*(\d+)\s*完了.*?(\d+)\s*[/／]\s*(\d+)/,
+          /タスク\s*(\d+)\s*[が]?完了.*?(\d+)\s*[/／]\s*(\d+)/,
+          /✅?\s*タスク\s*(\d+).*完了/
+        ];
+        for(const p of donePatterns){
+          const dm = msg.content.match(p);
+          if(dm){ onEvent({type:'task_done',data:{n:parseInt(dm[1]),total:parseInt(dm[3]||dm[2]||0)}}); break; }
+        }
+        // 開発完了検出（柔軟）
+        if (/===\s*開発完了\s*===|全タスク.*完了|開発が完了しました/.test(msg.content)){
+          onEvent({ type:'dev_complete', data:'' });
+        }
       }
 
       // ループ検知
@@ -790,7 +829,22 @@ ${br.suggestion}
       }
     }
 
-    if (!msg.tool_calls?.length) break;
+    if (!msg.tool_calls?.length) {
+      // devMode: 開発完了でなければ自動継続（ストール防止）
+      if(devMode && !/===\s*開発完了\s*===|全タスク.*完了|開発が完了しました/.test(msg.content||'')){
+        noToolTurns++;
+        if(noToolTurns <= 3){
+          onEvent({type:'system',data:'↺ 次のタスクに進みます...'});
+          msgs.push({role:'user',content:'続けてください。次のタスクを実行してください。'});
+          continue;
+        }
+        // 3回連続テキストのみ→停止
+        onEvent({type:'system',data:'⚠ AIが停滞しています。再開ファイルを保存します。'});
+        onEvent({type:'timeout',data:'ストール検出'});
+      }
+      break;
+    }
+    noToolTurns = 0; // ツール呼び出しがあったらリセット
     for (const tc of msg.tool_calls) {
       if (ac.signal.aborted) break;
       let args = {}; try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
