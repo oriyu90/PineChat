@@ -222,99 +222,123 @@ async function detectBlueprintModels() {
 // ── 設計図システムプロンプト ─────────────────────────────
 function buildBlueprintSysPrompt(workDir, customSys) {
   const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
-  return `あなたはアプリケーション設計の専門家AIです。ユーザーと対話しながら、詳細な設計図(.mdファイル)を作成するための情報を収集します。
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  return `${isJa?'あなたはアプリケーション設計の専門家AIです。':'You are an expert application design AI.'}
+${isJa?'ユーザーと対話しながら、Pine Chatの「アプリ設計」機能で使用する詳細な設計図(.mdファイル)を作成するための情報を収集します。':'You gather information through dialogue to create a detailed design document (.md) for use with Pine Chat\'s app design feature.'}
 
-【あなたの役割】
-1. ユーザーのアプリのアイデアや要件を深く理解する
-2. 不足している情報を質問で補完する
-3. 各質問の最後に具体的な選択肢を提示する（ユーザーが選びやすいように）
-4. 情報が十分に集まったら、設計図の生成を提案する
+${isJa?'【絶対ルール】必ず日本語のみで回答してください。英語は使用禁止です。':'【Rule】Always respond in English only.'}
 
-【質問すべき項目】（全てを一度に聞かず、自然な対話で段階的に確認する）
-- アプリの目的と概要
-- ターゲットプラットフォーム（Web / モバイル / デスクトップ / CLI 等）
-- 主要機能の詳細
-- データ構造・保存方法
-- UI/UXの方向性
-- 外部API・サービスの利用有無
-- 技術スタック（言語・フレームワーク）
+${isJa?'【あなたの役割】':'【Your Role】'}
+${isJa?`1. ユーザーのアプリのアイデアや要件を深く理解する
+2. 不足している情報を的確な質問で補完する
+3. 各回答の末尾に、ユーザーが選びやすい選択肢を提示する
+4. 十分な情報が集まったら設計図の生成を提案する
+5. 生成される設計図はPine Chatのアプリ設計AIが読み込んで自動開発に使うため、曖昧さを排除し、ファイル構造・処理フロー・データ構造を具体的に決める`
+:`1. Deeply understand the user's app idea and requirements
+2. Ask targeted questions to fill in missing information
+3. Present clear choices at the end of each response
+4. Propose generating the design document when enough information is gathered
+5. The design will be used by Pine Chat's auto-development AI, so eliminate ambiguity`}
+
+${isJa?'【段階的に確認すべき項目】（一度に全て聞かず、2-3項目ずつ自然に確認する）':'【Items to confirm step by step】'}
+${isJa?`- アプリの目的・概要・ターゲットユーザー
+- 対象プラットフォーム（Web / iOS / Android / デスクトップ / CLI）
+- 主要機能の一覧と各機能の詳細な処理フロー
+- データモデル（テーブル定義・リレーション・保存方式）
+- 画面構成・画面遷移・UI/UXの方向性
+- 外部APIやサービスの利用有無と連携方法
+- 技術スタック（言語・フレームワーク・ライブラリ）の決定
 - 認証・セキュリティ要件
-- パフォーマンス要件
-- デプロイ先
+- ファイル・ディレクトリ構造の設計
+- エラーハンドリング・例外処理の方針`
+:`- App purpose, overview, target users
+- Target platform (Web / iOS / Android / Desktop / CLI)
+- Key features with detailed processing flows
+- Data model (table definitions, relations, storage)
+- Screen layout, navigation, UI/UX direction
+- External APIs/services and integration
+- Tech stack decisions
+- Auth/security requirements
+- File/directory structure design
+- Error handling policies`}
 
-【選択肢の出力形式】（必ず守ること）
-各回答の最後に、次のステップの選択肢を以下の形式で提示してください：
+${isJa?'【選択肢の出力形式】（厳守すること）':'【Choice output format】(must follow)'}
+${isJa?'各回答の最後に、次のステップとしてユーザーが選べる選択肢を以下の形式で出力してください。':'Output choices at the end of each response in this format:'}
+${isJa?'選択肢は短く明確に、2〜4個で。ユーザーはクリックまたは自由入力で回答できます。':'Keep choices short and clear, 2-4 items.'}
 
 ---choices---
-選択肢1の内容
-選択肢2の内容
-選択肢3の内容
+${isJa?'選択肢1（短く具体的に）':'Choice 1'}
+${isJa?'選択肢2（短く具体的に）':'Choice 2'}
+${isJa?'選択肢3（短く具体的に）':'Choice 3'}
 ---/choices---
 
-選択肢は2〜5個程度にしてください。ユーザーは選択肢をクリックするか、自由入力で回答できます。
-十分な情報が集まったと判断したら、「設計図を生成する準備ができました」と伝え、最後の選択肢に「🔨 設計図を生成する」を含めてください。
+${isJa?'情報が十分に集まったら、選択肢に「🔨 設計図を生成する」を含めてください。':'When ready, include "🔨 Generate Design" in choices.'}
 
-現在時刻: ${new Date().toLocaleString('ja-JP')}
-作業フォルダ: ${workDir||os.homedir()}${custom}`;
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
 }
 
 function buildBlueprintGenerateSysPrompt(workDir, customSys) {
   const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
-  return `あなたはアプリケーション設計の専門家AIです。これまでの会話で収集した情報をもとに、包括的な設計図(.mdファイル)を生成してください。
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  return `${isJa?'あなたはアプリケーション設計の専門家AIです。これまでの会話で収集した全情報をもとに、Pine Chatの「アプリ設計」機能で直接使用できる完全な設計図(.md)を生成してください。':'You are an expert design AI. Generate a complete design document (.md) based on all gathered information.'}
 
-【出力形式】以下のMarkdown形式で設計図を出力してください：
+${isJa?'【絶対ルール】必ず日本語のみで出力してください。':'【Rule】Output in English only.'}
 
-# [アプリ名] 設計書
+${isJa?'【重要】この設計図はAIが自動的に読み込んで開発を実行するため、曖昧な表現を避け、具体的かつ実装可能な記述にすること。':'【Important】This document will be read by an AI for automated development. Avoid ambiguity.'}
 
-## 1. プロジェクト概要
-(アプリの目的、ターゲットユーザー、主要な価値提案)
+${isJa?'【出力形式】以下のMarkdown形式で出力してください：':'【Format】Output in this Markdown format:'}
 
-## 2. 技術スタック
-(言語、フレームワーク、ライブラリ、ツール)
+# ${isJa?'[アプリ名] — 完全設計書':'[App Name] — Complete Design Document'}
 
-## 3. プラットフォーム・動作環境
-(対象OS、ブラウザ、必要要件)
+## 1. ${isJa?'プロジェクト概要':'Project Overview'}
+${isJa?'(アプリの目的、ターゲットユーザー、核となる価値提案を明確に記述)':'(Purpose, target users, core value proposition)'}
 
-## 4. 機能一覧
-### 4.1 [機能名]
-- 概要:
-- 処理フロー:
-- UI要素:
-(各機能について詳細に記述)
+## 2. ${isJa?'技術スタック':'Tech Stack'}
+${isJa?'(言語、フレームワーク、ライブラリ、ビルドツール、パッケージマネージャーを具体的に)':'(Language, framework, libraries, build tools, package manager)'}
 
-## 5. データ設計
-### 5.1 データモデル
-(テーブル/コレクション定義)
-### 5.2 データフロー
-(データの流れ)
+## 3. ${isJa?'プラットフォーム・動作環境':'Platform & Environment'}
+${isJa?'(対象OS、ブラウザ、最低動作要件)':'(Target OS, browser, minimum requirements)'}
 
-## 6. API設計
-(エンドポイント一覧、外部API利用)
+## 4. ${isJa?'機能一覧と処理フロー':'Features & Processing Flow'}
+### 4.1 ${isJa?'[機能名]':'[Feature Name]'}
+${isJa?`- 概要: (この機能が何をするか)
+- 処理フロー: (ステップバイステップで処理の流れを記述)
+- 入力/出力: (何を受け取り何を返すか)
+- UI要素: (ボタン、フォーム、表示要素)
+- エラー処理: (想定されるエラーと対処)
+(全機能についてこの形式で詳細に記述すること)`
+:'- Overview, Processing flow, Input/Output, UI elements, Error handling'}
 
-## 7. UI/UX設計
-(画面一覧、画面遷移、デザイン方針)
+## 5. ${isJa?'データ設計':'Data Design'}
+### 5.1 ${isJa?'データモデル':'Data Model'}
+${isJa?'(テーブル/コレクション名、カラム名、型、制約、リレーションを明記)':'(Table/collection names, columns, types, constraints, relations)'}
+### 5.2 ${isJa?'データフロー':'Data Flow'}
+${isJa?'(データの生成→保存→読み出し→表示の流れ)':'(Create → Store → Read → Display flow)'}
 
-## 8. セキュリティ設計
-(認証・認可、データ保護)
+## 6. ${isJa?'API設計':'API Design'}
+${isJa?'(エンドポイント、メソッド、リクエスト/レスポンス形式、外部API連携の詳細)':'(Endpoints, methods, request/response, external API details)'}
 
-## 9. ファイル構造
+## 7. ${isJa?'UI/UX設計':'UI/UX Design'}
+${isJa?'(全画面の一覧、画面遷移図、各画面のレイアウト概要、デザイン方針)':'(Screen list, navigation, layout, design direction)'}
+
+## 8. ${isJa?'ファイル構造':'File Structure'}
 \`\`\`
-(推奨ディレクトリ構造)
+${isJa?'(具体的なディレクトリ構造とファイル名、各ファイルの役割をコメントで)':'(Directory structure with file roles as comments)'}
 \`\`\`
 
-## 10. 開発タスク
-(番号付きの具体的な開発タスクリスト)
+## 9. ${isJa?'セキュリティ設計':'Security Design'}
+${isJa?'(認証方式、認可、データ保護、入力検証)':'(Auth, authorization, data protection, input validation)'}
 
-## 11. 追加メモ・注意事項
+## 10. ${isJa?'開発タスクリスト':'Development Tasks'}
+${isJa?'(番号付きで具体的な作業内容。AIが順に実行できる粒度で記述)':'(Numbered, specific tasks at AI-executable granularity)'}
 
-【重要】
-- 会話で決まった内容を正確に反映すること
-- 具体的かつ実装可能な記述にすること
-- 不明な箇所は合理的なデフォルトで補完し、[要確認]マークを付けること
-- Pine Chatのアプリ設計機能で使用される前提で記述すること
+## 11. ${isJa?'注意事項・補足':'Notes & Supplements'}
 
-現在時刻: ${new Date().toLocaleString('ja-JP')}
-作業フォルダ: ${workDir||os.homedir()}${custom}`;
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
 }
 
 // ── モデル検出 ────────────────────────────────────────────
@@ -780,34 +804,6 @@ function getAgentAI(){
   };
 }
 
-// 信頼URLパターン ⑩
-const TRUSTED_DOMAIN_PATTERNS=[/\.gov(\.jp)?$/,/\.ac\.(jp|uk|au)$/,/\.edu$/,/nhk\.or\.jp/,/reuters\.com/,/ap\.org/,/afpbb\.com/,/asahi\.com/,/mainichi\.jp/,/yomiuri\.co\.jp/,/nikkei\.com/,/bbc\.com/,/cnn\.com/,/theguardian\.com/,/nytimes\.com/,/wired\.com/,/techcrunch\.com/,/arstechnica\.com/,/github\.com/,/wikipedia\.org/,/nature\.com/,/mozilla\.org/,/python\.org/,/rust-lang\.org/];
-function isTrustedUrl(url){try{const h=new URL(url).hostname.toLowerCase();if(TRUSTED_DOMAIN_PATTERNS.some(p=>p.test(h)))return true;if(url.startsWith('https://')&&(h.match(/\./g)||[]).length>=2)return true;return url.startsWith('https://');}catch{return false;}}
-function isWithin24h(dateStr){if(!dateStr)return true;try{return(Date.now()-new Date(dateStr).getTime())<86400000;}catch{return true;}}
-
-// AI要約 ⑩⑪ (タイムアウト対策済み)
-async function summarizeWithAI(texts, customSystemPrompt) {
-  const {host,port,model}=getAgentAI();
-  if(!model){await detectModel();}
-  const useModel=getAgentAI().model||MODEL_ID;
-  if(!useModel||!texts.length)return null;
-  const content=texts.join('\n\n').slice(0,4000);
-  const lang = cfg.aiResponseLanguage || 'ja';
-  const langInstr = lang === 'en'
-    ? 'Summarize in English in news format. List 3-5 key points as bullet points, then add a one-line summary at the end.'
-    : '必ず日本語でニュース形式に要約してください。重要ポイントを箇条書き3〜5項目でまとめ、最後に1文でまとめを書いてください。';
-  // customSystemPromptが空の場合はデフォルト+言語指定を使用
-  // customSystemPromptが設定されている場合も言語指定を末尾に追加
-  const basePrompt = customSystemPrompt || 'You are a news summarization AI.';
-  const sysPrompt = basePrompt + '\n\n' + langInstr;
-  try{
-    const d=await Promise.race([
-      httpPost(host,port,'/v1/chat/completions',{model:useModel,messages:[{role:'system',content:sysPrompt},{role:'user',content}],temperature:0.4,max_tokens:900,stream:false},40000),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('AI要約タイムアウト')),45000))
-    ]);
-    return d.choices?.[0]?.message?.content||null;
-  }catch(e){logWrite('watcher','WARN',`summarize failed: ${e.message}`);return null;}
-}
 
 // Google Calendar ⑥
 async function fetchGoogleCalendarEvents(wcfg) {
@@ -902,12 +898,11 @@ async function fetchPageContent(url){return fetchUrl(url).then(r=>r.content||r.e
 
 // ウォッチャー状態
 const watcherDiscordState=new Map(),watcherTelegramState=new Map();
-let watcherCallback=null,watcherTimers={},watcherRunState={discord:false,telegram:false,searx:false,calendar:false},watcherCommand='stop';
-let watcherNextSearxTime=null; // ⑬
-let watcherUserBusy=false,watcherSkippedCount=0; // ⑧
-let watcherWatchdogTimer=null; // ⑪
+let watcherCallback=null,watcherTimers={},watcherRunState={discord:false,telegram:false,calendar:false},watcherCommand='stop';
+let watcherUserBusy=false,watcherSkippedCount=0;
+let watcherWatchdogTimer=null;
 
-// エージェントチャット履歴永続化 ⑧⑫
+// エージェントチャット履歴永続化
 const AGENT_HISTORY_FILE=path.join(DATA_DIR,'agent_chat.json');
 function loadAgentHistory(){try{return JSON.parse(fs.readFileSync(AGENT_HISTORY_FILE,'utf-8'));}catch{return[];}}
 function saveAgentHistory(h){try{fs.writeFileSync(AGENT_HISTORY_FILE,JSON.stringify(h.slice(-200),null,2));}catch{}}
@@ -915,8 +910,8 @@ function clearAgentHistory(){try{if(fs.existsSync(AGENT_HISTORY_FILE))fs.unlinkS
 
 function setWatcherCallback(cb){watcherCallback=cb;}
 function watcherEmit(type,data){if(watcherCallback){try{watcherCallback({type,data});}catch{}}}
-function isWatcherRunning(){return watcherRunState.discord||watcherRunState.telegram||watcherRunState.searx||watcherRunState.calendar;}
-function getWatcherNextTime(){return watcherNextSearxTime;}
+function isWatcherRunning(){return watcherRunState.discord||watcherRunState.telegram||watcherRunState.calendar;}
+function getWatcherNextTime(){return null;}
 
 async function discordPollTick(wcfg){
   if(!wcfg.discordEnabled||!wcfg.discordToken||!wcfg.discordChannels?.length)return;
@@ -935,95 +930,28 @@ async function telegramPollTick(wcfg){
   }
 }
 
-async function searxTaskTick(task,wcfg){
-  if(!task.enabled)return;
-  watcherEmit('watcher_status',`𓅱 [${task.label||'タスク'}] 処理中...`);
-  const maxRes=Math.min(30,Math.max(10,wcfg.searxMaxResults||15)); // ③
-  let texts=[],sourceDesc='';
-  if(task.type==='search'){
-    if(!task.query)return;
-    watcherEmit('watcher_status',`𓅱 「${task.query}」を検索中 (最大${maxRes}件)...`);
-    const allR=await Promise.race([searxSearch(task.query,maxRes),new Promise(r=>setTimeout(()=>r([]),20000))]);
-    if(!allR.length){watcherEmit('watcher_status',`[${task.label}] 検索結果なし`);return;}
-    // ⑩ 24h以内+信頼URLフィルタ
-    let filtered=allR.filter(r=>isWithin24h(r.publishedDate)&&isTrustedUrl(r.url));
-    if(!filtered.length)filtered=allR.filter(r=>isTrustedUrl(r.url));
-    if(!filtered.length)filtered=allR;
-    texts=filtered.map(r=>`【${r.title}】\n${r.snippet}\nURL: ${r.url}`);
-    sourceDesc=`検索: ${task.query} (${filtered.length}/${allR.length}件)`;
-  }else if(task.type==='url'){
-    if(!task.url)return;
-    watcherEmit('watcher_status',`𓅱 [${task.label}] URLを取得中...`);
-    const pageText=await fetchPageContent(task.url);
-    if(!pageText||pageText.length<50){watcherEmit('watcher_status',`[${task.label}] ページ取得失敗`);return;}
-    texts=[pageText.slice(0,2500)+(task.topic?`\nトピック「${task.topic}」に関する情報のみ抽出してください。`:'')];
-    sourceDesc=`URL監視: ${task.url}${task.topic?' / '+task.topic:''}`;
-  }
-  if(!texts.length)return;
-  watcherEmit('watcher_status',`[${task.label}] AI要約中...`);
-  const summary=await summarizeWithAI(texts,task.systemPrompt||'');
-  watcherEmit('watcher_feed',{source:'searx',label:task.label||sourceDesc,taskType:task.type,query:task.query||'',url:task.url||'',topic:task.topic||'',summary:summary||texts.slice(0,2).join('\n\n'),raw:!summary,count:texts.length,ts:new Date().toISOString()});
-}
-
-async function searxAllTasksTick(wcfg){
-  if(watcherUserBusy){watcherSkippedCount++;logWrite('watcher','INFO','SearXNG skipped (user busy)');return;} // ⑧
-  if(!wcfg.searxEnabled||!wcfg.searxTasks?.length)return;
-  for(const task of wcfg.searxTasks){
-    if(!task.enabled)continue;
-    try{await searxTaskTick(task,wcfg);}catch(e){logWrite('watcher','ERROR',`searx ${task.id}: ${e.message}`);}
-    await new Promise(r=>setTimeout(r,1000)); // ⑪ タスク間待機
-  }
-}
-
 function startWatcher(){
   const wcfg=getWatcherCfg();watcherCommand='schedule';stopWatcher();
   if(wcfg.discordEnabled&&wcfg.discordToken){watcherRunState.discord=true;discordPollTick(wcfg).catch(()=>{});watcherTimers.discord=setInterval(()=>{if(watcherCommand==='stop')return;discordPollTick(getWatcherCfg()).catch(()=>{});},30000);}
   if(wcfg.telegramEnabled&&wcfg.telegramToken){watcherRunState.telegram=true;telegramPollTick(wcfg).catch(()=>{});watcherTimers.telegram=setInterval(()=>{if(watcherCommand==='stop')return;telegramPollTick(getWatcherCfg()).catch(()=>{});},30000);}
-  if(wcfg.searxEnabled&&wcfg.searxTasks?.some(t=>t.enabled)){
-    watcherRunState.searx=true;const ms=Math.max(1,Math.min(60,wcfg.searxIntervalMin||5))*60000;
-    watcherNextSearxTime=Date.now()+ms;
-    searxAllTasksTick(wcfg).then(()=>{watcherNextSearxTime=Date.now()+ms;}).catch(()=>{});
-    watcherTimers.searx=setInterval(()=>{if(watcherCommand==='stop')return;watcherNextSearxTime=Date.now()+ms;searxAllTasksTick(getWatcherCfg()).catch(()=>{});},ms);
-  }
   if(wcfg.calendarEnabled){watcherRunState.calendar=true;calendarTick(wcfg).catch(()=>{});watcherTimers.calendar=setInterval(()=>{if(watcherCommand==='stop')return;calendarTick(getWatcherCfg()).catch(()=>{});},600000);}
-  // ⑪ ウォッチドッグ
   watcherWatchdogTimer=setInterval(()=>{
     if(watcherCommand==='stop')return;const wc=getWatcherCfg();
-    if(wc.discordEnabled&&wc.discordToken&&!watcherTimers.discord){watcherRunState.discord=true;watcherTimers.discord=setInterval(()=>{if(watcherCommand!=='stop')discordPollTick(getWatcherCfg()).catch(()=>{});},30000);logWrite('watcher','WARN','Discord watchdog restart');}
-    if(wc.telegramEnabled&&wc.telegramToken&&!watcherTimers.telegram){watcherRunState.telegram=true;watcherTimers.telegram=setInterval(()=>{if(watcherCommand!=='stop')telegramPollTick(getWatcherCfg()).catch(()=>{});},30000);logWrite('watcher','WARN','Telegram watchdog restart');}
-    if(wc.searxEnabled&&!watcherTimers.searx){const ms2=Math.max(1,Math.min(60,wc.searxIntervalMin||5))*60000;watcherRunState.searx=true;watcherNextSearxTime=Date.now()+ms2;watcherTimers.searx=setInterval(()=>{if(watcherCommand!=='stop'){watcherNextSearxTime=Date.now()+ms2;searxAllTasksTick(getWatcherCfg()).catch(()=>{});}},ms2);logWrite('watcher','WARN','SearXNG watchdog restart');}
+    if(wc.discordEnabled&&wc.discordToken&&!watcherTimers.discord){watcherRunState.discord=true;watcherTimers.discord=setInterval(()=>{if(watcherCommand!=='stop')discordPollTick(getWatcherCfg()).catch(()=>{});},30000);}
+    if(wc.telegramEnabled&&wc.telegramToken&&!watcherTimers.telegram){watcherRunState.telegram=true;watcherTimers.telegram=setInterval(()=>{if(watcherCommand!=='stop')telegramPollTick(getWatcherCfg()).catch(()=>{});},30000);}
   },60000);
-  logWrite('watcher','INFO','startWatcher v3');
+  logWrite('watcher','INFO','startWatcher');
 }
-function stopWatcher(){Object.values(watcherTimers).forEach(t=>{if(t)clearInterval(t);});watcherTimers={};watcherRunState={discord:false,telegram:false,searx:false,calendar:false};watcherCommand='stop';watcherNextSearxTime=null;if(watcherWatchdogTimer){clearInterval(watcherWatchdogTimer);watcherWatchdogTimer=null;}logWrite('watcher','INFO','stopWatcher');}
-// SearXNG定期タスクのみ停止 (Discord/Telegram/Calendarは継続) - スライドスイッチ用
-function stopSearxOnly(){
-  if(watcherTimers.searx){clearInterval(watcherTimers.searx);watcherTimers.searx=null;}
-  watcherRunState.searx=false;watcherNextSearxTime=null;
-  logWrite('watcher','INFO','stopSearxOnly');
-}
-// SearXNG定期タスクのみ開始
-function startSearxOnly(){
-  const wcfg=getWatcherCfg();
-  if(!wcfg.searxEnabled||!wcfg.searxTasks?.some(t=>t.enabled))return;
-  const ms=Math.max(1,Math.min(60,wcfg.searxIntervalMin||5))*60000;
-  watcherRunState.searx=true;watcherNextSearxTime=Date.now()+ms;
-  if(watcherTimers.searx)clearInterval(watcherTimers.searx);
-  searxAllTasksTick(wcfg).then(()=>{watcherNextSearxTime=Date.now()+ms;}).catch(()=>{});
-  watcherTimers.searx=setInterval(()=>{
-    if(watcherCommand==='stop')return;
-    watcherNextSearxTime=Date.now()+ms;
-    searxAllTasksTick(getWatcherCfg()).catch(()=>{});
-  },ms);
-  logWrite('watcher','INFO','startSearxOnly');
-}
-function isSearxRunning(){return watcherRunState.searx;}
+function stopWatcher(){Object.values(watcherTimers).forEach(t=>{if(t)clearInterval(t);});watcherTimers={};watcherRunState={discord:false,telegram:false,calendar:false};watcherCommand='stop';if(watcherWatchdogTimer){clearInterval(watcherWatchdogTimer);watcherWatchdogTimer=null;}logWrite('watcher','INFO','stopWatcher');}
+// SearXNG関連はエージェントから削除済み - スタブのみ残す(IPC互換)
+function stopSearxOnly(){}
+function startSearxOnly(){}
+function isSearxRunning(){return false;}
 async function runWatcherNow(){
   const wcfg=getWatcherCfg();watcherEmit('watcher_status','今すぐ実行中...');
   const proms=[];
   if(wcfg.discordEnabled&&wcfg.discordToken)proms.push(discordPollTick(wcfg));
   if(wcfg.telegramEnabled&&wcfg.telegramToken)proms.push(telegramPollTick(wcfg));
-  if(wcfg.searxEnabled)proms.push(searxAllTasksTick(wcfg));
   if(wcfg.calendarEnabled)proms.push(calendarTick(wcfg));
   await Promise.allSettled(proms);watcherEmit('watcher_status','実行完了');
 }

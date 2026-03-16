@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   // チャット
   startChat:           o       => ipcRenderer.invoke('start-chat', o),
   stopChat:            sid     => ipcRenderer.invoke('stop-chat', sid),
+  isAiBusy:            ()      => ipcRenderer.invoke('is-ai-busy'),
   clearHistory:        sid     => ipcRenderer.invoke('clear-history', sid),
   setHistory:          o       => ipcRenderer.invoke('set-history', o),
   editMessage:         o       => ipcRenderer.invoke('edit-message', o),

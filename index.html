@@ -1048,14 +1048,16 @@ A.onChunk(ev=>{
     case 'paused':   addSN(ev.data,'warn'); break;
     case 'resumed':  addSN(ev.data,'ok'); break;
     case 'timeout':
-      // 問題⑤: タイムアウト・エラー時に自動復旧を試みる
-      if(cur && (curMode==='dev' || curMode==='debug') && !autoRecoveryInProgress){
-        addSN('⚠ 処理が中断されました。自動復旧を試みます...', 'warn');
-        scheduleAutoRecovery();
+      // dev/debugモードでは常に自動復旧を試みる（ユーザー停止以外の中断時）
+      if(cur && (curMode==='dev' || curMode==='debug')){
+        if(!autoRecoveryInProgress){
+          addSN('⚠ 処理が中断されました。自動復旧を試みます...', 'warn');
+          scheduleAutoRecovery();
+        }
       } else {
-        addSN('タイムアウト — ↺ 再起動ボタンで再試行できます', 'warn');
-        document.getElementById('res-btn').style.display='block';
+        addSN('⚠ 処理が中断されました', 'warn');
         endBusy();
+        globalBusyRelease(); // グローバルロック解放
       }
       break;
     case 'user_input_required':
@@ -1339,9 +1341,12 @@ async function delP(e,id){
   await A.deleteProject(id);
   if(cur&&cur.id===id){
     cur=null; busy=false; setStopState('hidden');
+    globalBusyRelease();
     removeBgBusyBanner(id);
     showWl();
   }
+  // 削除されたPJがグローバルロックを持っていた場合も解放
+  if(globalBusyProjId === id) globalBusyRelease();
   loadPL();
 }
 
@@ -1509,6 +1514,12 @@ function renderRagList(){
 function rmRag(i){ ragFiles.splice(i,1); renderRagList(); }
 
 async function subDes(){
+  // グローバルAIロックチェック
+  const otherBusy = await isOtherProjectBusy();
+  if(otherBusy){
+    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
+    return;
+  }
   const mdContent=dMd?dMd.content:'', extra=document.getElementById('dSp').value.trim();
   if(!mdContent&&!extra){ alert('設計図(.md)または補足を入力してください'); return; }
   const spec=mdContent+(extra?'\n\n'+extra:''), langs=sL.join(', ')||'';
@@ -1553,6 +1564,12 @@ async function revDes(){
   addUserBubble('修正: '+rv); await subDes();
 }
 async function startDev(){
+  // グローバルAIロックチェック
+  const otherBusy = await isOtherProjectBusy();
+  if(otherBusy){
+    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に開発を開始してください。','warn');
+    return;
+  }
   closeM('mC'); taskN=0; taskTotal=0;
   document.getElementById('prog-bar').style.display='block';
   updateProgress(0,0); startDevTimer();
@@ -1671,19 +1688,21 @@ function switchMode(m){
   }
 }
 
-// ── busy管理（シンプルな2関数） ──────────────────────────
+// ── busy管理（グローバルAIロック付き） ──────────────────
+// AI処理は全プロジェクト通じて1つだけ。同時実行でクラッシュを防止。
+let globalBusyProjId = null; // 現在AI処理中のプロジェクトID
+
 function startBusy(){
   busy=true;
+  globalBusyProjId = cur ? cur.id : null;
   document.getElementById('send-btn').disabled=true;
   setStopState('active');
-  // 問題③: devモードでは常にprog-barを表示
   if(cur && cur.type==='design' && curMode==='dev'){
     document.getElementById('prog-bar').style.display='block';
     if(!document.getElementById('prog-txt').textContent || document.getElementById('prog-txt').textContent==='準備中...'){
       document.getElementById('prog-txt').textContent='開発中...';
     }
   }
-  // autoRecoveryをリセット（新規のBusy開始時）
   cancelAutoRecovery();
 }
 function endBusy(){
@@ -1691,8 +1710,18 @@ function endBusy(){
   stopDevTimer();
   document.getElementById('send-btn').disabled=false;
   if(stopState !== 'resume') setStopState('hidden');
-  // 自動復旧タイマーはbusyが正常終了した時にキャンセル
-  // (handleStopBtn等で手動停止した時もキャンセル)
+}
+function globalBusyRelease(){
+  globalBusyProjId = null;
+}
+// 他PJがAI処理中かチェック（送信ボタン制御用）
+async function isOtherProjectBusy(){
+  try{
+    const st = await A.isAiBusy();
+    if(!st.busy) return false;
+    if(cur && st.projId === cur.id) return false; // 自PJなら問題なし
+    return st; // 他PJが処理中
+  }catch{ return false; }
 }
 
 // ── チャット送信 ─────────────────────────────────────────
@@ -1700,6 +1729,12 @@ async function doSend(){
   const el=document.getElementById('inp'), txt=el.value.trim();
   if(!txt) return;
   if(!cur){ openNew(); return; }
+  // グローバルAIロック: 他PJが処理中なら拒否
+  const otherBusy = await isOtherProjectBusy();
+  if(otherBusy){
+    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
+    return;
+  }
   // 再開バナーが出ていて再開キーワードなら優先
   const resumeBanner=document.getElementById('resume-banner');
   if(resumeBanner && /再開|続き|continue|resume/i.test(txt) && !busy){
@@ -1735,35 +1770,36 @@ async function doSend(){
 }
 
 // ── chatInternal ─────────────────────────────────────────
-// snapProjとsnapSessIdで切り替え後も元PJに確実に保存する
 async function chatInternal(msg,mode,attachments,ds){
-  const snapProj = cur;       // 開始時のプロジェクトをスナップショット
-  const snapSessId = curSid;  // 開始時のsessIdをスナップショット
+  const snapProj = cur;
+  const snapSessId = curSid;
   const thk=addThk(); curEl=null; curBb=null; curFull='';
   try{
-    await A.startChat({sessId:snapSessId,message:msg,projectId:snapProj?snapProj.id:null,
+    const result = await A.startChat({sessId:snapSessId,message:msg,projectId:snapProj?snapProj.id:null,
       mode,attachments:attachments||[],deepSearch:!!ds,langs:dDat?.langs||''});
+    // AI同時実行拒否チェック
+    if(result && !result.ok && result.error==='busy'){
+      if(thk.parentNode) thk.remove();
+      addSN('⚠ 別のプロジェクトでAI処理中です。完了を待ってから再試行してください。','warn');
+      return '';
+    }
     if(thk.parentNode) thk.remove();
     if(snapProj && mode!=='analysis'){
       if(!snapProj.messages) snapProj.messages=[];
       if(curFull) snapProj.messages.push({role:'assistant',content:curFull});
-      // 元PJにディスク保存（切り替え後でも確実に保存）
-      // _saveTimerで遅延保存されている場合もクリアして即時保存
       if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
       await A.updateProject(snapProj.id, snapProj).catch(()=>{});
     }
   }catch(e){ if(thk.parentNode)thk.remove(); addAI('× エラー: '+e.message); }
   finally{
-    // 現在表示中のPJと処理していたPJが同じ場合のみUIをリセット
     if(curSid === snapSessId){
       endBusy();
-      // 設計図モード: AI応答完了後に選択肢チップを表示
+      globalBusyRelease();
       if(curEl && curEl._bpChoices && curEl._bpChoices.length > 0 && (mode==='blueprint'||mode==='blueprint-gen')){
         renderBpChips(curEl, curEl._bpChoices);
       }
       document.getElementById('inp').focus();
     }
-    // 別PJに切り替えていた場合: openP内でbusy=falseに既になっている
   }
   return curFull;
 }
@@ -1773,6 +1809,12 @@ async function chatInternalDev(msg,mode){ return chatInternal(msg,mode||'dev',[]
 async function handleStopBtn(){
   // resume状態: 再開処理
   if(stopState === 'resume'){
+    // グローバルロックチェック
+    const otherBusy = await isOtherProjectBusy();
+    if(otherBusy){
+      addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再開してください。','warn');
+      return;
+    }
     setStopState('hidden');
     document.getElementById('send-btn').disabled=false;
     if(cur && cur.workDir){
@@ -1782,25 +1824,20 @@ async function handleStopBtn(){
     addSN('𓂀 メッセージを入力して続きから再開できます。','ok');
     return;
   }
-  // stopping状態: 連打防止
   if(stopState === 'stopping') return;
-  // active状態: 停止処理
   if(stopState !== 'active') return;
 
-  // ① 即座にstoppingに変更（UIを確定させる）
   setStopState('stopping');
 
-  // ② 再開ファイルを先に保存（stopChatより前に保存することが重要）
   if(cur && cur.workDir){
     const checkpoint = curFull ? ('最後の出力: '+curFull.slice(-200)) : '処理中断';
     await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'停止'});
   }
 
-  // ③ AIを停止（abortを送信）
   if(curSid) await A.stopChat(curSid);
 
-  // ④ busyフラグをリセットし、再開ボタンに変更
   busy = false;
+  globalBusyRelease();
   stopDevTimer();
   document.getElementById('send-btn').disabled=false;
   setStopState('resume');
@@ -1828,6 +1865,12 @@ async function doRestart(){
 
 // ── 再開ファイルから続き ──────────────────────────────────
 async function doResumeFromFile(r){
+  // グローバルAIロックチェック
+  const otherBusy = await isOtherProjectBusy();
+  if(otherBusy){
+    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再開してください。','warn');
+    return;
+  }
   const banner=document.getElementById('resume-banner'); if(banner) banner.remove();
   addSN('▶ 前回の続きから再開します...','ok');
   const resumeMsg=`【再開指示】前回の作業を以下のチェックポイントから再開してください:\n${r.checkpoint}\n\n作業フォルダ: ${cur.workDir}\n\n前回の中断箇所から続きを実行してください。`;
@@ -2175,7 +2218,8 @@ async function ctxDelete(){
   await A.clearHistory(sessId).catch(()=>{});
   removeBgBusyBanner(ctxTargetId);
   await A.deleteProject(ctxTargetId);
-  if(cur&&cur.id===ctxTargetId){ cur=null; busy=false; setStopState('hidden'); showWl(); }
+  if(cur&&cur.id===ctxTargetId){ cur=null; busy=false; setStopState('hidden'); globalBusyRelease(); showWl(); }
+  if(globalBusyProjId === ctxTargetId) globalBusyRelease();
   loadPL();
 }
 
@@ -3163,9 +3207,16 @@ const MAX_AUTO_RECOVERY = 5; // 最大5回
 async function scheduleAutoRecovery(type) {
   if(autoRecoveryInProgress) return;
   if(autoRecoveryCount >= MAX_AUTO_RECOVERY){
-    addSN(`⚠ 自動復旧を${MAX_AUTO_RECOVERY}回試みましたが回復しませんでした。手動で再起動してください。`, 'warn');
-    document.getElementById('res-btn').style.display = 'block';
+    addSN(`⚠ 自動復旧を${MAX_AUTO_RECOVERY}回試みましたが回復しませんでした。`, 'warn');
+    // 再開ファイルを保存して手動再開可能にする
+    if(cur && cur.workDir){
+      const checkpoint = curFull ? ('自動復旧失敗時の出力: '+curFull.slice(-200)) : '自動復旧失敗';
+      await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'復旧失敗'}).catch(()=>{});
+    }
     endBusy();
+    globalBusyRelease();
+    setStopState('resume');
+    addSN('▶ 再開ボタンで手動再開できます','ok');
     autoRecoveryCount = 0;
     return;
   }

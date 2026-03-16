@@ -135,6 +135,13 @@ ipcMain.handle('delete-project',(_,id)=>{
 
 // ── チャット ─────────────────────────────────────────────
 ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachments,deepSearch,langs})=>{
+  // AI同時実行防止: 別のセッションが処理中なら拒否
+  if(activeSessions.size > 0){
+    const running = [...activeSessions.entries()][0];
+    if(running[0] !== sessId){
+      return {ok:false, error:'busy', busyProjId:running[1].projId, busySessId:running[0]};
+    }
+  }
   const proj   = projectId ? agent.loadProj(projectId) : null;
   const workDir= proj?.workDir||null;
   const sess   = agent.getSession(sessId);
@@ -226,6 +233,13 @@ ipcMain.handle('set-history',(_,{sessId,history})=>{
   const validRoles = ['user','assistant','tool'];
   sess.history=(history||[]).filter(m=>m&&validRoles.includes(m.role)).slice(-40);
   return {ok:true};
+});
+
+// AI処理状態チェック（グローバルロック用）
+ipcMain.handle('is-ai-busy', ()=>{
+  if(activeSessions.size === 0) return {busy:false};
+  const [sessId, info] = [...activeSessions.entries()][0];
+  return {busy:true, sessId, projId:info.projId, mode:info.mode};
 });
 
 // ⑭ ほったらかしOFFで別PJ切替時: devセッションの"待機中"状態を通知
