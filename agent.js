@@ -264,13 +264,25 @@ ${isJa?`- アプリの目的・概要・ターゲットユーザー
 - Error handling policies`}
 
 ${isJa?'【選択肢の出力形式】（厳守すること）':'【Choice output format】(must follow)'}
-${isJa?'各回答の最後に、次のステップとしてユーザーが選べる選択肢を以下の形式で出力してください。':'Output choices at the end of each response in this format:'}
-${isJa?'選択肢は短く明確に、2〜4個で。ユーザーはクリックまたは自由入力で回答できます。':'Keep choices short and clear, 2-4 items.'}
+${isJa?'質問ごとに ---choices--- ブロックを1つ出力してください。複数の質問をする場合は、それぞれの質問の直後にそれぞれの選択肢ブロックを配置してください。':'Output one ---choices--- block per question. If asking multiple questions, place a choices block right after each question.'}
+${isJa?'選択肢は短く明確に、各2〜4個で。ユーザーはクリックまたは「その他」欄に自由入力で回答できます。':'Keep choices short and clear, 2-4 per block. Users can click or type freely.'}
+
+${isJa?'例（2つの質問がある場合）：':'Example (2 questions):'}
+
+${isJa?'データの保存形式はどうしますか？':'What storage format?'}
 
 ---choices---
-${isJa?'選択肢1（短く具体的に）':'Choice 1'}
-${isJa?'選択肢2（短く具体的に）':'Choice 2'}
-${isJa?'選択肢3（短く具体的に）':'Choice 3'}
+${isJa?'SQLiteでローカル保存':'SQLite local'}
+${isJa?'Firebaseでクラウド保存':'Firebase cloud'}
+${isJa?'JSONファイルで保存':'JSON files'}
+---/choices---
+
+${isJa?'認証機能は必要ですか？':'Need authentication?'}
+
+---choices---
+${isJa?'メール+パスワード認証':'Email+password'}
+${isJa?'ソーシャルログイン（Google/Apple）':'Social login'}
+${isJa?'認証不要':'No auth needed'}
 ---/choices---
 
 ${isJa?'情報が十分に集まったら、選択肢に「🔨 設計図を生成する」を含めてください。':'When ready, include "🔨 Generate Design" in choices.'}

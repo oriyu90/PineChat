@@ -479,6 +479,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
             <div class="sw-track" id="deep-sw"></div>
             <span class="sw-lbl">𓅱 調べる</span>
           </div>
+          <button class="att-add-btn" id="btn-to-bp" onclick="chatToBlueprintHandoff()" title="このチャットのアイデアを設計図作成に引き継ぐ" style="margin-left:auto;border-color:var(--ok);color:var(--ok)">𓏛 設計図作成へ</button>
         </div>
         <div class="att-list" id="att-list"></div>
         <div class="ir">
@@ -1018,11 +1019,9 @@ A.onChunk(ev=>{
         const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl);
       }
       if(curBb) {
-        // 設計図モード: 選択肢を分離してレンダリング
-        const {mainText, choices} = parseBpChoices(curFull);
+        const {mainText, choiceGroups} = parseBpChoices(curFull);
         curBb.innerHTML = renderMd(mainText); curBb.classList.add('md-rendered');
-        // 選択肢チップを描画（busyが解除されてから表示するため、textイベント中は一時保存のみ）
-        if(curEl) curEl._bpChoices = choices;
+        if(curEl) curEl._bpChoiceGroups = choiceGroups;
       }
       dn(); break;
     case 'thinking':
@@ -1816,8 +1815,8 @@ async function chatInternal(msg,mode,attachments,ds){
     if(curSid === snapSessId){
       endBusy();
       globalBusyRelease();
-      if(curEl && curEl._bpChoices && curEl._bpChoices.length > 0 && (mode==='blueprint'||mode==='blueprint-gen')){
-        renderBpChips(curEl, curEl._bpChoices);
+      if(curEl && curEl._bpChoiceGroups && curEl._bpChoiceGroups.length > 0 && (mode==='blueprint'||mode==='blueprint-gen')){
+        renderBpChips(curEl, curEl._bpChoiceGroups);
       }
       document.getElementById('inp').focus();
     }
@@ -3029,32 +3028,97 @@ function addAgentFeedItemFromHistory(data) {
 // ═══════════════════════════════════════════════════════════
 let bpGeneratedMd = ''; // 最後に生成された設計図Markdown
 
-// AI応答から---choices---...---/choices---ブロックをパースする
+// AI応答から全ての---choices---ブロックをパースする（複数対応）
 function parseBpChoices(text) {
-  if(!text) return {mainText:text, choices:[]};
-  const m = text.match(/---choices---\s*([\s\S]*?)\s*---\/choices---/);
-  if(!m) return {mainText:text, choices:[]};
-  const mainText = text.replace(/---choices---[\s\S]*?---\/choices---/,'').trim();
-  const choices = m[1].split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-  return {mainText, choices};
+  if(!text) return {mainText:text, choiceGroups:[], choices:[]};
+  const groups = [];
+  let mainText = text;
+  // 全ての---choices---...---/choices---ブロックを抽出
+  const regex = /---choices---\s*([\s\S]*?)\s*---\/choices---/g;
+  let match;
+  while((match = regex.exec(text)) !== null){
+    const items = match[1].split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+    if(items.length > 0) groups.push(items);
+  }
+  mainText = text.replace(/---choices---[\s\S]*?---\/choices---/g, '').trim();
+  // 後方互換: 全choicesをフラット配列でも返す
+  const allChoices = groups.reduce((acc,g)=>acc.concat(g),[]);
+  return {mainText, choiceGroups:groups, choices:allChoices};
 }
 
-// 選択肢チップをAIメッセージ要素の下に描画
-function renderBpChips(parentEl, choices) {
-  if(!parentEl || !choices || !choices.length) return;
-  // 既存チップを削除
-  const old = parentEl.querySelector('.bp-chips');
-  if(old) old.remove();
-  const wrap = document.createElement('div'); wrap.className = 'bp-chips';
-  choices.forEach(c => {
-    const chip = document.createElement('button'); chip.className = 'bp-chip';
-    if(/設計図を生成|generate/i.test(c)) chip.classList.add('gen');
-    chip.textContent = c;
-    chip.addEventListener('click', ()=>{ doBpChipClick(c); });
-    wrap.appendChild(chip);
+// 選択肢チップを質問グループごとに描画
+function renderBpChips(parentEl, choiceGroups) {
+  if(!parentEl) return;
+  // choiceGroupsがフラット配列の場合は1グループ化
+  let groups = choiceGroups;
+  if(groups.length > 0 && typeof groups[0] === 'string') groups = [groups];
+
+  const oldChips = parentEl.querySelectorAll('.bp-chips');
+  oldChips.forEach(e=>e.remove());
+
+  groups.forEach(group => {
+    if(!group || !group.length) return;
+    const wrap = document.createElement('div'); wrap.className = 'bp-chips';
+    group.forEach(c => {
+      const chip = document.createElement('button'); chip.className = 'bp-chip';
+      if(/設計図を生成|generate/i.test(c)) chip.classList.add('gen');
+      chip.textContent = c;
+      chip.addEventListener('click', ()=>doBpChipClick(c));
+      wrap.appendChild(chip);
+    });
+    // グループの最後に自由入力用の小さなテキストボックスを追加
+    const customWrap = document.createElement('div');
+    customWrap.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-left:4px';
+    const customInp = document.createElement('input');
+    customInp.type = 'text';
+    customInp.placeholder = 'その他...';
+    customInp.style.cssText = 'background:var(--bg);border:1px solid var(--b2);border-radius:16px;color:var(--t1);font-size:12px;padding:6px 12px;width:120px;outline:none';
+    customInp.addEventListener('keydown', e=>{
+      if(e.key==='Enter' && customInp.value.trim()){
+        e.preventDefault();
+        doBpChipClick(customInp.value.trim());
+      }
+    });
+    const customBtn = document.createElement('button');
+    customBtn.className = 'bp-chip';
+    customBtn.textContent = '→';
+    customBtn.style.cssText = 'padding:6px 10px;min-width:auto';
+    customBtn.addEventListener('click', ()=>{
+      if(customInp.value.trim()) doBpChipClick(customInp.value.trim());
+    });
+    customWrap.appendChild(customInp);
+    customWrap.appendChild(customBtn);
+    wrap.appendChild(customWrap);
+
+    parentEl.appendChild(wrap);
   });
-  parentEl.appendChild(wrap);
   dn();
+}
+
+// 修正5: チャット→設計図作成に引き継ぎ
+async function chatToBlueprintHandoff(){
+  if(!cur || busy) return;
+  if(cur.type !== 'chat'){ addSN('チャットプロジェクトからのみ引き継ぎできます','warn'); return; }
+  // チャット履歴からアイデア部分を抽出
+  const userMsgs = (cur.messages||[]).filter(m=>m.role==='user').map(m=>m.content||'');
+  const aiMsgs = (cur.messages||[]).filter(m=>m.role==='assistant').map(m=>m.content||'');
+  if(!userMsgs.length){ addSN('チャット履歴がありません','warn'); return; }
+  const ideaSummary = userMsgs.join('\n').slice(0,3000);
+  // 新しいblueprint PJを作成
+  const nm = (cur.name || 'チャット') + ' — 設計図';
+  const p = await A.createProject({name:nm, type:'blueprint', workDir:cur.workDir||'', systemPrompt:''});
+  cur = p; curSid = 'P'+p.id; curMode = 'blueprint';
+  loadPL(); showChat();
+  document.getElementById('pn').textContent = ' · '+p.name;
+  document.getElementById('msgs').innerHTML = '';
+  updateModeUI();
+  // アイデアを初期メッセージとして送信
+  cur.messages = [{role:'user', content:ideaSummary}];
+  addUserBubble(ideaSummary, 0);
+  addSN('𓏛 チャットのアイデアを設計図作成に引き継ぎました','ok');
+  startBusy();
+  await chatInternal(ideaSummary, 'blueprint');
+  if(cur) A.updateProject(cur.id, cur);
 }
 
 // 選択肢チップクリック → メッセージとして送信
@@ -3071,10 +3135,9 @@ function doBpChipClick(text) {
   doSend();
 }
 
-// 設計図生成ボタン / 選択肢からのトリガー
+// 設計図生成（選択肢チップからのトリガー）
 async function doBlueprintGenerate() {
   if(!cur || busy) return;
-  // グローバルAIロックチェック
   const otherBusy = await isOtherProjectBusy();
   if(otherBusy){
     addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
@@ -3082,41 +3145,89 @@ async function doBlueprintGenerate() {
   }
   if(!cur.messages) cur.messages = [];
 
-  // Step 1: 会話から技術キーワードを抽出してWeb検索
-  addSN('𓅱 技術情報を検索中...','ok');
-  let searchCtx = '';
-  try{
-    const convText = cur.messages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>m.content||'').join(' ').slice(0,500);
-    const keywords = convText.match(/[A-Z][a-z]+(?:\.[a-z]+)?|Flutter|React|Kotlin|Swift|Firebase|Supabase|SQLite|Node\.js|Next\.js|Electron|Tauri/gi);
-    if(keywords && keywords.length > 0){
-      const uniqueKw = [...new Set(keywords)].slice(0,3).join(' ');
-      const results = await Promise.race([A.startChat({sessId:curSid+'_search',message:uniqueKw,projectId:null,mode:'chat',attachments:[],deepSearch:true,langs:''}),new Promise(r=>setTimeout(()=>r(null),10000))]);
-      // SearXNG直接使用（startChatのdeepSearchを利用）
-    }
-  }catch{}
+  // 技術キーワードをプロンプト内に直接埋め込み（別セッション不要）
+  let techHint = '';
+  const convText = cur.messages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>m.content||'').join(' ').slice(0,1000);
+  const kws = convText.match(/[A-Z][a-z]+(?:\.[a-z]+)?|Flutter|React|Kotlin|Swift|Firebase|Supabase|SQLite|Node\.js|Next\.js|Electron|Tauri|PostgreSQL|MongoDB|Redis|Docker/gi);
+  if(kws && kws.length > 0){
+    techHint = '\n\n【技術コンテキスト】使用予定の技術: ' + [...new Set(kws)].join(', ') + '\nこれらの技術のベストプラクティスに従い、最新のAPI・設定方法を反映してください。';
+  }
 
-  // Step 2: 設計図を生成
-  addSN('𓏛 設計図を生成中...','ok');
-  const genMsg = 'これまでの会話で決定した全仕様をもとに、設計図(.md)を生成してください。設計の整合性（データモデルとAPI、画面遷移と機能の矛盾がないか）を自己検証してから出力してください。';
+  addSN('𓏛 設計図を生成・検証中...','ok');
+  const genMsg = `これまでの会話で決定した全仕様をもとに、設計図(.md)を生成してください。${techHint}
+
+【生成後の自己検証を必ず実施】
+- データモデルの各カラムがAPIやUIから正しく参照されているか
+- 画面遷移に抜け漏れがないか
+- 開発タスクリストが実装順序として矛盾していないか
+- ファイル構造が技術スタックと整合しているか
+問題があれば修正した上で最終版を出力してください。`;
+
   cur.messages.push({role:'user', content:genMsg});
   addUserBubble(genMsg, cur.messages.length-1);
   startBusy();
   const result = await chatInternal(genMsg, 'blueprint-gen');
 
-  if(result) {
-    // Step 3: 設計検証を実行
-    addSN('🔍 設計の整合性を検証中...','ok');
-    const verifyMsg = `以下の設計図を検証してください。問題があれば修正し、問題なければ「検証完了」と記載した上で最終版を出力してください。\n\n検証ポイント:\n- データモデルの各カラムがAPIやUIから参照されているか\n- 画面遷移に抜け漏れがないか\n- 開発タスクリストが実装順序として矛盾していないか\n- ファイル構造が技術スタックと整合しているか`;
-    cur.messages.push({role:'user', content:verifyMsg});
-    const verified = await chatInternal(verifyMsg, 'blueprint-gen');
-    if(verified && verified.length > result.length * 0.5) {
-      bpGeneratedMd = verified;
-    } else {
-      bpGeneratedMd = result;
+  if(result && result.length > 100) {
+    bpGeneratedMd = result;
+    // 自動保存
+    if(cur.workDir){
+      const r = await A.saveBlueprintFile({workDir:cur.workDir, content:bpGeneratedMd, fileName:'DESIGN.md'});
+      if(r.ok) addSN(`💾 設計図を自動保存しました: ${r.path}`,'ok');
     }
     showBpPreview(bpGeneratedMd);
+    // 完了後の選択肢を表示
+    showBpCompletionChoices();
   }
   if(cur) A.updateProject(cur.id, cur);
+}
+
+// 修正4: 設計図生成完了後の選択肢
+function showBpCompletionChoices() {
+  const wrap = document.createElement('div'); wrap.className = 'bp-chips';
+  const choices = [
+    {text:'🚀 アプリ設計に引き継ぐ', cls:'gen', action:'handoff'},
+    {text:'✏ まだ機能を追加する', cls:'', action:'continue'},
+  ];
+  choices.forEach(c => {
+    const chip = document.createElement('button'); chip.className = 'bp-chip ' + c.cls;
+    chip.textContent = c.text;
+    chip.addEventListener('click', ()=>{
+      if(c.action==='handoff') bpHandoffToDesign();
+      else closeBpPreview(); // 対話を継続
+    });
+    wrap.appendChild(chip);
+  });
+  msgs().appendChild(wrap);
+  dn();
+}
+
+// 設計図 → アプリ設計に引き継ぎ
+async function bpHandoffToDesign() {
+  if(!bpGeneratedMd || !cur) return;
+  // フォルダが未設定なら選択
+  let workDir = cur.workDir;
+  if(!workDir){
+    workDir = await A.pickFolder();
+    if(!workDir){ addSN('フォルダを選択してください','warn'); return; }
+  }
+  // .md保存
+  await A.saveBlueprintFile({workDir, content:bpGeneratedMd, fileName:'DESIGN.md'});
+  // 新しいアプリ設計PJを作成
+  const nm = (cur.name||'設計') + ' — 開発';
+  const p = await A.createProject({name:nm, type:'design', workDir, systemPrompt:''});
+  closeBpPreview();
+  // 新PJを開いて設計図を読み込み済み状態にする
+  cur = p; curSid = 'P'+p.id; curMode = 'dev';
+  loadPL(); showChat();
+  document.getElementById('pn').textContent = ' · '+p.name;
+  document.getElementById('msgs').innerHTML = '';
+  // 設計図を直接dDatに読み込み
+  dDat = {spec:bpGeneratedMd, langs:'', ragFiles:[]};
+  dMd = {path:workDir+'/DESIGN.md', content:bpGeneratedMd};
+  addSN('𓃭 設計図を引き継ぎました。設計確認画面を開きます...','ok');
+  // 分析実行
+  setTimeout(()=>subDes(), 300);
 }
 
 // 設計図プレビュー表示
@@ -3211,11 +3322,11 @@ function renderHistBpHook(ms) {
   if(cur && cur.type === 'blueprint' && ms.length > 0) {
     const lastAi = [...ms].reverse().find(m=>m.role==='assistant');
     if(lastAi && lastAi.content) {
-      const {choices} = parseBpChoices(lastAi.content);
-      if(choices.length > 0) {
+      const {choiceGroups} = parseBpChoices(lastAi.content);
+      if(choiceGroups.length > 0) {
         const allMsgs = document.getElementById('msgs').querySelectorAll('.msg.ai');
         const lastMsgEl = allMsgs[allMsgs.length-1];
-        if(lastMsgEl) renderBpChips(lastMsgEl, choices);
+        if(lastMsgEl) renderBpChips(lastMsgEl, choiceGroups);
       }
     }
   }
