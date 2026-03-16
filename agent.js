@@ -241,7 +241,7 @@ ${isJa?`1. ユーザーのアプリのアイデアや要件を深く理解する
 4. Propose generating the design document when enough information is gathered
 5. The design will be used by Pine Chat's auto-development AI, so eliminate ambiguity`}
 
-${isJa?'【段階的に確認すべき項目】（一度に全て聞かず、2-3項目ずつ自然に確認する）':'【Items to confirm step by step】'}
+${isJa?'【段階的に確認すべき項目】（一度に聞く質問は必ず1〜2個まで。3個以上は禁止）':'【Items to confirm step by step】(Ask only 1-2 questions at a time. Never 3+)'}
 ${isJa?`- アプリの目的・概要・ターゲットユーザー
 - 対象プラットフォーム（Web / iOS / Android / デスクトップ / CLI）
 - 主要機能の一覧と各機能の詳細な処理フロー
@@ -264,25 +264,29 @@ ${isJa?`- アプリの目的・概要・ターゲットユーザー
 - Error handling policies`}
 
 ${isJa?'【選択肢の出力形式】（厳守すること）':'【Choice output format】(must follow)'}
-${isJa?'質問ごとに ---choices--- ブロックを1つ出力してください。複数の質問をする場合は、それぞれの質問の直後にそれぞれの選択肢ブロックを配置してください。':'Output one ---choices--- block per question. If asking multiple questions, place a choices block right after each question.'}
-${isJa?'選択肢は短く明確に、各2〜4個で。ユーザーはクリックまたは「その他」欄に自由入力で回答できます。':'Keep choices short and clear, 2-4 per block. Users can click or type freely.'}
+${isJa?`- 1回の返答で聞く質問は最大2つまで（厳守）
+- 各質問の直後に ---choices--- ブロックを1つ配置
+- 選択肢は各質問につき2〜4個で短く明確に
+- ユーザーはクリックまたは「その他」欄に自由入力で回答可能`
+:`- Ask maximum 2 questions per response (strict)
+- Place one ---choices--- block right after each question
+- 2-4 short, clear choices per question
+- Users can click or type freely in "Other" field`}
 
-${isJa?'例（2つの質問がある場合）：':'Example (2 questions):'}
+${isJa?'例：':'Example:'}
 
-${isJa?'データの保存形式はどうしますか？':'What storage format?'}
+${isJa?'**Q1: データの保存形式はどうしますか？**':'**Q1: Storage format?**'}
 
 ---choices---
 ${isJa?'SQLiteでローカル保存':'SQLite local'}
 ${isJa?'Firebaseでクラウド保存':'Firebase cloud'}
-${isJa?'JSONファイルで保存':'JSON files'}
 ---/choices---
 
-${isJa?'認証機能は必要ですか？':'Need authentication?'}
+${isJa?'**Q2: 認証機能は必要ですか？**':'**Q2: Need auth?**'}
 
 ---choices---
 ${isJa?'メール+パスワード認証':'Email+password'}
-${isJa?'ソーシャルログイン（Google/Apple）':'Social login'}
-${isJa?'認証不要':'No auth needed'}
+${isJa?'認証不要':'No auth'}
 ---/choices---
 
 ${isJa?'情報が十分に集まったら、選択肢に「🔨 設計図を生成する」を含めてください。':'When ready, include "🔨 Generate Design" in choices.'}
@@ -570,7 +574,12 @@ async function handsOffBreakLoop(sessId, msgs, workDir, onEvent) {
 function makeDevSysPrompt(workDir, customSys, langs) {
   const langNote=langs&&langs.length>0?`\n優先言語: ${langs}\n※ 設計図の要件に応じて他の言語・ライブラリも適宜使用して良い。`:'';
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
-  return `あなたはアプリ開発専門AIエージェントです。ユーザーから提供された設計図（.mdファイル）に記載されたアプリケーションを実際に開発します。${langNote}
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  const langRule = isJa ? '日本語で説明・コメントを記述してください。' : 'Write explanations and comments in English.';
+  return `${isJa?'あなたはアプリ開発専門AIエージェントです。':'You are an app development AI agent.'}
+${isJa?'ユーザーから提供された設計図（.mdファイル）に記載されたアプリケーションを実際に開発します。':'Develop the application described in the provided design document (.md).'}${langNote}
+${langRule}
 
 【最重要】設計図は「あなたが作るべきアプリ」の仕様書です。設計図そのものを作成するのではなく、設計図に書かれたアプリのソースコードをファイルとして作成してください。
 
@@ -589,16 +598,52 @@ function makeDevSysPrompt(workDir, customSys, langs) {
 }
 function buildChatSysPrompt(workDir, customSys) {
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
-  return `あなたは有能なAIアシスタントです。ユーザーの質問に丁寧に回答し、必要に応じてツールを使います。制約: sudo・インストール系コマンドは不可。\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  const langRule = isJa ? '必ず日本語で回答してください。' : 'Always respond in English.';
+  return `${isJa?'あなたは有能なAIアシスタントです。':'You are a helpful AI assistant.'}
+${langRule}
+
+${isJa?'【ツール使用ルール】':'【Tool Usage Rules】'}
+${isJa?`- 通常の会話、挨拶、質問への回答にはツールを使わないでください
+- ツールはユーザーが明示的にファイル操作、コード実行、Web検索を依頼した場合のみ使用してください
+- 「調べて」「検索して」「ファイルを読んで」「実行して」等の指示がある場合のみツールを使用
+- 雑談や知識に基づく質問にはツールなしで直接回答してください`
+:`- Do NOT use tools for casual conversation, greetings, or knowledge-based questions
+- Only use tools when user explicitly requests file operations, code execution, or web search
+- Respond directly without tools for chat, advice, and general questions`}
+
+${isJa?'制約':'Constraints'}: sudo${isJa?'・インストール系コマンドは不可':'and install commands are prohibited'}.
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
 }
 // 設計分析専用システムプロンプト（analysisモード）
 function buildAnalysisSysPrompt(workDir, customSys) {
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
-  return `あなたはアプリケーション設計の専門家AIです。提供された設計図・要件を分析し、詳細な開発計画を日本語で回答してください。\n\n【重要】必ず以下の形式で回答してください:\n1. アプリ概要(2-3文)\n2. 主要機能一覧\n3. 開発タスクリスト(番号付き、具体的に)\n4. 技術スタック\n5. ファイル構造\n\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  const langRule = isJa ? '必ず日本語のみで回答してください。英語は使用禁止です。' : 'Always respond in English only.';
+  return `${isJa?'あなたはアプリケーション設計の専門家AIです。提供された設計図・要件を分析し、詳細な開発計画を作成してください。':'You are an expert application design AI. Analyze the provided design document and create a detailed development plan.'}
+${langRule}
+
+${isJa?'【重要】必ず以下の形式で回答してください：':'【Important】Respond in this format:'}
+1. ${isJa?'アプリ概要（2-3文）':'App overview (2-3 sentences)'}
+2. ${isJa?'主要機能一覧':'Key features list'}
+3. ${isJa?'開発タスクリスト（番号付き、具体的に）':'Development tasks (numbered, specific)'}
+4. ${isJa?'技術スタック':'Tech stack'}
+5. ${isJa?'ファイル構造':'File structure'}
+
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
 }
 function buildDebugSysPrompt(workDir, customSys) {
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
-  return `あなたはデバッグ・機能追加の専門AIエージェントです。既存コードを分析し、バグ修正・テスト・機能追加を行います。\n現在時刻: ${new Date().toLocaleString('ja-JP')}\n作業フォルダ: ${workDir||os.homedir()}${custom}`;
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  return `${isJa?'あなたはデバッグ・機能追加の専門AIエージェントです。既存コードを分析し、バグ修正・テスト・機能追加を行います。':'You are a debug/feature AI agent. Analyze existing code, fix bugs, run tests, and add features.'}
+${isJa?'必ず日本語で回答してください。':'Always respond in English.'}
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
 }
 function buildAgentChatSysPrompt(calContext) {
   const lang = cfg.aiResponseLanguage || 'ja';

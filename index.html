@@ -587,6 +587,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <button class="rag-add" onclick="addRag()">+ .md を追加</button>
     <div class="mft">
       <button class="bc" onclick="closeM('mD')">キャンセル</button>
+      <button class="bc" onclick="saveDesignSetup()" style="border-color:var(--ok);color:var(--ok)">💾 保存して保留</button>
       <button class="bok" onclick="subDes()">分析開始</button>
     </div>
   </div>
@@ -1331,6 +1332,10 @@ async function openP(id){
     const r=await A.loadResume(p.workDir);
     if(r) showResumeBanner(r);
   }
+  // 設計保留PJ: _designSetupがあり、まだ分析開始していない場合
+  if(p.type==='design' && p._designSetup && (!p.messages || p.messages.length === 0)){
+    showDesignStartBanner();
+  }
 }
 
 function showResumeBanner(r){
@@ -1516,6 +1521,41 @@ function filterLangs(q){
 function togL(el,l){
   if(el.classList.contains('s')){ el.classList.remove('s'); sL=sL.filter(x=>x!==l); }
   else{ el.classList.add('s'); sL.push(l); }
+}
+// 設計セットアップを保存して保留（AI分析開始せずにモーダルを閉じる）
+async function saveDesignSetup(){
+  const mdContent=dMd?dMd.content:'', extra=document.getElementById('dSp').value.trim();
+  const spec=mdContent+(extra?'\n\n'+extra:''), langs=sL.join(', ')||'';
+  let ragCtx='';
+  if(ragFiles.length>0) ragCtx='\n\n【RAGライブラリ情報】\n'+ragFiles.map(r=>`--- ${r.path.split('/').pop()} ---\n${r.content}`).join('\n\n');
+  // PJに設計データを保存
+  if(cur){
+    cur._designSetup = {spec:spec+ragCtx, langs, ragFiles:ragFiles.map(r=>({path:r.path})), mdPath:dMd?dMd.path:'', extra};
+    await A.updateProject(cur.id, cur);
+  }
+  closeM('mD');
+  addSN('💾 設計情報を保存しました。いつでも「分析開始」できます。','ok');
+  showDesignStartBanner();
+}
+// 保留中の設計PJに分析開始バナーを表示
+function showDesignStartBanner(){
+  const existing = document.getElementById('design-start-banner');
+  if(existing) existing.remove();
+  const banner=document.createElement('div');
+  banner.className='resume-banner'; banner.id='design-start-banner';
+  banner.innerHTML=`<span class="resume-icon">𓃭</span><div class="resume-info"><div class="resume-title">設計情報が保存されています</div><div class="resume-sub">クリックして分析を開始</div></div><span class="resume-act">分析開始</span>`;
+  banner.addEventListener('click', async ()=>{
+    banner.remove();
+    if(cur && cur._designSetup){
+      dDat = {spec:cur._designSetup.spec, langs:cur._designSetup.langs, ragFiles:cur._designSetup.ragFiles||[]};
+      if(cur._designSetup.mdPath) dMd={path:cur._designSetup.mdPath, content:cur._designSetup.spec};
+      sL = cur._designSetup.langs ? cur._designSetup.langs.split(', ') : [];
+      await subDes();
+    } else {
+      openDes();
+    }
+  });
+  msgs().appendChild(banner); dn();
 }
 function openDes(){
   document.getElementById('dSp').value=''; document.getElementById('dMdPath').textContent='未選択';
@@ -1829,7 +1869,6 @@ async function chatInternalDev(msg,mode){ return chatInternal(msg,mode||'dev',[]
 async function handleStopBtn(){
   // resume状態: 再開処理
   if(stopState === 'resume'){
-    // グローバルロックチェック
     const otherBusy = await isOtherProjectBusy();
     if(otherBusy){
       addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再開してください。','warn');
@@ -1849,19 +1888,44 @@ async function handleStopBtn(){
 
   setStopState('stopping');
 
-  if(cur && cur.workDir){
+  // 実際にAI処理中のセッションを特定（現在表示PJとは限らない）
+  let busySessId = curSid;
+  let busyProjId = cur ? cur.id : null;
+  let busyWorkDir = cur ? cur.workDir : null;
+  try{
+    const st = await A.isAiBusy();
+    if(st.busy){
+      busySessId = st.sessId;
+      busyProjId = st.projId;
+      // 実際のPJのworkDirを取得
+      const busyProj = await A.getProject(busyProjId);
+      if(busyProj) busyWorkDir = busyProj.workDir;
+    }
+  }catch{}
+
+  // 再開ファイルを実際のPJに保存
+  if(busyWorkDir){
     const checkpoint = curFull ? ('最後の出力: '+curFull.slice(-200)) : '処理中断';
-    await A.saveResume({sessId:curSid,workDir:cur.workDir,history:cur.messages||[],checkpoint,state:'停止'});
+    await A.saveResume({sessId:busySessId, workDir:busyWorkDir, history:[], checkpoint, state:'停止'});
   }
 
-  if(curSid) await A.stopChat(curSid);
+  // AIを停止
+  if(busySessId) await A.stopChat(busySessId);
 
   busy = false;
   globalBusyRelease();
   stopDevTimer();
   document.getElementById('send-btn').disabled=false;
-  setStopState('resume');
-  addSN('𓅯 停止しました。再開ファイルを保存しました。','warn');
+
+  // 停止したPJが現在表示中のPJなら再開ボタン表示
+  if(cur && cur.id === busyProjId){
+    setStopState('resume');
+    addSN('𓅯 停止しました。再開ファイルを保存しました。','warn');
+  } else {
+    // 別PJを停止した場合: 現在表示PJは通常状態に戻す
+    setStopState('hidden');
+    addSN('𓅯 処理中のプロジェクトを停止しました。','warn');
+  }
 }
 
 // ── 再起動 ───────────────────────────────────────────────
@@ -3028,68 +3092,75 @@ function addAgentFeedItemFromHistory(data) {
 // ═══════════════════════════════════════════════════════════
 let bpGeneratedMd = ''; // 最後に生成された設計図Markdown
 
-// AI応答から全ての---choices---ブロックをパースする（複数対応）
+// AI応答から全ての---choices---ブロックをパースする（質問テキスト付き）
 function parseBpChoices(text) {
   if(!text) return {mainText:text, choiceGroups:[], choices:[]};
   const groups = [];
   let mainText = text;
-  // 全ての---choices---...---/choices---ブロックを抽出
-  const regex = /---choices---\s*([\s\S]*?)\s*---\/choices---/g;
-  let match;
-  while((match = regex.exec(text)) !== null){
-    const items = match[1].split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-    if(items.length > 0) groups.push(items);
+  // 各choicesブロックとその直前の質問テキスト（**Q: ...**形式 or 最後の段落）を取得
+  const parts = text.split(/---choices---/);
+  if(parts.length <= 1) return {mainText:text, choiceGroups:[], choices:[]};
+  for(let i=1; i<parts.length; i++){
+    const endIdx = parts[i].indexOf('---/choices---');
+    if(endIdx < 0) continue;
+    const choiceBlock = parts[i].slice(0, endIdx);
+    const items = choiceBlock.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+    // 直前パートの最後の行から質問テキストを抽出
+    const prevLines = parts[i-1].trim().split('\n').filter(l=>l.trim());
+    let qLabel = '';
+    if(prevLines.length > 0){
+      const lastLine = prevLines[prevLines.length-1].trim();
+      // **Q1: xxx** or **xxx** or Q: xxx 形式を検出
+      const qm = lastLine.match(/\*?\*?(?:Q\d*[:：]?\s*)?(.+?)\*?\*?\s*$/);
+      if(qm) qLabel = qm[1].replace(/\*+/g,'').trim();
+    }
+    if(items.length > 0) groups.push({label: qLabel, items});
   }
   mainText = text.replace(/---choices---[\s\S]*?---\/choices---/g, '').trim();
-  // 後方互換: 全choicesをフラット配列でも返す
-  const allChoices = groups.reduce((acc,g)=>acc.concat(g),[]);
+  const allChoices = groups.reduce((acc,g)=>acc.concat(g.items),[]);
   return {mainText, choiceGroups:groups, choices:allChoices};
 }
 
-// 選択肢チップを質問グループごとに描画
+// 選択肢チップを質問グループごとに描画（質問ラベル付き）
 function renderBpChips(parentEl, choiceGroups) {
   if(!parentEl) return;
-  // choiceGroupsがフラット配列の場合は1グループ化
+  // フラット配列→グループ化
   let groups = choiceGroups;
-  if(groups.length > 0 && typeof groups[0] === 'string') groups = [groups];
+  if(groups.length > 0 && typeof groups[0] === 'string') groups = [{label:'', items:groups}];
 
-  const oldChips = parentEl.querySelectorAll('.bp-chips');
-  oldChips.forEach(e=>e.remove());
+  parentEl.querySelectorAll('.bp-chips').forEach(e=>e.remove());
 
   groups.forEach(group => {
-    if(!group || !group.length) return;
+    if(!group || (!group.items && !group.length)) return;
+    const items = group.items || group;
+    const label = group.label || '';
+    if(!items.length) return;
+
     const wrap = document.createElement('div'); wrap.className = 'bp-chips';
-    group.forEach(c => {
+    // 質問ラベルを表示
+    if(label){
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'width:100%;font-size:11px;color:var(--t2);font-weight:700;margin-bottom:2px;padding-left:2px';
+      lbl.textContent = '▸ ' + label;
+      wrap.appendChild(lbl);
+    }
+    items.forEach(c => {
       const chip = document.createElement('button'); chip.className = 'bp-chip';
       if(/設計図を生成|generate/i.test(c)) chip.classList.add('gen');
       chip.textContent = c;
       chip.addEventListener('click', ()=>doBpChipClick(c));
       wrap.appendChild(chip);
     });
-    // グループの最後に自由入力用の小さなテキストボックスを追加
+    // その他テキストボックス
     const customWrap = document.createElement('div');
-    customWrap.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-left:4px';
-    const customInp = document.createElement('input');
-    customInp.type = 'text';
-    customInp.placeholder = 'その他...';
-    customInp.style.cssText = 'background:var(--bg);border:1px solid var(--b2);border-radius:16px;color:var(--t1);font-size:12px;padding:6px 12px;width:120px;outline:none';
-    customInp.addEventListener('keydown', e=>{
-      if(e.key==='Enter' && customInp.value.trim()){
-        e.preventDefault();
-        doBpChipClick(customInp.value.trim());
-      }
-    });
-    const customBtn = document.createElement('button');
-    customBtn.className = 'bp-chip';
-    customBtn.textContent = '→';
-    customBtn.style.cssText = 'padding:6px 10px;min-width:auto';
-    customBtn.addEventListener('click', ()=>{
-      if(customInp.value.trim()) doBpChipClick(customInp.value.trim());
-    });
-    customWrap.appendChild(customInp);
-    customWrap.appendChild(customBtn);
+    customWrap.style.cssText = 'display:inline-flex;align-items:center;gap:4px';
+    const customInp = document.createElement('input'); customInp.type='text'; customInp.placeholder='その他...';
+    customInp.style.cssText = 'background:var(--bg);border:1px solid var(--b2);border-radius:16px;color:var(--t1);font-size:12px;padding:6px 12px;width:110px;outline:none';
+    customInp.addEventListener('keydown', e=>{ if(e.key==='Enter'&&customInp.value.trim()){ e.preventDefault(); doBpChipClick(customInp.value.trim()); }});
+    const customBtn = document.createElement('button'); customBtn.className='bp-chip'; customBtn.textContent='→'; customBtn.style.cssText='padding:6px 10px;min-width:auto';
+    customBtn.addEventListener('click', ()=>{ if(customInp.value.trim()) doBpChipClick(customInp.value.trim()); });
+    customWrap.appendChild(customInp); customWrap.appendChild(customBtn);
     wrap.appendChild(customWrap);
-
     parentEl.appendChild(wrap);
   });
   dn();
