@@ -173,6 +173,35 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 .task-name{color:#80d0a8;flex:1}
 .task-stat{font-size:11px;color:var(--ok2);flex-shrink:0}
 
+/* ── 設計図モード: 選択肢チップ ── */
+.bp-chips{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 2px;padding:0 2px}
+.bp-chip{background:var(--c3);border:1px solid var(--b2);color:var(--t1);padding:7px 15px;
+  border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;line-height:1.4}
+.bp-chip:hover{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);transform:translateY(-1px)}
+.bp-chip.gen{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);font-weight:700}
+.bp-chip.gen:hover{background:#0a2a1a;color:#4de8a8}
+
+/* ── Thinkingブロック ── */
+.thk-block{margin:4px 0;border:1px solid var(--b1);border-radius:5px;background:#040408;overflow:hidden}
+.thk-hdr{display:flex;align-items:center;gap:6px;padding:5px 11px;font-size:11px;color:#8888bb;
+  border-bottom:1px solid var(--b1);cursor:pointer;user-select:none}
+.thk-hdr:hover{background:#0a0a14}
+.thk-body{padding:8px 11px;font-size:11px;color:#7777aa;font-family:'Menlo',monospace;
+  line-height:1.6;max-height:200px;overflow-y:auto;white-space:pre-wrap;display:none}
+.thk-block.open .thk-body{display:block}
+
+/* ── 設計図プレビュー ── */
+#bp-preview{display:none;flex-direction:column;border-top:1px solid var(--ok);background:#050a08;max-height:40vh;overflow:hidden}
+#bp-preview.open{display:flex}
+#bp-preview-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--ok-bg);border-bottom:1px solid var(--ok-bdr);flex-shrink:0}
+#bp-preview-bar span{font-size:12px;font-weight:700;color:var(--ok);flex:1}
+#bp-preview-content{flex:1;overflow-y:auto;padding:14px 18px;font-size:13px;line-height:1.85;color:var(--t1)}
+.bp-bar-btn{background:none;border:1px solid var(--ok);color:var(--ok);padding:4px 12px;
+  border-radius:5px;cursor:pointer;font-size:11px;font-weight:700}
+.bp-bar-btn:hover{background:var(--ok-bg);color:#4de8a8}
+.bp-bar-btn.warn{border-color:var(--warn);color:var(--warn)}
+.bp-bar-btn.warn:hover{background:var(--warn-bg);color:#f0a040}
+
 /* ── 入力エリア ── */
 .ia{padding:12px 18px;border-top:1px solid var(--b1);background:var(--c1);flex-shrink:0}
 .chat-opts{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
@@ -419,6 +448,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <div id="cw">
       <div class="mode-bar" id="mode-bar" style="display:none">
         <button class="mt on" id="tab-debug" onclick="switchMode('debug')" style="display:none">𓃗 デバッグ</button>
+        <button id="bp-gen-btn" onclick="doBlueprintGenerate()" style="display:none;background:var(--ok-bg);border:1px solid var(--ok);color:var(--ok);padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;margin-left:auto;white-space:nowrap">𓏛 設計図を生成</button>
         <button id="res-btn"  onclick="doRestart()">↺ 再起動</button>
       </div>
       <div id="prog-bar">
@@ -430,7 +460,18 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         </div>
       </div>
       <div id="dbg-banner">𓃗 デバッグ・機能追加モード — バグ修正・テスト・機能拡張</div>
+      <div id="bp-banner" style="display:none;background:#0a0610;border-bottom:1px solid #2a1848;padding:8px 18px;font-size:12px;color:#a080d0;flex-shrink:0;font-weight:600">𓏛 設計図作成モード — 対話で要件を整理し .md 設計書を生成します</div>
       <div id="msgs"></div>
+      <!-- 設計図プレビューパネル -->
+      <div id="bp-preview">
+        <div id="bp-preview-bar">
+          <span>𓏛 生成された設計図</span>
+          <button class="bp-bar-btn" onclick="copyBpPreview()">コピー</button>
+          <button class="bp-bar-btn" onclick="saveBpToFile()">💾 .md保存</button>
+          <button class="bp-bar-btn warn" onclick="closeBpPreview()">閉じる</button>
+        </div>
+        <div id="bp-preview-content" class="md-rendered"></div>
+      </div>
       <div class="ia">
         <div class="chat-opts" id="chat-opts" style="display:none">
           <button class="att-add-btn" id="btn-img">＋ 画像</button>
@@ -488,6 +529,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <div class="lbl">種類</div>
     <div class="mcs">
       <div class="mc" id="mCC" onclick="selT('chat')"><div class="mc-g">𓃰</div><div class="mc-l">チャット</div><div class="mc-d">会話・調査</div></div>
+      <div class="mc" id="mCB" onclick="selT('blueprint')"><div class="mc-g">𓏛</div><div class="mc-l">設計図作成</div><div class="mc-d">対話で.md設計書を作成</div></div>
       <div class="mc" id="mCD" onclick="selT('design')"><div class="mc-g">𓃭</div><div class="mc-l">アプリ設計</div><div class="mc-d">設計図から開発</div></div>
     </div>
     <!-- チャット用: 名前は任意（省略で自動生成） -->
@@ -496,6 +538,15 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <input class="inp2" id="nNm" type="text" placeholder="省略すると最初のメッセージから自動生成">
       <div class="lbl">システムプロンプト（任意）</div>
       <textarea class="ta2" id="nSys" placeholder="このプロジェクト専用の指示..."></textarea>
+    </div>
+    <!-- 設計図作成用 -->
+    <div id="nBlueprintOpts" style="display:none">
+      <div class="lbl">プロジェクト名</div>
+      <input class="inp2" id="nNmBp" type="text" placeholder="例: ECサイト設計" oninput="valNew()">
+      <div class="lbl">出力先フォルダ</div>
+      <div class="mf"><div class="mfd" id="fDBp">未選択</div><button class="mfb" onclick="pickFBp()">選択...</button></div>
+      <div class="lbl">アプリの概要・アイデア（任意）</div>
+      <textarea class="ta2" id="nBpIdea" placeholder="作りたいアプリのアイデアや要件を入力...（空欄でもAIが質問しながら設計を進めます）" style="min-height:80px"></textarea>
     </div>
     <!-- アプリ設計用: 名前・フォルダ必須 -->
     <div id="nDesignOpts" style="display:none">
@@ -777,6 +828,42 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         </select>
       </div>
     </div>
+    <!-- 設計図作成AI設定 -->
+    <div class="set-sec">
+      <div class="set-stl">設計図作成 AI</div>
+      <div class="set-hint" style="margin:0 0 8px">外部API（DeepSeek/OpenAI/Anthropic）またはローカルLLMを選択</div>
+      <div class="set-row">
+        <span class="set-lbl">AIタイプ</span>
+        <select class="set-inp" id="sBpType" style="width:160px;cursor:pointer;background:var(--bg)" onchange="onBpTypeChange()">
+          <option value="local">ローカルLLM</option>
+          <option value="deepseek">DeepSeek API</option>
+          <option value="openai">OpenAI API</option>
+          <option value="anthropic">Anthropic API</option>
+        </select>
+      </div>
+      <div id="sBpLocalRow" class="set-row">
+        <span class="set-lbl">ホスト</span>
+        <input class="set-inp" id="sBpHost" type="text" placeholder="(デフォルト)" style="width:140px">
+        <span style="font-size:12px;color:var(--t3);margin:0 4px">:</span>
+        <input class="set-inp" id="sBpPort" type="number" min="1" max="65535" placeholder="(デフォルト)" style="width:75px">
+      </div>
+      <div id="sBpApiKeyRow" class="set-row" style="display:none">
+        <span class="set-lbl">APIキー</span>
+        <input class="set-inp" id="sBpApiKey" type="password" placeholder="sk-..." style="width:240px">
+      </div>
+      <div class="set-row">
+        <span class="set-lbl">モデル</span>
+        <select class="set-inp" id="sBpModel" style="width:220px;cursor:pointer;background:var(--bg)">
+          <option value="">デフォルト（自動検出）</option>
+        </select>
+        <button class="mfb" onclick="fetchBpModels()" style="margin-left:8px;font-size:11px;padding:5px 10px">モデル取得</button>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl">Thinking</span>
+        <input type="checkbox" id="sBpThinking" style="accent-color:var(--ok);cursor:pointer">
+        <span style="font-size:11px;color:var(--t3);margin-left:6px">DeepSeek R1 / Claude等のThinkingモードを有効化</span>
+      </div>
+    </div>
     <!-- ⑤ エージェント詳細設定（ウォッチャーボタン） -->
     <div class="set-sec">
       <div class="set-stl">エージェント詳細設定</div>
@@ -926,13 +1013,26 @@ A.onChunk(ev=>{
   }
   switch(ev.type){
     case 'text':
-      if (!ev.data) break; // 空データは無視
+      if (!ev.data) break;
       curFull += ev.data;
-      // 問題2対策: curElがDOMからデタッチされていたら再構築（同PJ再表示時）
       if(!curEl || isMsgDetached()){
         const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl);
       }
-      if(curBb) { curBb.innerHTML = renderMd(curFull); curBb.classList.add('md-rendered'); }
+      if(curBb) {
+        // 設計図モード: 選択肢を分離してレンダリング
+        const {mainText, choices} = parseBpChoices(curFull);
+        curBb.innerHTML = renderMd(mainText); curBb.classList.add('md-rendered');
+        // 選択肢チップを描画（busyが解除されてから表示するため、textイベント中は一時保存のみ）
+        if(curEl) curEl._bpChoices = choices;
+      }
+      dn(); break;
+    case 'thinking':
+      if (!ev.data) break;
+      // Thinkingブロックをメッセージ欄に表示
+      if(!curEl || isMsgDetached()){
+        const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl);
+      }
+      addThinkingBlock(curEl, ev.data);
       dn(); break;
     case 'tool':
       // curElがデタッチされていたら再構築
@@ -1155,7 +1255,7 @@ async function loadPL(){
     const d=document.createElement('div');
     d.className='pi'+(cur&&cur.id===p.id?' on':'');
     d.dataset.id=p.id;
-    const g=p.type==='design'?'𓃭':'𓃰';
+    const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':'𓃰';
     d.innerHTML=`<span class="pi-g">${g}</span><div class="pi-info"><div class="pi-nm">${esc(p.name)}</div><div class="pi-mt">${fmt(p.updatedAt)}</div></div><button class="pi-del" onclick="delP(event,'${p.id}')">×</button>`;
     d.addEventListener('click',()=>openP(p.id));
     d.addEventListener('contextmenu', e=>{ e.preventDefault(); showCtxMenu(e, p.id, p.name); });
@@ -1181,7 +1281,8 @@ async function openP(id){
   // 最新データをディスクから読む
   const p = await A.getProject(id); if(!p){ curSid=prevSid; return; }
   cur=p; curSid='P'+id;
-  curMode=p.type==='design'?(p.devDone?'debug':'dev'):'chat';
+  curMode=p.type==='design'?(p.devDone?'debug':'dev'):
+          p.type==='blueprint'?'blueprint':'chat';
 
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
@@ -1275,68 +1376,101 @@ function renderHist(ms){
     // 旧role:'tool'エントリは安全にスキップ（横線防止）
   });
   dn();
+  // 設計図モード: 最後のAI応答の選択肢を復元
+  if(typeof renderHistBpHook === 'function') renderHistBpHook(ms);
 }
 
 // ── 新規プロジェクト ─────────────────────────────────────
+let sFBp=null; // 設計図用フォルダ
 function openNew(){
-  sT=null; sF=null;
+  sT=null; sF=null; sFBp=null;
   document.getElementById('nNm').value='';
   document.getElementById('nNmDesign').value='';
   document.getElementById('fD').textContent='未選択';
   document.getElementById('nSys').value='';
   document.getElementById('nSysDesign').value='';
+  document.getElementById('nNmBp').value='';
+  document.getElementById('fDBp').textContent='未選択';
+  document.getElementById('nBpIdea').value='';
   document.getElementById('bCr').disabled=true;
   document.getElementById('mCC').classList.remove('s'); document.getElementById('mCD').classList.remove('s');
+  document.getElementById('mCB').classList.remove('s');
   document.getElementById('nChatOpts').style.display='none';
   document.getElementById('nDesignOpts').style.display='none';
+  document.getElementById('nBlueprintOpts').style.display='none';
   openM('mN');
 }
 function selT(t){
   sT=t;
   document.getElementById('mCC').classList.toggle('s',t==='chat');
+  document.getElementById('mCB').classList.toggle('s',t==='blueprint');
   document.getElementById('mCD').classList.toggle('s',t==='design');
-  // チャット: 名前/フォルダは任意
-  document.getElementById('nChatOpts').style.display   = t==='chat'   ? '' : 'none';
-  document.getElementById('nDesignOpts').style.display = t==='design' ? '' : 'none';
-  // チャットは名前なしでもOKなのでボタンを即有効化
+  document.getElementById('nChatOpts').style.display      = t==='chat'      ? '' : 'none';
+  document.getElementById('nBlueprintOpts').style.display  = t==='blueprint' ? '' : 'none';
+  document.getElementById('nDesignOpts').style.display     = t==='design'    ? '' : 'none';
   if(t==='chat') document.getElementById('bCr').disabled=false;
   valNew();
-  setTimeout(()=>{ const f=t==='chat'?document.getElementById('nNm'):document.getElementById('nNmDesign'); if(f)f.focus(); },60);
+  setTimeout(()=>{
+    const f = t==='chat'?document.getElementById('nNm'):
+              t==='blueprint'?document.getElementById('nNmBp'):
+              document.getElementById('nNmDesign');
+    if(f)f.focus();
+  },60);
 }
 function valNew(){
   if(!sT){ document.getElementById('bCr').disabled=true; return; }
   if(sT==='chat'){
-    document.getElementById('bCr').disabled=false; // チャットは常にOK
+    document.getElementById('bCr').disabled=false;
+  } else if(sT==='blueprint'){
+    document.getElementById('bCr').disabled=!(document.getElementById('nNmBp').value.trim());
   } else {
-    // アプリ設計: 名前とフォルダが必要
     document.getElementById('bCr').disabled=!(document.getElementById('nNmDesign').value.trim()&&sF);
   }
 }
 async function pickF(){ const f=await A.pickFolder(); if(f){ sF=f; document.getElementById('fD').textContent=f; valNew(); } }
+async function pickFBp(){ const f=await A.pickFolder(); if(f){ sFBp=f; document.getElementById('fDBp').textContent=f; } }
 async function doCreate(){
   if(!sT) return;
   let nm, sys, workDir;
   if(sT==='chat'){
-    nm      = document.getElementById('nNm').value.trim() || ''; // 空でもOK
+    nm      = document.getElementById('nNm').value.trim() || '';
     sys     = document.getElementById('nSys').value.trim();
     workDir = sF || null;
+  } else if(sT==='blueprint'){
+    nm      = document.getElementById('nNmBp').value.trim();
+    if(!nm) return;
+    sys     = '';
+    workDir = sFBp || null;
   } else {
     nm      = document.getElementById('nNmDesign').value.trim();
     sys     = document.getElementById('nSysDesign').value.trim();
     workDir = sF;
     if(!nm||!sF) return;
   }
-  // チャットでプロジェクト名未入力: 仮名で作成、後で自動生成
   const isAutoName = sT==='chat' && !nm;
   const tmpName = isAutoName ? '新規チャット' : nm;
   const p=await A.createProject({name:tmpName, type:sT, workDir:workDir||'', systemPrompt:sys});
   closeM('mN'); cur=p; curSid='P'+p.id;
-  curMode=sT==='design'?'dev':'chat';
+  curMode = sT==='design'?'dev': sT==='blueprint'?'blueprint': 'chat';
   loadPL(); showChat();
   document.getElementById('pn').textContent=' · '+p.name;
   document.getElementById('msgs').innerHTML='';
   updateModeUI();
   if(sT==='design') setTimeout(openDes,120);
+  else if(sT==='blueprint'){
+    // 設計図モード開始
+    const idea = document.getElementById('nBpIdea').value.trim();
+    if(idea){
+      // ユーザーのアイデアを初期メッセージとして送信
+      cur.messages.push({role:'user',content:idea});
+      addUserBubble(idea,0);
+      startBusy();
+      await chatInternal(idea,'blueprint');
+      if(cur) A.updateProject(cur.id,cur);
+    } else {
+      addAI('𓏛 設計図作成モードへようこそ！\n\nどんなアプリを作りたいですか？アイデアや要件を教えてください。\n対話を通じて要件を整理し、最終的に開発用の設計書(.md)を出力します。');
+    }
+  }
   else addAI('𓂀 こんにちは！何でも話しかけてください。');
 }
 
@@ -1498,19 +1632,33 @@ async function execFin(){
 function updateModeUI(){
   const bar=document.getElementById('mode-bar'), dbg=document.getElementById('dbg-banner');
   const chatOpts=document.getElementById('chat-opts');
+  const bpBanner=document.getElementById('bp-banner');
+  const bpGenBtn=document.getElementById('bp-gen-btn');
   if(!cur) return;
-  if(cur.type==='design'){
+  // 設計図モード
+  if(cur.type==='blueprint'){
+    bar.style.display='flex';
+    if(bpGenBtn) bpGenBtn.style.display='';
+    document.getElementById('tab-debug').style.display='none';
+    dbg.style.display='none';
+    if(bpBanner) bpBanner.style.display='block';
+    chatOpts.style.display='none';
+    document.getElementById('prog-bar').style.display='none';
+  } else if(cur.type==='design'){
+    if(bpGenBtn) bpGenBtn.style.display='none';
+    if(bpBanner) bpBanner.style.display='none';
     const tabDebug=document.getElementById('tab-debug');
     bar.style.display=cur.devDone?'flex':'none';
     if(tabDebug) tabDebug.style.display=cur.devDone?'':'none';
     if(tabDebug) tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
     chatOpts.style.display=cur.devDone?'flex':'none';
-    // 問題③: devモード中は常にprog-barを表示（taskTotal=0でも）
     const showProg = curMode==='dev' && busy;
     document.getElementById('prog-bar').style.display = showProg ? 'block' : (taskTotal>0 ? 'block' : 'none');
   } else {
     bar.style.display='none'; dbg.style.display='none';
+    if(bpGenBtn) bpGenBtn.style.display='none';
+    if(bpBanner) bpBanner.style.display='none';
     chatOpts.style.display='flex';
     document.getElementById('prog-bar').style.display='none';
   }
@@ -1567,7 +1715,8 @@ async function doSend(){
   const msgIdx=cur.messages.length-1;
   addUserBubble(txt,msgIdx);
   startBusy();
-  const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
+  const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):
+                  cur.type==='blueprint'?'blueprint':curMode;
   await chatInternal(txt,sendMode,attachs,ds);
   if(cur) {
     // チャットPJの名前が「新規チャット」のまま → 最初のメッセージから自動生成
@@ -1608,6 +1757,10 @@ async function chatInternal(msg,mode,attachments,ds){
     // 現在表示中のPJと処理していたPJが同じ場合のみUIをリセット
     if(curSid === snapSessId){
       endBusy();
+      // 設計図モード: AI応答完了後に選択肢チップを表示
+      if(curEl && curEl._bpChoices && curEl._bpChoices.length > 0 && (mode==='blueprint'||mode==='blueprint-gen')){
+        renderBpChips(curEl, curEl._bpChoices);
+      }
       document.getElementById('inp').focus();
     }
     // 別PJに切り替えていた場合: openP内でbusy=falseに既になっている
@@ -1665,7 +1818,8 @@ async function doRestart(){
   await A.setHistory({sessId:curSid,history:cleanHistory.filter(m=>m.role==='user'||m.role==='assistant')});
   cur.messages=cleanHistory;
   startBusy();
-  const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
+  const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):
+                  cur.type==='blueprint'?'blueprint':curMode;
   if(sendMode==='dev') startDevTimer();
   await chatInternal(lastUser.content,sendMode);
   if(sendMode==='dev') stopDevTimer();
@@ -1739,7 +1893,8 @@ async function commitEdit(idx,ta){
     if(msgParent){ const old=msgParent.querySelector('.edit-btn-row'); if(old) old.remove(); msgParent.appendChild(er); }
   }
   startBusy();
-  const sendMode=cur&&cur.type==='design'?(curMode==='debug'?'debug':'dev'):curMode;
+  const sendMode=cur&&cur.type==='design'?(curMode==='debug'?'debug':'dev'):
+                  cur&&cur.type==='blueprint'?'blueprint':curMode;
   await chatInternal(newText,sendMode);
   if(cur) A.updateProject(cur.id,cur);
 }
@@ -1767,7 +1922,9 @@ function addUserBubble(t,idx){
 
 function addAI(t){
   const {el,bb}=mkAI();
-  bb.innerHTML=renderMd(t); bb.classList.add('md-rendered');
+  // 設計図モード: 選択肢ブロックを除去してレンダリング
+  const {mainText} = parseBpChoices(t);
+  bb.innerHTML=renderMd(mainText); bb.classList.add('md-rendered');
   msgs().appendChild(el); dn(); return el;
 }
 
@@ -1874,6 +2031,14 @@ async function openSet(){
   // モデル選択肢を非同期で取得
   loadChatModelSelect(c.chatModelId||'');
   loadAgentModelSelect(c.agentModelId||c.watcherModelId||'');
+  // 設計図AI設定
+  document.getElementById('sBpType').value = c.blueprintAiType||'local';
+  document.getElementById('sBpHost').value = c.blueprintAiHost||'';
+  document.getElementById('sBpPort').value = c.blueprintAiPort||'';
+  document.getElementById('sBpApiKey').value = c.blueprintApiKey||'';
+  document.getElementById('sBpModel').value = c.blueprintModelId||'';
+  document.getElementById('sBpThinking').checked = !!c.blueprintThinking;
+  onBpTypeChange(); // ローカル/API切替UIを反映
   openM('mS');
 }
 async function fetchChatModels(){
@@ -1926,12 +2091,21 @@ async function savSet(){
   const agentModel=document.getElementById('sAgentModel').value;
   const uiLang = document.getElementById('sUiLang').value || 'ja';
   const aiLang = document.getElementById('sAiLang').value || 'ja';
+  // 設計図AI設定
+  const bpType = document.getElementById('sBpType').value;
+  const bpHost = document.getElementById('sBpHost').value.trim();
+  const bpPort = parseInt(document.getElementById('sBpPort').value)||0;
+  const bpModel = document.getElementById('sBpModel').value;
+  const bpApiKey = document.getElementById('sBpApiKey').value.trim();
+  const bpThinking = document.getElementById('sBpThinking').checked;
   await A.saveCfg({aiHost:host,aiPort:port,searxngUrl:searx,timeout:to,
     logEnabled:document.getElementById('sLog').checked,
     logMaxDays:parseInt(document.getElementById('sLogDays').value)||7,handsOff,
     chatAiHost, chatAiPort, chatModelId,
     agentAiHost:agentHost, agentAiPort:agentPort, agentModelId:agentModel,
-    uiLanguage:uiLang, aiResponseLanguage:aiLang});
+    uiLanguage:uiLang, aiResponseLanguage:aiLang,
+    blueprintAiType:bpType, blueprintAiHost:bpHost, blueprintAiPort:bpPort,
+    blueprintModelId:bpModel, blueprintApiKey:bpApiKey, blueprintThinking:bpThinking});
   // ウォッチャー設定にも反映
   const wcfg=await A.getWatcherCfg();
   wcfg.agentAiHost=agentHost; wcfg.agentAiPort=agentPort; wcfg.agentModelId=agentModel;
@@ -2782,6 +2956,174 @@ function addAgentFeedItemFromHistory(data) {
   bb.classList.add('md-rendered');
   msgEl.appendChild(bb);
   container.appendChild(msgEl);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// 設計図作成モード
+// ═══════════════════════════════════════════════════════════
+let bpGeneratedMd = ''; // 最後に生成された設計図Markdown
+
+// AI応答から---choices---...---/choices---ブロックをパースする
+function parseBpChoices(text) {
+  if(!text) return {mainText:text, choices:[]};
+  const m = text.match(/---choices---\s*([\s\S]*?)\s*---\/choices---/);
+  if(!m) return {mainText:text, choices:[]};
+  const mainText = text.replace(/---choices---[\s\S]*?---\/choices---/,'').trim();
+  const choices = m[1].split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  return {mainText, choices};
+}
+
+// 選択肢チップをAIメッセージ要素の下に描画
+function renderBpChips(parentEl, choices) {
+  if(!parentEl || !choices || !choices.length) return;
+  // 既存チップを削除
+  const old = parentEl.querySelector('.bp-chips');
+  if(old) old.remove();
+  const wrap = document.createElement('div'); wrap.className = 'bp-chips';
+  choices.forEach(c => {
+    const chip = document.createElement('button'); chip.className = 'bp-chip';
+    if(/設計図を生成|generate/i.test(c)) chip.classList.add('gen');
+    chip.textContent = c;
+    chip.addEventListener('click', ()=>{ doBpChipClick(c); });
+    wrap.appendChild(chip);
+  });
+  parentEl.appendChild(wrap);
+  dn();
+}
+
+// 選択肢チップクリック → メッセージとして送信
+function doBpChipClick(text) {
+  if(busy) return;
+  // 「設計図を生成」系の選択肢の場合
+  if(/設計図を生成|generate/i.test(text)){
+    doBlueprintGenerate();
+    return;
+  }
+  // 通常の選択肢: メッセージとして送信
+  const el = document.getElementById('inp');
+  el.value = text;
+  doSend();
+}
+
+// 設計図生成ボタン / 選択肢からのトリガー
+async function doBlueprintGenerate() {
+  if(!cur || busy) return;
+  addSN('𓏛 設計図を生成中...','ok');
+  // ユーザーメッセージとして「設計図を生成してください」を追加
+  const genMsg = 'これまでの会話内容をもとに、設計図(.md)を生成してください。';
+  if(!cur.messages) cur.messages = [];
+  cur.messages.push({role:'user', content:genMsg});
+  addUserBubble(genMsg, cur.messages.length-1);
+  startBusy();
+  const result = await chatInternal(genMsg, 'blueprint-gen');
+  if(result) {
+    bpGeneratedMd = result;
+    showBpPreview(result);
+  }
+  if(cur) A.updateProject(cur.id, cur);
+}
+
+// 設計図プレビュー表示
+function showBpPreview(mdText) {
+  bpGeneratedMd = mdText;
+  const panel = document.getElementById('bp-preview');
+  const content = document.getElementById('bp-preview-content');
+  if(!panel || !content) return;
+  content.innerHTML = renderMd(mdText);
+  panel.classList.add('open');
+  dn();
+}
+function closeBpPreview() {
+  document.getElementById('bp-preview').classList.remove('open');
+}
+
+// クリップボードにコピー
+function copyBpPreview() {
+  if(!bpGeneratedMd) return;
+  navigator.clipboard.writeText(bpGeneratedMd).then(()=>{
+    addSN('📋 設計図をクリップボードにコピーしました','ok');
+  }).catch(()=>{
+    addSN('× コピーに失敗しました','err');
+  });
+}
+
+// .mdファイルに保存
+async function saveBpToFile() {
+  if(!bpGeneratedMd) return;
+  const workDir = cur && cur.workDir;
+  if(!workDir) {
+    // フォルダ未設定: 選択ダイアログ
+    const f = await A.pickFolder();
+    if(!f) return;
+    if(cur) { cur.workDir = f; await A.updateProject(cur.id, cur); }
+    const r = await A.saveBlueprintFile({workDir:f, content:bpGeneratedMd, fileName:'DESIGN.md'});
+    if(r.ok) addSN(`💾 設計図を保存しました: ${r.path}`,'ok');
+    else addSN(`× 保存失敗: ${r.error}`,'err');
+  } else {
+    const r = await A.saveBlueprintFile({workDir, content:bpGeneratedMd, fileName:'DESIGN.md'});
+    if(r.ok) addSN(`💾 設計図を保存しました: ${r.path}`,'ok');
+    else addSN(`× 保存失敗: ${r.error}`,'err');
+  }
+}
+
+// Thinkingブロック追加（折りたたみ式）
+function addThinkingBlock(parentEl, text) {
+  if(!parentEl || !text) return;
+  const block = document.createElement('div'); block.className = 'thk-block';
+  const hdr = document.createElement('div'); hdr.className = 'thk-hdr';
+  hdr.innerHTML = '<span>💭</span><span>Thinking...</span><span style="margin-left:auto;font-size:10px">▼</span>';
+  hdr.addEventListener('click', ()=>{ block.classList.toggle('open'); });
+  const body = document.createElement('div'); body.className = 'thk-body';
+  body.textContent = text;
+  block.appendChild(hdr); block.appendChild(body);
+  // curBbの前に挿入
+  const bb = parentEl.querySelector('.mb');
+  if(bb) parentEl.insertBefore(block, bb);
+  else parentEl.appendChild(block);
+}
+
+// 設定: 設計図AI関連
+function onBpTypeChange() {
+  const type = document.getElementById('sBpType').value;
+  document.getElementById('sBpLocalRow').style.display = type==='local' ? 'flex' : 'none';
+  document.getElementById('sBpApiKeyRow').style.display = type!=='local' ? 'flex' : 'none';
+}
+async function fetchBpModels() {
+  const sel = document.getElementById('sBpModel');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">デフォルト（自動検出）</option>';
+  try {
+    // 先にCfg一時保存してからモデル取得
+    const type = document.getElementById('sBpType').value;
+    const tempCfg = {
+      blueprintAiType: type,
+      blueprintAiHost: document.getElementById('sBpHost').value.trim(),
+      blueprintAiPort: parseInt(document.getElementById('sBpPort').value)||0,
+      blueprintApiKey: document.getElementById('sBpApiKey').value.trim(),
+    };
+    await A.saveCfg(tempCfg);
+    const models = await A.getBlueprintModels();
+    models.forEach(m=>{
+      const o=document.createElement('option'); o.value=m.id; o.textContent=m.name||m.id;
+      if(m.id===prev) o.selected=true; sel.appendChild(o);
+    });
+  } catch {}
+}
+
+// renderHist後にblueprint選択肢を復元するフック
+function renderHistBpHook(ms) {
+  if(cur && cur.type === 'blueprint' && ms.length > 0) {
+    const lastAi = [...ms].reverse().find(m=>m.role==='assistant');
+    if(lastAi && lastAi.content) {
+      const {choices} = parseBpChoices(lastAi.content);
+      if(choices.length > 0) {
+        const allMsgs = document.getElementById('msgs').querySelectorAll('.msg.ai');
+        const lastMsgEl = allMsgs[allMsgs.length-1];
+        if(lastMsgEl) renderBpChips(lastMsgEl, choices);
+      }
+    }
+  }
 }
 
 

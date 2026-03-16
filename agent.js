@@ -23,6 +23,11 @@ const DEFAULT_CFG = {
   agentAiHost: '', agentAiPort: 0, agentModelId: '', // エージェント専用AI ④
   uiLanguage: 'ja', // UI言語: 'ja' | 'en'
   aiResponseLanguage: 'ja', // AI応答言語: 'ja' | 'en'
+  // 設計図作成AI
+  blueprintAiType: 'local',  // 'local' | 'deepseek' | 'openai' | 'anthropic'
+  blueprintAiHost: '', blueprintAiPort: 0, blueprintModelId: '',
+  blueprintApiKey: '',
+  blueprintThinking: false,
 };
 
 function loadCfg() {
@@ -91,6 +96,225 @@ function httpGet(host, port, p, tms=5000) {
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
     req.end();
   });
+}
+
+// ── HTTPS POST（外部API用）──────────────────────────────
+function httpsPost(hostname, port, p, body, tms, extraHeaders) {
+  return new Promise((resolve, reject) => {
+    const bs = JSON.stringify(body);
+    const headers = Object.assign({'Content-Type':'application/json','Content-Length':Buffer.byteLength(bs)}, extraHeaders||{});
+    const req = https.request({hostname, port:port||443, path:p, method:'POST', headers, timeout:tms||120000}, res => {
+      let raw=''; res.on('data', c => raw+=c);
+      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('JSON parse失敗:'+raw.slice(0,200))); } });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error(`HTTPS タイムアウト(${Math.round((tms||120000)/1000)}s)`)); });
+    req.write(bs); req.end();
+  });
+}
+
+// ── 設計図AI設定 ─────────────────────────────────────────
+const BP_API_HOSTS = {deepseek:'api.deepseek.com', openai:'api.openai.com', anthropic:'api.anthropic.com'};
+function getBlueprintAI() {
+  return {
+    type: cfg.blueprintAiType||'local',
+    host: cfg.blueprintAiHost || BP_API_HOSTS[cfg.blueprintAiType] || cfg.chatAiHost || cfg.aiHost || 'localhost',
+    port: cfg.blueprintAiPort || (cfg.blueprintAiType!=='local'?443:0) || cfg.chatAiPort || cfg.aiPort || 1234,
+    model: cfg.blueprintModelId || cfg.chatModelId || MODEL_ID,
+    apiKey: cfg.blueprintApiKey || '',
+    thinking: !!cfg.blueprintThinking,
+  };
+}
+
+// 外部API: OpenAI互換呼び出し (local / deepseek / openai)
+async function callOpenAICompatBP(bpCfg, msgs, tms) {
+  const isLocal = bpCfg.type==='local';
+  const host = bpCfg.host;
+  const port = bpCfg.port || (isLocal ? (cfg.aiPort||1234) : 443);
+  const body = {model:bpCfg.model, messages:msgs, temperature:0.7, max_tokens:4096, stream:false};
+  if(bpCfg.thinking) body.enable_thinking = true; // DeepSeek R1等
+  const headers = {};
+  if(bpCfg.apiKey) headers['Authorization'] = `Bearer ${bpCfg.apiKey}`;
+  let data;
+  if(isLocal) data = await httpPost(host, port, '/v1/chat/completions', body, tms||cfg.timeout*1000);
+  else data = await httpsPost(host, port, '/v1/chat/completions', body, tms||120000, headers);
+  const msg = data.choices?.[0]?.message;
+  return {text: msg?.content||'', thinking: msg?.reasoning_content||''};
+}
+
+// 外部API: Anthropic呼び出し
+async function callAnthropicBP(bpCfg, history, sysPrompt, tms) {
+  if(!bpCfg.apiKey) throw new Error('Anthropic APIキーが未設定です');
+  const aMsgs = history.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
+  if(!aMsgs.length || aMsgs[0].role!=='user') aMsgs.unshift({role:'user',content:'よろしくお願いします。'});
+  const body = {model:bpCfg.model||'claude-sonnet-4-20250514', max_tokens:8096, system:sysPrompt, messages:aMsgs};
+  if(bpCfg.thinking) { body.thinking={type:'enabled',budget_tokens:10000}; body.max_tokens=16000; }
+  const headers = {'Content-Type':'application/json','x-api-key':bpCfg.apiKey,'anthropic-version':'2023-06-01'};
+  if(bpCfg.thinking) headers['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  const data = await httpsPost('api.anthropic.com', 443, '/v1/messages', body, tms||120000, headers);
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  let thinking='', text='';
+  for(const b of (data.content||[])){if(b.type==='thinking')thinking+=b.thinking;if(b.type==='text')text+=b.text;}
+  return {thinking, text};
+}
+
+// 設計図AI統合呼び出し
+async function callBlueprintAI(history, sysPrompt) {
+  const bp = getBlueprintAI();
+  if(!bp.model && bp.type==='local') { await detectModel(); bp.model = MODEL_ID; }
+  if(!bp.model) throw new Error('AIモデルが未設定です');
+  const msgs = [{role:'system',content:sysPrompt},...history];
+  if(bp.type==='anthropic') return callAnthropicBP(bp, history, sysPrompt);
+  return callOpenAICompatBP(bp, msgs);
+}
+
+// 設計図チャット1ターン実行（リトライ・abort対応）
+async function runBlueprintChat(sessId, history, sysPrompt, onEvent) {
+  const ac = new AbortController();
+  abortMap.set(sessId, ac);
+  let result = '', retries = 0;
+  try {
+    while(retries <= 3) {
+      if(ac.signal.aborted) { onEvent({type:'text',data:'\n■ 停止しました。'}); break; }
+      try {
+        const resp = await callBlueprintAI(history, sysPrompt);
+        if(resp.thinking) onEvent({type:'thinking', data:resp.thinking});
+        if(resp.text) { onEvent({type:'text', data:resp.text}); result=resp.text; }
+        if(!result) { retries++; onEvent({type:'system',data:`⚠ 応答が空でした。再試行中(${retries}/3)...`}); await new Promise(r=>setTimeout(r,5000)); continue; }
+        break;
+      } catch(e) {
+        if(ac.signal.aborted) break;
+        retries++;
+        if(retries>3) { onEvent({type:'text',data:`\n× 通信エラー: ${e.message}`}); onEvent({type:'timeout',data:e.message}); break; }
+        const wait = retries*10;
+        onEvent({type:'system',data:`⚠ エラー(${e.message.slice(0,60)}) — ${retries}/3回 ${wait}秒後に再試行...`});
+        await new Promise(r=>setTimeout(r,wait*1000));
+      }
+    }
+  } finally { abortMap.delete(sessId); }
+  return result;
+}
+
+// 設計図モデル一覧取得（外部API対応）
+async function detectBlueprintModels() {
+  const bp = getBlueprintAI();
+  if(bp.type==='local') return detectModelsAt(bp.host, bp.port);
+  if(bp.type==='anthropic') return [
+    {id:'claude-sonnet-4-20250514',name:'Claude Sonnet 4'},
+    {id:'claude-opus-4-20250514',name:'Claude Opus 4'},
+    {id:'claude-haiku-4-20250414',name:'Claude Haiku 4'},
+  ];
+  // DeepSeek / OpenAI: /v1/models をHTTPS GET
+  try {
+    const headers = {};
+    if(bp.apiKey) headers['Authorization'] = `Bearer ${bp.apiKey}`;
+    const data = await new Promise((resolve,reject)=>{
+      const host = bp.host || BP_API_HOSTS[bp.type];
+      const req = https.request({hostname:host,port:443,path:'/v1/models',method:'GET',timeout:10000,headers}, res=>{
+        let raw='';res.on('data',c=>raw+=c);res.on('end',()=>{try{resolve(JSON.parse(raw));}catch{reject(new Error('parse'));}});
+      });
+      req.on('error',reject);req.on('timeout',()=>{req.destroy();reject(new Error('timeout'));});req.end();
+    });
+    return (data.data||[]).map(m=>({id:m.id,name:m.id}));
+  } catch { return []; }
+}
+
+// ── 設計図システムプロンプト ─────────────────────────────
+function buildBlueprintSysPrompt(workDir, customSys) {
+  const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
+  return `あなたはアプリケーション設計の専門家AIです。ユーザーと対話しながら、詳細な設計図(.mdファイル)を作成するための情報を収集します。
+
+【あなたの役割】
+1. ユーザーのアプリのアイデアや要件を深く理解する
+2. 不足している情報を質問で補完する
+3. 各質問の最後に具体的な選択肢を提示する（ユーザーが選びやすいように）
+4. 情報が十分に集まったら、設計図の生成を提案する
+
+【質問すべき項目】（全てを一度に聞かず、自然な対話で段階的に確認する）
+- アプリの目的と概要
+- ターゲットプラットフォーム（Web / モバイル / デスクトップ / CLI 等）
+- 主要機能の詳細
+- データ構造・保存方法
+- UI/UXの方向性
+- 外部API・サービスの利用有無
+- 技術スタック（言語・フレームワーク）
+- 認証・セキュリティ要件
+- パフォーマンス要件
+- デプロイ先
+
+【選択肢の出力形式】（必ず守ること）
+各回答の最後に、次のステップの選択肢を以下の形式で提示してください：
+
+---choices---
+選択肢1の内容
+選択肢2の内容
+選択肢3の内容
+---/choices---
+
+選択肢は2〜5個程度にしてください。ユーザーは選択肢をクリックするか、自由入力で回答できます。
+十分な情報が集まったと判断したら、「設計図を生成する準備ができました」と伝え、最後の選択肢に「🔨 設計図を生成する」を含めてください。
+
+現在時刻: ${new Date().toLocaleString('ja-JP')}
+作業フォルダ: ${workDir||os.homedir()}${custom}`;
+}
+
+function buildBlueprintGenerateSysPrompt(workDir, customSys) {
+  const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
+  return `あなたはアプリケーション設計の専門家AIです。これまでの会話で収集した情報をもとに、包括的な設計図(.mdファイル)を生成してください。
+
+【出力形式】以下のMarkdown形式で設計図を出力してください：
+
+# [アプリ名] 設計書
+
+## 1. プロジェクト概要
+(アプリの目的、ターゲットユーザー、主要な価値提案)
+
+## 2. 技術スタック
+(言語、フレームワーク、ライブラリ、ツール)
+
+## 3. プラットフォーム・動作環境
+(対象OS、ブラウザ、必要要件)
+
+## 4. 機能一覧
+### 4.1 [機能名]
+- 概要:
+- 処理フロー:
+- UI要素:
+(各機能について詳細に記述)
+
+## 5. データ設計
+### 5.1 データモデル
+(テーブル/コレクション定義)
+### 5.2 データフロー
+(データの流れ)
+
+## 6. API設計
+(エンドポイント一覧、外部API利用)
+
+## 7. UI/UX設計
+(画面一覧、画面遷移、デザイン方針)
+
+## 8. セキュリティ設計
+(認証・認可、データ保護)
+
+## 9. ファイル構造
+\`\`\`
+(推奨ディレクトリ構造)
+\`\`\`
+
+## 10. 開発タスク
+(番号付きの具体的な開発タスクリスト)
+
+## 11. 追加メモ・注意事項
+
+【重要】
+- 会話で決まった内容を正確に反映すること
+- 具体的かつ実装可能な記述にすること
+- 不明な箇所は合理的なデフォルトで補完し、[要確認]マークを付けること
+- Pine Chatのアプリ設計機能で使用される前提で記述すること
+
+現在時刻: ${new Date().toLocaleString('ja-JP')}
+作業フォルダ: ${workDir||os.homedir()}${custom}`;
 }
 
 // ── モデル検出 ────────────────────────────────────────────
@@ -855,6 +1079,7 @@ module.exports = {
   runAgent, stopAgent, isAborted,
   saveResumeFile, loadResumeFile, deleteResumeFile,
   makeDevSysPrompt, buildChatSysPrompt, buildAnalysisSysPrompt, buildDebugSysPrompt, buildAgentChatSysPrompt,
+  buildBlueprintSysPrompt, buildBlueprintGenerateSysPrompt, runBlueprintChat, getBlueprintAI, detectBlueprintModels,
   getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs,
   getWatcherCfg, saveWatcherCfg, getAgentAI,

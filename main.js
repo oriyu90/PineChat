@@ -166,22 +166,36 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   }
 
   let sysPrompt;
-  if(mode==='dev')       sysPrompt=agent.makeDevSysPrompt(workDir,proj?.systemPrompt,langs||'');
-  else if(mode==='debug')   sysPrompt=agent.buildDebugSysPrompt(workDir,proj?.systemPrompt);
-  else if(mode==='analysis') sysPrompt=agent.buildAnalysisSysPrompt(workDir,proj?.systemPrompt);
-  else                   sysPrompt=agent.buildChatSysPrompt(workDir,proj?.systemPrompt);
+  if(mode==='dev')            sysPrompt=agent.makeDevSysPrompt(workDir,proj?.systemPrompt,langs||'');
+  else if(mode==='debug')     sysPrompt=agent.buildDebugSysPrompt(workDir,proj?.systemPrompt);
+  else if(mode==='analysis')  sysPrompt=agent.buildAnalysisSysPrompt(workDir,proj?.systemPrompt);
+  else if(mode==='blueprint') sysPrompt=agent.buildBlueprintSysPrompt(workDir,proj?.systemPrompt);
+  else if(mode==='blueprint-gen') sysPrompt=agent.buildBlueprintGenerateSysPrompt(workDir,proj?.systemPrompt);
+  else                        sysPrompt=agent.buildChatSysPrompt(workDir,proj?.systemPrompt);
 
   let fullText='', wasAborted=false;
   activeSessions.set(sessId,{workDir,mode,lastText:'',projId:projectId});
 
   try{
-    await agent.runAgent(sessId, sess.history, sysPrompt, workDir,
-      (ev)=>{
-        if(ev.type==='text'){ fullText+=ev.data; const info=activeSessions.get(sessId); if(info) info.lastText=fullText; }
-        safeChunk(event,sessId,ev);
-      }
-    );
-    wasAborted=agent.isAborted(sessId);
+    // 設計図モード: runBlueprintChat（外部API対応、ツールなし）
+    if(mode==='blueprint' || mode==='blueprint-gen'){
+      fullText = await agent.runBlueprintChat(sessId, sess.history, sysPrompt,
+        (ev)=>{
+          if(ev.type==='text'){ fullText=ev.data; const info=activeSessions.get(sessId); if(info) info.lastText=fullText; }
+          safeChunk(event,sessId,ev);
+        }
+      );
+      wasAborted=agent.isAborted(sessId);
+    } else {
+      // 通常モード: runAgent（ツール対応）
+      await agent.runAgent(sessId, sess.history, sysPrompt, workDir,
+        (ev)=>{
+          if(ev.type==='text'){ fullText+=ev.data; const info=activeSessions.get(sessId); if(info) info.lastText=fullText; }
+          safeChunk(event,sessId,ev);
+        }
+      );
+      wasAborted=agent.isAborted(sessId);
+    }
   }finally{
     activeSessions.delete(sessId);
     if(mode==='dev'&&workDir&&!wasAborted) agent.deleteResumeFile(workDir);
@@ -233,6 +247,19 @@ ipcMain.handle('delete-resume',(_,workDir)=>{ agent.deleteResumeFile(workDir); r
 // ── ログ ─────────────────────────────────────────────────
 ipcMain.handle('get-logs',  (_,days)=>agent.getLogs(days||7));
 ipcMain.handle('delete-logs',()=>{ agent.deleteOldLogs(); return {ok:true}; });
+
+// ── 設計図 ───────────────────────────────────────────────
+ipcMain.handle('save-blueprint-file', async(_,{workDir,content,fileName})=>{
+  if(!workDir||!content) return {error:'workDirまたはcontentがありません'};
+  try{
+    const fn = fileName || 'DESIGN.md';
+    const fp = require('path').join(workDir, fn);
+    require('fs').mkdirSync(workDir, {recursive:true});
+    require('fs').writeFileSync(fp, content, 'utf-8');
+    return {ok:true, path:fp};
+  }catch(e){ return {error:e.message}; }
+});
+ipcMain.handle('get-blueprint-models', async()=>agent.detectBlueprintModels());
 
 // ── 起動 ─────────────────────────────────────────────────
 app.whenReady().then(async()=>{

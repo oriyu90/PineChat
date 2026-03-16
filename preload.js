@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld('api', {
   // ログ
   getLogs:             days    => ipcRenderer.invoke('get-logs', days),
   deleteLogs:          ()      => ipcRenderer.invoke('delete-logs'),
+  // 設計図
+  saveBlueprintFile:   o       => ipcRenderer.invoke('save-blueprint-file', o),
+  getBlueprintModels:  ()      => ipcRenderer.invoke('get-blueprint-models'),
   // ウォッチャーエージェント
   getWatcherCfg:       ()      => ipcRenderer.invoke('get-watcher-cfg'),
   saveWatcherCfg:      d       => ipcRenderer.invoke('save-watcher-cfg', d),
