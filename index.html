@@ -448,7 +448,6 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <div id="cw">
       <div class="mode-bar" id="mode-bar" style="display:none">
         <button class="mt on" id="tab-debug" onclick="switchMode('debug')" style="display:none">𓃗 デバッグ</button>
-        <button id="bp-gen-btn" onclick="doBlueprintGenerate()" style="display:none;background:var(--ok-bg);border:1px solid var(--ok);color:var(--ok);padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;margin-left:auto;white-space:nowrap">𓏛 設計図を生成</button>
         <button id="res-btn"  onclick="doRestart()">↺ 再起動</button>
       </div>
       <div id="prog-bar">
@@ -1266,21 +1265,19 @@ async function loadPL(){
 }
 
 async function openP(id){
-  // エージェントビューを閉じる
   if(agentViewOpen) closeAgentView();
 
   const isSameProj = (cur && cur.id === id);
-  const prevSid = curSid; // 切替前のsessIdを記録
+  const prevSid = curSid;
 
   if (!isSameProj) {
-    // 別PJへ切替: 即座にcurSidを更新して古いチャンクの混入を防ぐ
     curSid = 'P'+id;
-    // 現在PJを保存してbusy=false
+    // 別PJへ切替: 現在PJを保存するが、AIは停止しない（バックグラウンド継続）
     if(cur) await A.updateProject(cur.id, cur);
+    // UIのbusy状態だけリセット（AI処理自体は継続）
     busy = false;
   }
 
-  // 最新データをディスクから読む
   const p = await A.getProject(id); if(!p){ curSid=prevSid; return; }
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):
@@ -1289,19 +1286,36 @@ async function openP(id){
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
 
-  // 問題2の根本修正:
-  // 同じPJに戻ってきた場合 かつ busy=true → DOMをクリアしない（処理継続中）
-  // curBbがデタッチされるのを防ぐため、DOMを保持する
+  // このPJがバックグラウンドでまだAI処理中かチェック
+  let projStillBusy = false;
+  try{
+    const st = await A.isAiBusy();
+    if(st.busy && st.projId === id) projStillBusy = true;
+  }catch{}
+
   if(isSameProj && busy){
-    // 処理継続中: UIを現状維持
-    setStopState('active'); // 停止ボタンを再表示
+    setStopState('active');
     document.getElementById('send-btn').disabled=true;
     loadPL(); updateModeUI();
-    return; // DOMクリアしない
+    return;
   }
 
-  // 別PJか、同PJでidle: 通常の初期化
-  curEl=null; curBb=null; curFull=''; // 旧ストリームの残留データをクリア
+  if(projStillBusy){
+    // バックグラウンドから復帰: busy状態を復元しDOMを再構築
+    busy = true;
+    globalBusyProjId = id;
+    setStopState('active');
+    document.getElementById('send-btn').disabled=true;
+    document.getElementById('msgs').innerHTML='';
+    renderHist(p.messages||[]);
+    // curEl/curBbを再構築して、以降のチャンクを受信可能にする
+    curEl=null; curBb=null; curFull='';
+    loadPL(); updateModeUI();
+    return;
+  }
+
+  // 通常の初期化（idle状態）
+  curEl=null; curBb=null; curFull='';
   setStopState('hidden');
   document.getElementById('send-btn').disabled=false;
   document.getElementById('msgs').innerHTML='';
@@ -1354,14 +1368,13 @@ function renderHist(ms){
   const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
   ms.forEach((m,i)=>{
     if(!m || !m.role) return;
-    // role:'tool' (AI向けtoolResult) は横線防止のため必ずスキップ
-    if(m.role==='tool') return;
+    // 明示的ホワイトリスト: user/assistant/system/tool_callのみ表示
+    // それ以外(tool等)は全てスキップ（横線バグ防止）
     if(m.role==='user'){
       if(m.content) addUserBubble(m.content, i);
     } else if(m.role==='assistant'){
       if(m.content) addAI(m.content);
     } else if(m.role==='system' && m.content){
-      // 問題4: システムメッセージを再表示（永続化対応）
       const d=document.createElement('div'); d.className='sn'+(m.cls?' '+m.cls:'');
       const txt=document.createElement('span'); txt.textContent=m.content;
       const ts=document.createElement('span'); ts.className='sn-ts';
@@ -1369,19 +1382,32 @@ function renderHist(ms){
       d.appendChild(txt); d.appendChild(ts);
       msgs().appendChild(d);
     } else if(m.role==='tool_call' && m.name){
-      // 問題1: ツール実行ログを再表示
-      const args=m.args||{};
-      const argStr=['command','path','url','query','reason'].filter(k=>args[k])
-        .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
-      const tsStr=m.ts?new Date(m.ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      // ツール実行ログ: innerHTML不使用・DOM構築で横線バグを完全回避
       const box=document.createElement('div'); box.className='tb';
-      box.innerHTML=`<div class="th2"><span>${icons[m.name]||'·'}</span><span class="tn2">${esc(m.name)}</span><span class="tt2">${tsStr}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
+      const hdr=document.createElement('div'); hdr.className='th2';
+      const ico=document.createElement('span'); ico.textContent=icons[m.name]||'·';
+      const nm=document.createElement('span'); nm.className='tn2'; nm.textContent=m.name;
+      const tsE=document.createElement('span'); tsE.className='tt2';
+      tsE.textContent=m.ts?new Date(m.ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      hdr.appendChild(ico); hdr.appendChild(nm); hdr.appendChild(tsE);
+      box.appendChild(hdr);
+      const args=m.args||{};
+      const argKeys=['command','path','url','query','reason'].filter(k=>args[k]);
+      if(argKeys.length>0){
+        const td=document.createElement('div'); td.className='td2';
+        argKeys.forEach((k,idx)=>{
+          if(idx>0) td.appendChild(document.createElement('br'));
+          const lbl=document.createElement('span'); lbl.style.color='var(--t3)'; lbl.textContent=k+': ';
+          td.appendChild(lbl);
+          td.appendChild(document.createTextNode(String(args[k]).slice(0,200)));
+        });
+        box.appendChild(td);
+      }
       msgs().appendChild(box);
     }
-    // 旧role:'tool'エントリは安全にスキップ（横線防止）
+    // 上記以外のrole(tool等)は全てスキップ
   });
   dn();
-  // 設計図モード: 最後のAI応答の選択肢を復元
   if(typeof renderHistBpHook === 'function') renderHistBpHook(ms);
 }
 
@@ -1650,19 +1676,15 @@ function updateModeUI(){
   const bar=document.getElementById('mode-bar'), dbg=document.getElementById('dbg-banner');
   const chatOpts=document.getElementById('chat-opts');
   const bpBanner=document.getElementById('bp-banner');
-  const bpGenBtn=document.getElementById('bp-gen-btn');
   if(!cur) return;
-  // 設計図モード
   if(cur.type==='blueprint'){
-    bar.style.display='flex';
-    if(bpGenBtn) bpGenBtn.style.display='';
+    bar.style.display='none';
     document.getElementById('tab-debug').style.display='none';
     dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='block';
     chatOpts.style.display='none';
     document.getElementById('prog-bar').style.display='none';
   } else if(cur.type==='design'){
-    if(bpGenBtn) bpGenBtn.style.display='none';
     if(bpBanner) bpBanner.style.display='none';
     const tabDebug=document.getElementById('tab-debug');
     bar.style.display=cur.devDone?'flex':'none';
@@ -1674,7 +1696,6 @@ function updateModeUI(){
     document.getElementById('prog-bar').style.display = showProg ? 'block' : (taskTotal>0 ? 'block' : 'none');
   } else {
     bar.style.display='none'; dbg.style.display='none';
-    if(bpGenBtn) bpGenBtn.style.display='none';
     if(bpBanner) bpBanner.style.display='none';
     chatOpts.style.display='flex';
     document.getElementById('prog-bar').style.display='none';
@@ -3053,17 +3074,47 @@ function doBpChipClick(text) {
 // 設計図生成ボタン / 選択肢からのトリガー
 async function doBlueprintGenerate() {
   if(!cur || busy) return;
-  addSN('𓏛 設計図を生成中...','ok');
-  // ユーザーメッセージとして「設計図を生成してください」を追加
-  const genMsg = 'これまでの会話内容をもとに、設計図(.md)を生成してください。';
+  // グローバルAIロックチェック
+  const otherBusy = await isOtherProjectBusy();
+  if(otherBusy){
+    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
+    return;
+  }
   if(!cur.messages) cur.messages = [];
+
+  // Step 1: 会話から技術キーワードを抽出してWeb検索
+  addSN('𓅱 技術情報を検索中...','ok');
+  let searchCtx = '';
+  try{
+    const convText = cur.messages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>m.content||'').join(' ').slice(0,500);
+    const keywords = convText.match(/[A-Z][a-z]+(?:\.[a-z]+)?|Flutter|React|Kotlin|Swift|Firebase|Supabase|SQLite|Node\.js|Next\.js|Electron|Tauri/gi);
+    if(keywords && keywords.length > 0){
+      const uniqueKw = [...new Set(keywords)].slice(0,3).join(' ');
+      const results = await Promise.race([A.startChat({sessId:curSid+'_search',message:uniqueKw,projectId:null,mode:'chat',attachments:[],deepSearch:true,langs:''}),new Promise(r=>setTimeout(()=>r(null),10000))]);
+      // SearXNG直接使用（startChatのdeepSearchを利用）
+    }
+  }catch{}
+
+  // Step 2: 設計図を生成
+  addSN('𓏛 設計図を生成中...','ok');
+  const genMsg = 'これまでの会話で決定した全仕様をもとに、設計図(.md)を生成してください。設計の整合性（データモデルとAPI、画面遷移と機能の矛盾がないか）を自己検証してから出力してください。';
   cur.messages.push({role:'user', content:genMsg});
   addUserBubble(genMsg, cur.messages.length-1);
   startBusy();
   const result = await chatInternal(genMsg, 'blueprint-gen');
+
   if(result) {
-    bpGeneratedMd = result;
-    showBpPreview(result);
+    // Step 3: 設計検証を実行
+    addSN('🔍 設計の整合性を検証中...','ok');
+    const verifyMsg = `以下の設計図を検証してください。問題があれば修正し、問題なければ「検証完了」と記載した上で最終版を出力してください。\n\n検証ポイント:\n- データモデルの各カラムがAPIやUIから参照されているか\n- 画面遷移に抜け漏れがないか\n- 開発タスクリストが実装順序として矛盾していないか\n- ファイル構造が技術スタックと整合しているか`;
+    cur.messages.push({role:'user', content:verifyMsg});
+    const verified = await chatInternal(verifyMsg, 'blueprint-gen');
+    if(verified && verified.length > result.length * 0.5) {
+      bpGeneratedMd = verified;
+    } else {
+      bpGeneratedMd = result;
+    }
+    showBpPreview(bpGeneratedMd);
   }
   if(cur) A.updateProject(cur.id, cur);
 }

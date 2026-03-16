@@ -283,59 +283,53 @@ function buildBlueprintGenerateSysPrompt(workDir, customSys) {
   const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
   const lang = cfg.aiResponseLanguage || 'ja';
   const isJa = lang === 'ja';
-  return `${isJa?'あなたはアプリケーション設計の専門家AIです。これまでの会話で収集した全情報をもとに、Pine Chatの「アプリ設計」機能で直接使用できる完全な設計図(.md)を生成してください。':'You are an expert design AI. Generate a complete design document (.md) based on all gathered information.'}
+  return `${isJa?'あなたはアプリケーション設計の専門家AIです。':'You are an expert application design AI.'}
+${isJa?'これまでの会話で決定した全仕様をもとに、AIが自動開発するための完全な設計書(.md)を出力してください。':'Based on all specifications decided in the conversation, output a complete design document (.md) for automated AI development.'}
 
-${isJa?'【絶対ルール】必ず日本語のみで出力してください。':'【Rule】Output in English only.'}
+${isJa?'【絶対ルール】':'【Rules】'}
+${isJa?'- 必ず日本語のみで出力すること':'- Output in specified language only'}
+${isJa?'- この設計書を読んだAIが「このアプリのソースコードを作成する」ために使う。設計書自体を作成するのではない':'- An AI will read this to CREATE THE APP SOURCE CODE. NOT to create a design document.'}
+${isJa?'- 開発期間やスケジュールは一切記載しない（AIが即時開発するため不要）':'- Do NOT include timelines or schedules (AI develops immediately)'}
+${isJa?'- 曖昧な表現は禁止。全ての仕様を具体的に記述すること':'- No ambiguity. All specs must be concrete and implementable.'}
+${isJa?'- 出力前に設計の整合性を自己検証すること（データモデルとAPI、画面遷移と機能の矛盾がないか確認）':'- Self-verify design consistency before output.'}
 
-${isJa?'【重要】この設計図はAIが自動的に読み込んで開発を実行するため、曖昧な表現を避け、具体的かつ実装可能な記述にすること。':'【Important】This document will be read by an AI for automated development. Avoid ambiguity.'}
+${isJa?'【出力形式】':'【Format】'}
 
-${isJa?'【出力形式】以下のMarkdown形式で出力してください：':'【Format】Output in this Markdown format:'}
-
-# ${isJa?'[アプリ名] — 完全設計書':'[App Name] — Complete Design Document'}
+# ${isJa?'[アプリ名] — 設計書':'[App Name] — Design Document'}
 
 ## 1. ${isJa?'プロジェクト概要':'Project Overview'}
-${isJa?'(アプリの目的、ターゲットユーザー、核となる価値提案を明確に記述)':'(Purpose, target users, core value proposition)'}
+${isJa?'- アプリの目的と解決する課題\n- ターゲットユーザー\n- 核となる価値提案':'- Purpose and problem solved\n- Target users\n- Core value proposition'}
 
 ## 2. ${isJa?'技術スタック':'Tech Stack'}
-${isJa?'(言語、フレームワーク、ライブラリ、ビルドツール、パッケージマネージャーを具体的に)':'(Language, framework, libraries, build tools, package manager)'}
+${isJa?'- 言語とバージョン\n- フレームワーク\n- 主要ライブラリ（名前とバージョン）\n- ビルドツール・パッケージマネージャー\n- データベース':'- Language and version\n- Framework\n- Key libraries\n- Build tools\n- Database'}
 
 ## 3. ${isJa?'プラットフォーム・動作環境':'Platform & Environment'}
-${isJa?'(対象OS、ブラウザ、最低動作要件)':'(Target OS, browser, minimum requirements)'}
 
-## 4. ${isJa?'機能一覧と処理フロー':'Features & Processing Flow'}
-### 4.1 ${isJa?'[機能名]':'[Feature Name]'}
-${isJa?`- 概要: (この機能が何をするか)
-- 処理フロー: (ステップバイステップで処理の流れを記述)
-- 入力/出力: (何を受け取り何を返すか)
-- UI要素: (ボタン、フォーム、表示要素)
-- エラー処理: (想定されるエラーと対処)
-(全機能についてこの形式で詳細に記述すること)`
-:'- Overview, Processing flow, Input/Output, UI elements, Error handling'}
+## 4. ${isJa?'機能詳細':'Feature Details'}
+${isJa?'各機能ごとに以下を記述：\n### 4.N [機能名]\n- 概要\n- 処理フロー（1. → 2. → 3. のステップ形式）\n- 入力データと出力データ\n- UI要素（ボタン、フォーム、リスト等）\n- バリデーション・エラー処理\n- 関連するデータモデル':'Detail each feature with: overview, step-by-step flow, I/O, UI elements, validation, related data models'}
 
 ## 5. ${isJa?'データ設計':'Data Design'}
-### 5.1 ${isJa?'データモデル':'Data Model'}
-${isJa?'(テーブル/コレクション名、カラム名、型、制約、リレーションを明記)':'(Table/collection names, columns, types, constraints, relations)'}
-### 5.2 ${isJa?'データフロー':'Data Flow'}
-${isJa?'(データの生成→保存→読み出し→表示の流れ)':'(Create → Store → Read → Display flow)'}
+${isJa?'### 5.1 データモデル\nテーブル/コレクションごとに：\n- テーブル名\n- 全カラム（名前、型、制約、デフォルト値）\n- リレーション（外部キー）\n- インデックス\n\n### 5.2 データフロー\nデータの生成→保存→取得→表示→更新→削除の流れ':'### 5.1 Data Model\nFor each table: name, columns, types, constraints, relations, indexes\n### 5.2 Data Flow'}
 
 ## 6. ${isJa?'API設計':'API Design'}
-${isJa?'(エンドポイント、メソッド、リクエスト/レスポンス形式、外部API連携の詳細)':'(Endpoints, methods, request/response, external API details)'}
+${isJa?'エンドポイントごとに：\n- メソッドとパス\n- リクエスト形式（ヘッダー、ボディ）\n- レスポンス形式（成功時、エラー時）\n- 認証要否':'For each endpoint: method, path, request format, response format, auth required'}
 
-## 7. ${isJa?'UI/UX設計':'UI/UX Design'}
-${isJa?'(全画面の一覧、画面遷移図、各画面のレイアウト概要、デザイン方針)':'(Screen list, navigation, layout, design direction)'}
+## 7. ${isJa?'画面設計':'Screen Design'}
+${isJa?'### 7.1 画面一覧\n全画面のリストと各画面の役割\n### 7.2 画面遷移\n画面間の遷移フロー\n### 7.3 各画面のレイアウト\n画面ごとの構成要素とレイアウト方針':'### 7.1 Screen list\n### 7.2 Navigation flow\n### 7.3 Layout per screen'}
 
-## 8. ${isJa?'ファイル構造':'File Structure'}
+## 8. ${isJa?'ファイル・ディレクトリ構造':'File & Directory Structure'}
 \`\`\`
-${isJa?'(具体的なディレクトリ構造とファイル名、各ファイルの役割をコメントで)':'(Directory structure with file roles as comments)'}
+${isJa?'プロジェクトルート/\n├── src/              # ソースコード\n│   ├── [ファイル名]  # [このファイルの役割]\n│   └── ...\n├── [設定ファイル]     # [役割]\n└── README.md':'project-root/\n├── src/\n│   ├── [filename] # [role]\n└── README.md'}
 \`\`\`
+${isJa?'各ファイルの役割と含むべき主要なクラス・関数を記述':'Describe role and key classes/functions per file'}
 
 ## 9. ${isJa?'セキュリティ設計':'Security Design'}
-${isJa?'(認証方式、認可、データ保護、入力検証)':'(Auth, authorization, data protection, input validation)'}
 
-## 10. ${isJa?'開発タスクリスト':'Development Tasks'}
-${isJa?'(番号付きで具体的な作業内容。AIが順に実行できる粒度で記述)':'(Numbered, specific tasks at AI-executable granularity)'}
+## 10. ${isJa?'開発タスクリスト（実装順序）':'Development Tasks (Implementation Order)'}
+${isJa?'AIが上から順に実行する想定で、具体的なタスクを番号付きで記述。\n各タスクには以下を含める：\n- タスク番号と名前\n- 作成するファイル名\n- 実装する内容の詳細\n- 依存する前タスク（あれば）\n\n例:\n1. プロジェクト初期化: package.json作成、依存パッケージ定義\n2. データモデル実装: src/models/user.js — Userテーブルのスキーマ定義\n3. ...'
+:'Numbered tasks AI executes sequentially. Each: task name, files to create, implementation details, dependencies.'}
 
-## 11. ${isJa?'注意事項・補足':'Notes & Supplements'}
+## 11. ${isJa?'補足・注意事項':'Notes'}
 
 ${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
 ${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
@@ -564,7 +558,9 @@ async function handsOffBreakLoop(sessId, msgs, workDir, onEvent) {
 function makeDevSysPrompt(workDir, customSys, langs) {
   const langNote=langs&&langs.length>0?`\n優先言語: ${langs}\n※ 設計図の要件に応じて他の言語・ライブラリも適宜使用して良い。`:'';
   const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
-  return `あなたはアプリ開発専門AIエージェントです。設計図に従い、タスクを1つずつ着実に実行して開発を完成させます。${langNote}
+  return `あなたはアプリ開発専門AIエージェントです。ユーザーから提供された設計図（.mdファイル）に記載されたアプリケーションを実際に開発します。${langNote}
+
+【最重要】設計図は「あなたが作るべきアプリ」の仕様書です。設計図そのものを作成するのではなく、設計図に書かれたアプリのソースコードをファイルとして作成してください。
 
 【絶対に守るルール】
 1. 必ず最初の返答で「=== タスクリスト ===」として全タスクを番号付きで列挙する

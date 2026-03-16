@@ -121,11 +121,17 @@ ipcMain.handle('update-project',(_,id,data)=>{
   return {ok:true};
 });
 ipcMain.handle('delete-project',(_,id)=>{
-  // プロジェクトファイルを読んでworkDirを取得し、resumeFileも削除
+  // 処理中セッションがあれば即停止
+  const sessId = 'P'+id;
+  if(activeSessions.has(sessId)){
+    agent.stopAgent(sessId);
+    activeSessions.delete(sessId);
+  }
+  // 再開ファイルも削除
   try {
     const proj = agent.loadProj(id);
     if(proj && proj.workDir) {
-      agent.deleteResumeFile(proj.workDir); // 再開ファイルも必ず削除
+      agent.deleteResumeFile(proj.workDir);
     }
   } catch {}
   const p=agent.projPath(id); try{if(fs.existsSync(p))fs.unlinkSync(p);}catch{}
