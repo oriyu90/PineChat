@@ -19,15 +19,16 @@ const DEFAULT_CFG = {
   searxngUrl: 'http://localhost:8080',
   timeout: 300, logEnabled: true, logMaxDays: 7,
   handsOff: false,
-  chatAiHost: '', chatAiPort: 0, chatModelId: '',    // チャット専用AI ④
-  agentAiHost: '', agentAiPort: 0, agentModelId: '', // エージェント専用AI ④
-  uiLanguage: 'ja', // UI言語: 'ja' | 'en'
-  aiResponseLanguage: 'ja', // AI応答言語: 'ja' | 'en'
+  chatAiHost: '', chatAiPort: 0, chatModelId: '',
+  agentAiHost: '', agentAiPort: 0, agentModelId: '',
+  uiLanguage: 'ja', aiResponseLanguage: 'ja',
   // 設計図作成AI
-  blueprintAiType: 'local',  // 'local' | 'deepseek' | 'openai' | 'anthropic'
-  blueprintAiHost: '', blueprintAiPort: 0, blueprintModelId: '',
-  blueprintApiKey: '',
-  blueprintThinking: false,
+  blueprintAiType: 'local', blueprintAiHost: '', blueprintAiPort: 0, blueprintModelId: '',
+  blueprintApiKey: '', blueprintThinking: false,
+  // アプリ設計用外部AI（空=ローカルAI使用）
+  designAiType: 'local', designAiHost: '', designAiPort: 0, designModelId: '', designApiKey: '',
+  // 社内Wiki/ファイルサーバー（読み取り専用）
+  wikiEnabled: false, wikiUrl: '', wikiUser: '', wikiPass: '',
 };
 
 function loadCfg() {
@@ -481,7 +482,9 @@ const TOOLS = [
   { type:'function', function:{ name:'fetch_url', description:'URLの内容を取得する',
     parameters:{ type:'object', properties:{ url:{type:'string'} }, required:['url'] }}},
   { type:'function', function:{ name:'web_search', description:'SearXNG経由でWebを検索する',
-    parameters:{ type:'object', properties:{ query:{type:'string'}, reason:{type:'string'} }, required:['query','reason'] }}}
+    parameters:{ type:'object', properties:{ query:{type:'string'}, reason:{type:'string'} }, required:['query','reason'] }}},
+  { type:'function', function:{ name:'fetch_wiki', description:'社内Wiki/ファイルサーバーからファイルを読み取る（読み取り専用）',
+    parameters:{ type:'object', properties:{ path:{type:'string',description:'Wiki内のファイルパス'} }, required:['path'] }}}
 ];
 
 // ── ツール実行 ────────────────────────────────────────────
@@ -549,8 +552,37 @@ async function runTool(name, args, workDir, sessId) {
     }catch(e){return{error:e.message};}
     case 'fetch_url': return fetchUrl(args.url);
     case 'web_search': { const r=await searxSearch(args.query,5); return r.length?{results:r}:{error:'SearXNG未設定または結果なし'}; }
+    case 'fetch_wiki': {
+      if(!cfg.wikiEnabled||!cfg.wikiUrl) return{error:'Wikiサーバー未設定'};
+      try{
+        const wikiPath = (args.path||'').replace(/^\/+/,'');
+        const url = cfg.wikiUrl.replace(/\/+$/,'') + '/' + wikiPath;
+        const headers = {};
+        if(cfg.wikiUser && cfg.wikiPass) headers['Authorization'] = 'Basic ' + Buffer.from(`${cfg.wikiUser}:${cfg.wikiPass}`).toString('base64');
+        const proto = url.startsWith('https') ? https : http;
+        const parsed = new URL(url);
+        const content = await new Promise((resolve,reject)=>{
+          const req = proto.request({hostname:parsed.hostname,port:parsed.port||(parsed.protocol==='https:'?443:80),path:parsed.pathname+parsed.search,method:'GET',timeout:15000,headers:{...headers,'User-Agent':'PineChat/1.0'}},res=>{
+            let raw='';res.on('data',c=>raw+=c);res.on('end',()=>resolve(raw.slice(0,50000)));
+          });
+          req.on('error',e=>reject(e));req.on('timeout',()=>{req.destroy();reject(new Error('timeout'));});req.end();
+        });
+        return{content,path:wikiPath,readOnly:true};
+      }catch(e){return{error:`Wiki取得失敗: ${e.message}`};}
+    }
     default: return{error:`不明:${name}`};
   }
+}
+
+// 設計用AI設定取得
+function getDesignAI(){
+  return {
+    type: cfg.designAiType||'local',
+    host: cfg.designAiHost || cfg.chatAiHost || cfg.aiHost || 'localhost',
+    port: cfg.designAiPort || cfg.chatAiPort || cfg.aiPort || 1234,
+    model: cfg.designModelId || cfg.chatModelId || MODEL_ID,
+    apiKey: cfg.designApiKey || '',
+  };
 }
 
 // ── ループ検知 ────────────────────────────────────────────
@@ -673,9 +705,12 @@ function stopAgent(sessId){abortMap.get(sessId)?.abort();abortMap.delete(sessId)
 function isAborted(sessId){const ac=abortMap.get(sessId);return !ac||ac.signal.aborted;}
 
 async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
-  const getHost = () => cfg.chatAiHost || cfg.aiHost || '127.0.0.1';
-  const getPort = () => cfg.chatAiPort || cfg.aiPort;
-  const getModel = () => cfg.chatModelId || MODEL_ID;
+  // 設計用外部AI対応
+  const dAI = getDesignAI();
+  const useExternalDesignAI = dAI.type !== 'local' && dAI.apiKey;
+  const getHost = () => useExternalDesignAI ? (dAI.host||'localhost') : (cfg.chatAiHost || cfg.aiHost || '127.0.0.1');
+  const getPort = () => useExternalDesignAI ? (dAI.port||443) : (cfg.chatAiPort || cfg.aiPort);
+  const getModel = () => useExternalDesignAI ? (dAI.model||'') : (cfg.chatModelId || MODEL_ID);
 
   // モデル確認
   if (!getModel()) { await detectModel(); }
@@ -700,11 +735,14 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
 
     let data;
     try {
-      logWrite(sessId, 'INFO', `Turn${turn+1} handsOff=${isHandsOff}`);
-      data = await httpPost(getHost(), getPort(), '/v1/chat/completions', {
-        model: getModel(), messages: msgs, tools: TOOLS, tool_choice: 'auto',
-        temperature: 0.6, max_tokens: 4096, stream: false
-      });
+      logWrite(sessId, 'INFO', `Turn${turn+1} handsOff=${isHandsOff} extAI=${useExternalDesignAI}`);
+      const body = {model:getModel(), messages:msgs, tools:TOOLS, tool_choice:'auto', temperature:0.6, max_tokens:4096, stream:false};
+      if(useExternalDesignAI){
+        const headers = {'Authorization':`Bearer ${dAI.apiKey}`};
+        data = await httpsPost(getHost(), getPort(), '/v1/chat/completions', body, cfg.timeout*1000, headers);
+      } else {
+        data = await httpPost(getHost(), getPort(), '/v1/chat/completions', body);
+      }
       consecutiveErrors = 0; // 成功時リセット
       retryCountMap.delete(sessId);
     } catch(e) {
@@ -1114,7 +1152,7 @@ module.exports = {
   runAgent, stopAgent, isAborted,
   saveResumeFile, loadResumeFile, deleteResumeFile,
   makeDevSysPrompt, buildChatSysPrompt, buildAnalysisSysPrompt, buildDebugSysPrompt, buildAgentChatSysPrompt,
-  buildBlueprintSysPrompt, buildBlueprintGenerateSysPrompt, runBlueprintChat, getBlueprintAI, detectBlueprintModels,
+  buildBlueprintSysPrompt, buildBlueprintGenerateSysPrompt, runBlueprintChat, getBlueprintAI, detectBlueprintModels, getDesignAI,
   getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs,
   getWatcherCfg, saveWatcherCfg, getAgentAI,

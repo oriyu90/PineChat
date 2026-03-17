@@ -603,6 +603,11 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <div class="msu" id="dSu"></div>
     <div class="lbl">修正指示（任意）</div>
     <textarea class="ta2" id="dRv" placeholder="変更点があれば記入。なければそのまま開始してください。" style="min-height:50px"></textarea>
+    <div class="lbl" style="margin-top:8px">開発モード</div>
+    <div class="mcs" style="margin-bottom:12px">
+      <div class="mc s" id="mcFresh" onclick="selDevMode('fresh')"><div class="mc-g">🆕</div><div class="mc-l">初めから</div><div class="mc-d">フォルダを初期化して開発</div></div>
+      <div class="mc" id="mcContinue" onclick="selDevMode('continue')"><div class="mc-g">📂</div><div class="mc-l">途中から</div><div class="mc-d">既存ファイルを引き継ぎ</div></div>
+    </div>
     <div class="mft">
       <button class="bc" onclick="revDes()">修正して再分析</button>
       <button class="bok" onclick="startDev()">開発開始</button>
@@ -610,28 +615,13 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
   </div>
 </div>
 
-<!-- 完了確認 -->
+<!-- 完了確認（自動デバッグ後に表示） -->
 <div class="ov h" id="mFin">
   <div class="md w">
-    <div class="mt2">𓋹 開発が完了しました</div>
-    <div class="ms2">次のアクションを選択してください</div>
-    <div class="fin-opts">
-      <div class="fin-opt" id="finOptOutput" onclick="selFin('output')">
-        <div class="fin-opt-t">現在の状態で出力</div>
-        <div class="fin-opt-d">完成ファイルと実装設計書 IMPLEMENTATION.md をプロジェクトフォルダに配置</div>
-      </div>
-      <div class="fin-opt" id="finOptBuild" onclick="selFin('build')">
-        <div class="fin-opt-t">ビルド直前まで仕上げる</div>
-        <div class="fin-opt-d">自動でビルド直前まで仕上げ、設計書(.md)を生成・配置</div>
-      </div>
-      <div class="fin-opt" id="finOptDebug" onclick="selFin('debug')">
-        <div class="fin-opt-t">𓃗 デバッグ・機能追加モードへ</div>
-        <div class="fin-opt-d">バグ修正・テスト・機能追加・検証ができるモードに切り替え</div>
-      </div>
-    </div>
+    <div class="mt2">𓋹 開発・デバッグが完了しました</div>
+    <div class="ms2">デバッグ・機能追加モードに移行します</div>
     <div class="mft">
-      <button class="bc" onclick="closeM('mFin')">あとで決める</button>
-      <button class="bok" id="finOkBtn" onclick="execFin()" disabled>実行</button>
+      <button class="bok" onclick="closeM('mFin');enterDebugMode()">OK</button>
     </div>
   </div>
 </div>
@@ -866,6 +856,33 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <span style="font-size:11px;color:var(--t3);margin-left:6px">DeepSeek R1 / Claude等のThinkingモードを有効化</span>
       </div>
     </div>
+    <!-- 設計用外部AI設定 -->
+    <div class="set-sec">
+      <div class="set-stl">アプリ設計用AI（開発エンジン）</div>
+      <div class="set-row">
+        <span class="set-lbl">AIタイプ</span>
+        <select id="sDesignType" class="set-sel">
+          <option value="local">ローカルAI</option>
+          <option value="openai">OpenAI API</option>
+          <option value="deepseek">DeepSeek API</option>
+        </select>
+      </div>
+      <div class="set-row"><span class="set-lbl">ホスト</span><input class="set-inp" id="sDesignHost" placeholder="空=デフォルト"></div>
+      <div class="set-row"><span class="set-lbl">ポート</span><input class="set-inp" id="sDesignPort" type="number" placeholder="空=デフォルト"></div>
+      <div class="set-row"><span class="set-lbl">APIキー</span><input class="set-inp" id="sDesignApiKey" type="password" placeholder="外部API使用時に必要"></div>
+      <div class="set-row"><span class="set-lbl">モデルID</span><input class="set-inp" id="sDesignModel" placeholder="空=自動検出"></div>
+    </div>
+    <!-- 社内Wiki/ファイルサーバー設定 -->
+    <div class="set-sec">
+      <div class="set-stl">社内Wiki/ファイルサーバー（読み取り専用）</div>
+      <div class="set-row">
+        <input type="checkbox" id="sWikiEnabled" style="accent-color:var(--ok);cursor:pointer">
+        <span class="set-lbl" style="margin-left:6px">有効化</span>
+      </div>
+      <div class="set-row"><span class="set-lbl">URL</span><input class="set-inp" id="sWikiUrl" placeholder="https://wiki.example.com"></div>
+      <div class="set-row"><span class="set-lbl">ユーザー名</span><input class="set-inp" id="sWikiUser" placeholder="認証ユーザー"></div>
+      <div class="set-row"><span class="set-lbl">パスワード</span><input class="set-inp" id="sWikiPass" type="password" placeholder="認証パスワード"></div>
+    </div>
     <!-- ⑤ エージェント詳細設定（ウォッチャーボタン） -->
     <div class="set-sec">
       <div class="set-stl">エージェント詳細設定</div>
@@ -1041,8 +1058,13 @@ A.onChunk(ev=>{
     case 'task_start': addTaskCard(ev.data); dn(); break;
     case 'task_done':  updateProgress(ev.data.n, ev.data.total); dn(); break;
     case 'dev_complete':
-      addSN('𓋹 開発完了','ok'); updateProgress(taskTotal,taskTotal); dn();
-      setTimeout(()=>openM('mFin'),800); break;
+      addSN('𓋹 開発完了','ok'); updateProgress(taskTotal,taskTotal);
+      // 即座にbusy解除＋停止ボタン非表示
+      endBusy(); globalBusyRelease(); setStopState('hidden');
+      dn();
+      // 自動デバッグフェーズに移行
+      setTimeout(()=>startAutoDebugPhase(),1200);
+      break;
     case 'progress': addSN(ev.data,'ok'); break;
     case 'system':   addSN(ev.data); break;
     case 'paused':   addSN(ev.data,'warn'); break;
@@ -1258,7 +1280,8 @@ async function loadPL(){
     d.className='pi'+(cur&&cur.id===p.id?' on':'');
     d.dataset.id=p.id;
     const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':'𓃰';
-    d.innerHTML=`<span class="pi-g">${g}</span><div class="pi-info"><div class="pi-nm">${esc(p.name)}</div><div class="pi-mt">${fmt(p.updatedAt)}</div></div><button class="pi-del" onclick="delP(event,'${p.id}')">×</button>`;
+    const busyMark = (globalBusyProjId === p.id) ? '<span style="color:var(--ok);font-size:9px;margin-left:4px">● 処理中</span>' : '';
+    d.innerHTML=`<span class="pi-g">${g}</span><div class="pi-info"><div class="pi-nm">${esc(p.name)}${busyMark}</div><div class="pi-mt">${fmt(p.updatedAt)}</div></div><button class="pi-del" onclick="delP(event,'${p.id}')">×</button>`;
     d.addEventListener('click',()=>openP(p.id));
     d.addEventListener('contextmenu', e=>{ e.preventDefault(); showCtxMenu(e, p.id, p.name); });
     el.appendChild(d);
@@ -1309,7 +1332,12 @@ async function openP(id){
     document.getElementById('send-btn').disabled=true;
     document.getElementById('msgs').innerHTML='';
     renderHist(p.messages||[]);
-    // curEl/curBbを再構築して、以降のチャンクを受信可能にする
+    // 処理中インジケーターを再表示
+    addThk();
+    // dev/debugモードではprog-barも復元
+    if(curMode==='dev'||curMode==='debug'){
+      document.getElementById('prog-bar').style.display='block';
+    }
     curEl=null; curBb=null; curFull='';
     loadPL(); updateModeUI();
     return;
@@ -1328,6 +1356,14 @@ async function openP(id){
   document.getElementById('prog-time').textContent='00:00';
   stopDevTimer();
   renderHist(p.messages||[]);
+  // 別PJが処理中なら通知バナーを表示
+  try{
+    const st = await A.isAiBusy();
+    if(st.busy && st.projId !== id){
+      addSN('⏳ 別のプロジェクトでAI処理中です','warn');
+      document.getElementById('send-btn').disabled=true;
+    }
+  }catch{}
   loadPL(); updateModeUI();
   if(p.workDir&&(curMode==='dev'||curMode==='debug')){
     const r=await A.loadResume(p.workDir);
@@ -1622,7 +1658,15 @@ ${specPreview}${langs?'\n\n優先言語: '+langs:''}
   dDat.summary = sm;
   const suEl = document.getElementById('dSu');
   if(suEl) suEl.textContent = sm || '（AIからの応答が得られませんでした。モデルが起動しているか確認してください。）';
-  document.getElementById('dRv').value=''; openM('mC');
+  document.getElementById('dRv').value='';
+  // ほったらかしモード: 設計確認をスキップして自動で開発開始
+  if(handsOff){
+    addSN('𓅭 ほったらかし: 設計に同意し、開発を自動開始します','ok');
+    devStartMode = 'fresh';
+    await startDev();
+  } else {
+    openM('mC');
+  }
 }
 async function revDes(){
   const rv=document.getElementById('dRv').value.trim(); if(!rv){alert('修正指示を入力してください');return;}
@@ -1630,20 +1674,54 @@ async function revDes(){
   addUserBubble('修正: '+rv); await subDes();
 }
 async function startDev(){
-  // グローバルAIロックチェック
   const otherBusy = await isOtherProjectBusy();
   if(otherBusy){
     addSN('⚠ 別のプロジェクトでAI処理中です。完了後に開発を開始してください。','warn');
     return;
   }
   closeM('mC'); taskN=0; taskTotal=0;
+
+  // 初めからモード: フォルダ内を削除
+  if(devStartMode === 'fresh' && cur && cur.workDir){
+    if(!handsOff && !confirm(`⚠ 「初めから」モードです。\n作業フォルダ内のファイルを全て削除します。\n\n${cur.workDir}\n\nよろしいですか？`)){
+      return;
+    }
+    addSN('🗑 作業フォルダを初期化します...','ok');
+  }
+
   document.getElementById('prog-bar').style.display='block';
   updateProgress(0,0); startDevTimer();
-  addSN('𓃭 開発を開始します。','ok');
-  const prompt=`【開発開始】\n設計図:\n${dDat.spec}\n${dDat.langs?'優先言語: '+dDat.langs+'\n':''}作業フォルダ: ${cur?cur.workDir:'未設定'}\n\n今すぐ開発を開始してください。まず「=== タスクリスト ===」を表示してから1つずつ実行してください。`;
+
+  // 途中からモード: 既存ファイルをスキャンして設計図と照合
+  let prompt;
+  if(devStartMode === 'continue'){
+    addSN('📂 既存ファイルをスキャンして設計図と照合します...','ok');
+    prompt = `【途中からの開発引き継ぎ】
+設計図:
+${dDat.spec}
+${dDat.langs?'優先言語: '+dDat.langs+'\n':''}作業フォルダ: ${cur?cur.workDir:'未設定'}
+
+まず作業フォルダ内の全ファイルをスキャンし、設計図と照らし合わせて以下を判断してください：
+1. 既に実装済みのタスク
+2. 未実装・不完全なタスク
+3. 設計図と異なる実装箇所
+
+その上で「=== タスクリスト ===」を未完了タスクのみで作成し、続きから開発を進めてください。`;
+  } else {
+    addSN('𓃭 開発を開始します。','ok');
+    prompt = `【開発開始（初期化モード）】
+最初に作業フォルダ内の既存ファイルを全て削除してください（execute_shell: rm -rf "${cur?cur.workDir:''}"/* "${cur?cur.workDir:''}"/.* 2>/dev/null を実行）。
+
+設計図:
+${dDat.spec}
+${dDat.langs?'優先言語: '+dDat.langs+'\n':''}作業フォルダ: ${cur?cur.workDir:'未設定'}
+
+フォルダ初期化後、「=== タスクリスト ===」を表示してから1つずつ実行してください。`;
+  }
+
   startBusy();
-  await chatInternalDev(prompt,dDat.langs);
-  if(cur) A.updateProject(cur.id,cur);
+  await chatInternalDev(prompt, dDat.langs);
+  if(cur) A.updateProject(cur.id, cur);
 }
 
 // ── タイマー ─────────────────────────────────────────────
@@ -1692,23 +1770,41 @@ function updateProgress(n,total){
 }
 
 // ── 完了 ─────────────────────────────────────────────────
-function selFin(v){
-  finSel=v;
-  ['output','build','debug'].forEach(k=>document.getElementById('finOpt'+k[0].toUpperCase()+k.slice(1)).classList.toggle('s',k===v));
-  document.getElementById('finOkBtn').disabled=false;
+// 開発モード選択（初めから/途中から）
+let devStartMode = 'fresh';
+function selDevMode(mode){
+  devStartMode = mode;
+  document.getElementById('mcFresh').classList.toggle('s', mode==='fresh');
+  document.getElementById('mcContinue').classList.toggle('s', mode==='continue');
 }
-async function execFin(){
-  if(!finSel) return; closeM('mFin');
-  if(finSel==='output'){
-    await chatInternalDev('【出力指示】現在の実装を整理し、IMPLEMENTATION.md を作業フォルダに生成してください。','dev');
-  } else if(finSel==='build'){
-    await chatInternalDev('【ビルド前仕上げ】全ファイルを最終確認・修正し、ビルド設定を整え、IMPLEMENTATION.md を生成してください','dev');
-  } else {
-    curMode='debug';
-    if(cur){cur.devDone=true; A.updateProject(cur.id,cur);}
-    updateModeUI();
-    addAI('𓃗 デバッグ・機能追加モードに切り替えました。\n\nできること:\n- バグの発見・修正\n- テストの作成・実行\n- 新機能の追加\n- パフォーマンス改善\n\n何をしましょうか？');
-  }
+
+// 開発完了後の自動デバッグフェーズ
+async function startAutoDebugPhase(){
+  if(!cur) return;
+  addSN('🔍 デバッグフェーズを開始します...','ok');
+  startBusy();
+  const debugPrompt = `開発が完了しました。以下の手順でデバッグを実施してください：
+
+1. まず作業フォルダ内の全ファイルを確認（list_directory）
+2. 主要ファイルを読み込んで構文エラーがないか確認
+3. 設計図と照らし合わせて、抜けているファイルや機能がないか確認
+4. 問題があれば修正
+5. 設計図で指定されたファイル配置になっているか確認し、なっていなければ整理
+
+焦らず丁寧に確認してください。全て完了したら「=== デバッグ完了 ===」と出力してください。`;
+  await chatInternalDev(debugPrompt, 'dev');
+  endBusy(); globalBusyRelease();
+  // 直接debugモードへ移行（モーダルを出さない）
+  addSN('𓃗 デバッグ・機能追加モードに移行しました','ok');
+  enterDebugMode();
+}
+
+// デバッグ・機能追加モードへの正式移行
+function enterDebugMode(){
+  curMode = 'debug';
+  if(cur){ cur.devDone = true; A.updateProject(cur.id, cur); }
+  updateModeUI();
+  addAI('𓃗 デバッグ・機能追加モードに移行しました。\n\nできること:\n- バグの発見・修正\n- テストの作成・実行\n- 新機能の追加\n- パフォーマンス改善\n\n何をしましょうか？');
 }
 
 // ── モードUI ─────────────────────────────────────────────
@@ -2167,6 +2263,17 @@ async function openSet(){
   document.getElementById('sBpModel').value = c.blueprintModelId||'';
   document.getElementById('sBpThinking').checked = !!c.blueprintThinking;
   onBpTypeChange(); // ローカル/API切替UIを反映
+  // Wiki/ファイルサーバー設定
+  document.getElementById('sWikiEnabled').checked = !!c.wikiEnabled;
+  document.getElementById('sWikiUrl').value = c.wikiUrl||'';
+  document.getElementById('sWikiUser').value = c.wikiUser||'';
+  document.getElementById('sWikiPass').value = c.wikiPass||'';
+  // 設計用外部AI設定
+  document.getElementById('sDesignType').value = c.designAiType||'local';
+  document.getElementById('sDesignHost').value = c.designAiHost||'';
+  document.getElementById('sDesignPort').value = c.designAiPort||'';
+  document.getElementById('sDesignApiKey').value = c.designApiKey||'';
+  document.getElementById('sDesignModel').value = c.designModelId||'';
   openM('mS');
 }
 async function fetchChatModels(){
@@ -2233,7 +2340,16 @@ async function savSet(){
     agentAiHost:agentHost, agentAiPort:agentPort, agentModelId:agentModel,
     uiLanguage:uiLang, aiResponseLanguage:aiLang,
     blueprintAiType:bpType, blueprintAiHost:bpHost, blueprintAiPort:bpPort,
-    blueprintModelId:bpModel, blueprintApiKey:bpApiKey, blueprintThinking:bpThinking});
+    blueprintModelId:bpModel, blueprintApiKey:bpApiKey, blueprintThinking:bpThinking,
+    wikiEnabled:document.getElementById('sWikiEnabled').checked,
+    wikiUrl:document.getElementById('sWikiUrl').value.trim(),
+    wikiUser:document.getElementById('sWikiUser').value.trim(),
+    wikiPass:document.getElementById('sWikiPass').value.trim(),
+    designAiType:document.getElementById('sDesignType').value,
+    designAiHost:document.getElementById('sDesignHost').value.trim(),
+    designAiPort:parseInt(document.getElementById('sDesignPort').value)||0,
+    designApiKey:document.getElementById('sDesignApiKey').value.trim(),
+    designModelId:document.getElementById('sDesignModel').value.trim()});
   // ウォッチャー設定にも反映
   const wcfg=await A.getWatcherCfg();
   wcfg.agentAiHost=agentHost; wcfg.agentAiPort=agentPort; wcfg.agentModelId=agentModel;
