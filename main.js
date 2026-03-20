@@ -184,6 +184,7 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   else if(mode==='analysis')  sysPrompt=agent.buildAnalysisSysPrompt(workDir,proj?.systemPrompt);
   else if(mode==='blueprint') sysPrompt=agent.buildBlueprintSysPrompt(workDir,proj?.systemPrompt);
   else if(mode==='blueprint-gen') sysPrompt=agent.buildBlueprintGenerateSysPrompt(workDir,proj?.systemPrompt);
+  else if(mode==='document')  sysPrompt=agent.buildDocumentSysPrompt(workDir,proj?.systemPrompt);
   else                        sysPrompt=agent.buildChatSysPrompt(workDir,proj?.systemPrompt);
 
   let fullText='', wasAborted=false;
@@ -280,6 +281,9 @@ ipcMain.handle('save-blueprint-file', async(_,{workDir,content,fileName})=>{
   }catch(e){ return {error:e.message}; }
 });
 ipcMain.handle('get-blueprint-models', async()=>agent.detectBlueprintModels());
+
+// ── ファイル内部コピー ───────────────────────────────────
+ipcMain.handle('copy-file-internal', (_,{srcPath, projId})=>agent.copyFileInternal(srcPath, projId));
 
 // ── 起動 ─────────────────────────────────────────────────
 app.whenReady().then(async()=>{

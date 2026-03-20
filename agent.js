@@ -10,7 +10,8 @@ const { exec } = require('child_process');
 // ── データディレクトリ ─────────────────────────────────────
 const DATA_DIR = path.join(os.homedir(), '.pinechat');
 const LOG_DIR  = path.join(DATA_DIR, 'logs');
-[DATA_DIR, LOG_DIR].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive:true }); });
+const FILES_DIR = path.join(DATA_DIR, 'files'); // RAG/設計図の内部コピー先
+[DATA_DIR, LOG_DIR, FILES_DIR].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive:true }); });
 
 // ── 設定 ──────────────────────────────────────────────────
 const CFG_FILE = path.join(DATA_DIR, 'config.json');
@@ -323,6 +324,18 @@ ${isJa?`- 必ず日本語のみで出力すること
 - Complete all sections - never cut off
 - Self-verify consistency before output`}
 
+${isJa?'【開発スコープの明記】設計書の冒頭に以下を必ず含めること：':'【Scope】Include at the top:'}
+${isJa?`## 0. 開発スコープ
+- AIが開発する範囲（ソースコード、設定ファイル、ビルド設定等）
+- AIが開発しない範囲（サーバー構築、ストア申請、証明書取得等の手動作業）
+- 対象プラットフォームと動作確認環境
+- ビルド方法（コマンド1行で実行できる形で記載）`
+:`## 0. Development Scope
+- What AI builds (source code, config, build setup)
+- What AI does NOT build (server setup, store submission, certificates)
+- Target platform and test environment
+- Build command (single command)`}
+
 ${isJa?'【出力形式】':'【Format】'}
 
 # ${isJa?'[アプリ名] — 設計書':'[App Name] — Design Document'}
@@ -355,9 +368,9 @@ ${isJa?'各ファイルの役割と含むべき主要なクラス・関数を記
 
 ## 9. ${isJa?'セキュリティ設計':'Security Design'}
 
-## 10. ${isJa?'開発タスクリスト（実装順序）':'Development Tasks (Implementation Order)'}
-${isJa?'AIが上から順に実行する想定で、具体的なタスクを番号付きで記述。\n各タスクには以下を含める：\n- タスク番号と名前\n- 作成するファイル名\n- 実装する内容の詳細\n- 依存する前タスク（あれば）\n\n例:\n1. プロジェクト初期化: package.json作成、依存パッケージ定義\n2. データモデル実装: src/models/user.js — Userテーブルのスキーマ定義\n3. ...'
-:'Numbered tasks AI executes sequentially. Each: task name, files to create, implementation details, dependencies.'}
+## 10. ${isJa?'開発セクション・タスクリスト（実装順序）':'Development Sections & Tasks (Implementation Order)'}
+${isJa?'AIがセクション単位で順に実行する。各セクションの中にタスクを含める。\n\n形式：\nセクション1: [セクション名]\n  1.1 [タスク名] — 作成ファイル: [ファイル名], 内容: [詳細]\n  1.2 [タスク名] — 作成ファイル: [ファイル名], 内容: [詳細]\nセクション2: [セクション名]\n  2.1 [タスク名] — ...\n\n例：\nセクション1: プロジェクト初期化 (3タスク)\n  1.1 package.json作成 — 依存パッケージ定義\n  1.2 tsconfig.json設定 — TypeScript設定\n  1.3 ディレクトリ構造作成 — src/, public/, tests/\nセクション2: データモデル (2タスク)\n  2.1 Userモデル — src/models/user.ts\n  2.2 Postモデル — src/models/post.ts'
+:'Sections with sub-tasks. Format: Section N: [name]\n  N.1 [task] - file, details\n  N.2 [task] - ...'}
 
 ## 11. ${isJa?'補足・注意事項':'Notes'}
 
@@ -628,15 +641,25 @@ ${langRule}
 
 【最重要】設計図は「あなたが作るべきアプリ」の仕様書です。設計図そのものを作成するのではなく、設計図に書かれたアプリのソースコードをファイルとして作成してください。
 
-【絶対に守るルール】
-1. 必ず最初の返答で「=== タスクリスト ===」として全タスクを番号付きで列挙する
-2. タスクの実行前に必ず「--- タスクN/合計: [タスク名] ---」を出力してから作業を開始する
-3. 各タスク完了後に必ず「[完] タスクN 完了 (進捗: N/合計)」を出力する
-4. エラーが発生したらweb_searchツールで解決策を調べて修正する（あきらめない）
-5. 全タスク完了時に「=== 開発完了 ===」を出力する
-6. ファイルは作業フォルダ内に作成する。sudo・パッケージインストール系コマンドは実行しない
-7. 途中で止まらず最後まで実行する。ユーザーへの確認は最小限にする
-8. 問題が発生しても自力で解決して続行する
+【絶対に守るルール — セクション・タスク階層構造】
+1. 最初の返答で「=== セクションリスト ===」として全セクションとその中のタスクを列挙する
+   例:
+   セクション1: プロジェクト初期化 (3タスク)
+     1.1 package.json作成
+     1.2 依存パッケージ設定
+     1.3 ディレクトリ構造作成
+   セクション2: データモデル (4タスク)
+     2.1 ...
+
+2. セクション開始時に「<<< セクション N/合計: [セクション名] >>>」を出力する
+3. タスク開始時に「--- タスク S.T/S.合計: [タスク名] ---」を出力する（S=セクション番号、T=タスク番号）
+4. タスク完了時に「[完] タスク S.T 完了」を出力する
+5. セクション内の全タスク完了時に「[完] セクション N 完了 (N/合計)」を出力する
+6. 全セクション完了時に「=== 開発完了 ===」を出力する
+7. エラーが発生したらweb_searchツールで解決策を調べて修正する（あきらめない）
+8. ファイルは作業フォルダ内に作成する。sudo・パッケージインストール系コマンドは実行しない
+9. 途中で止まらず最後まで実行する。ユーザーへの確認は最小限にする
+10. 問題が発生しても自力で解決して続行する
 
 現在時刻: ${new Date().toLocaleString('ja-JP')}
 作業フォルダ: ${workDir||os.homedir()}${custom}`;
@@ -653,10 +676,14 @@ ${isJa?'【ツール使用ルール】':'【Tool Usage Rules】'}
 ${isJa?`- 通常の会話、挨拶、質問への回答にはツールを使わないでください
 - ツールはユーザーが明示的にファイル操作、コード実行、Web検索を依頼した場合のみ使用してください
 - 「調べて」「検索して」「ファイルを読んで」「実行して」等の指示がある場合のみツールを使用
-- 雑談や知識に基づく質問にはツールなしで直接回答してください`
+- 雑談や知識に基づく質問にはツールなしで直接回答してください
+- 社内Wikiの情報が必要な場合はfetch_wikiツールを使用してください
+- 書類作成を依頼された場合はwrite_fileツールで作業フォルダにファイルを作成してください（.md/.txt/.docx等）`
 :`- Do NOT use tools for casual conversation, greetings, or knowledge-based questions
 - Only use tools when user explicitly requests file operations, code execution, or web search
-- Respond directly without tools for chat, advice, and general questions`}
+- Respond directly without tools for chat, advice, and general questions
+- Use fetch_wiki tool when internal wiki information is needed
+- Use write_file tool when asked to create documents`}
 
 ${isJa?'制約':'Constraints'}: sudo${isJa?'・インストール系コマンドは不可':'and install commands are prohibited'}.
 ${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
@@ -690,6 +717,54 @@ ${isJa?'必ず日本語で回答してください。':'Always respond in Englis
 ${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
 ${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
 }
+function buildDocumentSysPrompt(workDir, customSys) {
+  const custom=customSys?`\n\n【プロジェクト指示】\n${customSys}`:'';
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  const author = cfg.docAuthor || '';
+  const dept = cfg.docDepartment || '';
+  const org = cfg.docOrganization || '';
+  const authorInfo = [org, dept, author].filter(Boolean).join(' / ');
+  const caps = isJa
+    ? `- アップロードされたファイル（PDF, テキスト, Word等）を読み込んで内容を理解する
+- 議事録、報告書、提案書、アイデア書などの.md/.txt書類を作成する
+- 行政書類や社内フォーマットに情報を埋め込んで作成する
+- 社内Wiki/サーバーからフォーマットや書き方のマニュアルを取得する（fetch_wikiツール）
+- Web検索で公的機関の書類フォーマットや書き方を調べる（web_searchツール）
+- 今後の運びや次のアクションの提案を行う`
+    : `- Read uploaded files (PDF, text, Word, etc.)
+- Create meeting minutes, reports, proposals in .md/.txt
+- Fill in government/corporate document templates
+- Fetch formats from internal wiki (fetch_wiki tool)
+- Search for official document formats (web_search tool)
+- Propose next steps and action items`;
+  const rules = isJa
+    ? `- 書類にはwrite_fileツールで作業フォルダに保存すること
+- 日付は自動で本日の日付を記入する
+- 公的書類の場合は必ずweb_searchで正しい書式を確認してから作成する
+- 社内書類の場合はfetch_wikiでマニュアルを確認できる場合は確認する
+- ファイルをアップロードされた場合はread_fileで読み込んで内容を確認する
+- フォーマットが指定された場合はそのフォーマットに文字を追記する形で作成する（フォーマットを壊さない）
+- 出力ファイル名は内容がわかる名前にする（例: 議事録_20260319.md）`
+    : `- Save documents with write_file to work folder
+- Auto-fill today\'s date
+- For official docs, search for correct format first
+- For internal docs, check wiki for manual if available
+- Read uploaded files with read_file
+- When filling templates, append text without breaking format
+- Use descriptive filenames`;
+  const title = isJa ? 'あなたは書類作成の専門AIアシスタントです。' : 'You are a professional document creation AI assistant.';
+  const langRule = isJa ? '必ず日本語で回答・書類を作成してください。' : 'Always respond and create documents in English.';
+  const capsLabel = isJa ? '【できること】' : '【Capabilities】';
+  const rulesLabel = isJa ? '【書類作成ルール】' : '【Document Rules】';
+  const authorLabel = authorInfo ? (isJa ? `\n【デフォルト作成者情報】\n${authorInfo}` : `\n【Default Author】\n${authorInfo}`) : '';
+  const timeLabel = isJa ? '現在日時' : 'Date/Time';
+  const folderLabel = isJa ? '作業フォルダ' : 'Folder';
+  return `${title}\n${langRule}\n\n${capsLabel}\n${caps}\n\n${rulesLabel}\n${rules}${authorLabel}\n\n${timeLabel}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}\n${folderLabel}: ${workDir||os.homedir()}${custom}`;
+}
+
+
+
 function buildAgentChatSysPrompt(calContext) {
   const lang = cfg.aiResponseLanguage || 'ja';
   const langInstr = lang === 'en'
@@ -727,9 +802,40 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
   let consecutiveErrors = 0;
   let noToolTurns = 0; // ツール呼び出しなしのターン数（ストール検出）
 
+  // ★ コンテキスト制御: msgs配列が大きくなりすぎないよう制御
+  function trimContext() {
+    let totalChars = 0;
+    for(const m of msgs) totalChars += (m.content||'').length + JSON.stringify(m.tool_calls||'').length;
+    if(totalChars < 60000) return;
+    logWrite(sessId, 'INFO', 'コンテキスト制御: ' + totalChars + '文字 → トリミング');
+    // systemプロンプト(index 0)は保持。古いtoolの結果を短縮
+    for(let i = 1; i < msgs.length - 10; i++){
+      if(msgs[i].role === 'tool' && msgs[i].content && msgs[i].content.length > 500){
+        try {
+          const parsed = JSON.parse(msgs[i].content);
+          if(parsed.stdout) parsed.stdout = parsed.stdout.slice(0, 200) + '...[trimmed]';
+          if(parsed.content) parsed.content = parsed.content.slice(0, 200) + '...[trimmed]';
+          if(parsed.items) parsed.items = parsed.items.slice(0, 20);
+          msgs[i].content = JSON.stringify(parsed);
+        } catch { msgs[i].content = msgs[i].content.slice(0, 300) + '...[trimmed]'; }
+      }
+    }
+    // それでも大きい場合、古いメッセージを削除（systemは保持）
+    let newTotal = 0;
+    for(const m of msgs) newTotal += (m.content||'').length;
+    if(newTotal > 80000 && msgs.length > 20) {
+      const keep = Math.max(15, Math.floor(msgs.length * 0.4));
+      const removed = msgs.splice(1, msgs.length - keep - 1);
+      logWrite(sessId, 'INFO', '古いメッセージ' + removed.length + '件を削除');
+      msgs.splice(1, 0, {role:'user', content:'[前のやり取りは省略されました。続きのタスクを実行してください。]'});
+    }
+  }
+
+
   for (let turn = 0; turn < 150; turn++) {
     if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止しました。' }); break; }
 
+    trimContext(); // ★ 毎ターンのコンテキスト制御
     // ほったらかしモードは毎ターン最新を読む（ON/OFF切替に即対応）
     const isHandsOff = cfg.handsOff;
 
@@ -799,43 +905,57 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
       onEvent({ type:'text', data: msg.content });
 
       if (devMode) {
-        // タスクリスト総数検出（柔軟パターン）
-        const totPatterns = [
-          /タスクリスト[\s\S]*?(\d+)\./g,
-          /=== タスクリスト ===/,
-          /タスク一覧/,
-          /(\d+)[\s.．]+[^\n]{3,}/g  // 番号付きリスト
-        ];
-        if (!msgs._totalTasksSet) {
+        // セクションリスト検出
+        if (!msgs._sectionsSet) {
+          if (/===\s*セクションリスト\s*===|セクション\d+[:：]/.test(msg.content)) {
+            const secMatches = msg.content.match(/セクション\s*(\d+)/g);
+            if (secMatches && secMatches.length >= 2) {
+              msgs._sectionsSet = true;
+              onEvent({ type:'progress', data:`${secMatches.length}セクションの開発計画を確認` });
+            }
+          }
+          // 旧形式のフラットタスクリストにも対応
           const listMatch = msg.content.match(/(?:^|\n)\s*(\d+)[.\s．]/gm);
-          if (listMatch && listMatch.length >= 2) {
-            msgs._totalTasksSet = true;
+          if (!msgs._sectionsSet && listMatch && listMatch.length >= 2) {
+            msgs._sectionsSet = true;
             onEvent({ type:'progress', data:`タスクリスト: ${listMatch.length}件のタスクを確認` });
           }
         }
-        // タスク開始検出（複数パターン対応）
-        const startPatterns = [
-          /---\s*タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：\s]+(.+?)\s*---/,
-          /タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]\s*(.+)/,
-          /【タスク\s*(\d+)\s*[/／]\s*(\d+)】\s*(.+)/,
-          /#+\s*タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]?\s*(.+)/
-        ];
-        for(const p of startPatterns){
-          const sm = msg.content.match(p);
-          if(sm){ onEvent({type:'task_start',data:{n:parseInt(sm[1]),total:parseInt(sm[2]),name:sm[3].trim()}}); break; }
+        // セクション開始検出: <<< セクション N/Total: Name >>>
+        const secStart = msg.content.match(/<<<\s*セクション\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]\s*(.+?)\s*>>>/);
+        if (secStart) {
+          onEvent({type:'section_start', data:{n:parseInt(secStart[1]), total:parseInt(secStart[2]), name:secStart[3].trim()}});
         }
-        // タスク完了検出（複数パターン対応）
-        const donePatterns = [
-          /\[完\]\s*タスク\s*(\d+)\s*完了.*?(\d+)\s*[/／]\s*(\d+)/,
-          /タスク\s*(\d+)\s*[が]?完了.*?(\d+)\s*[/／]\s*(\d+)/,
-          /✅?\s*タスク\s*(\d+).*完了/
-        ];
-        for(const p of donePatterns){
-          const dm = msg.content.match(p);
-          if(dm){ onEvent({type:'task_done',data:{n:parseInt(dm[1]),total:parseInt(dm[3]||dm[2]||0)}}); break; }
+        // セクション完了検出: [完] セクション N 完了
+        const secDone = msg.content.match(/\[完\]\s*セクション\s*(\d+)\s*完了.*?(\d+)\s*[/／]\s*(\d+)/);
+        if (secDone) {
+          onEvent({type:'section_done', data:{n:parseInt(secDone[1]), total:parseInt(secDone[3]||secDone[2]||0)}});
         }
-        // 開発完了検出（柔軟）
-        if (/===\s*開発完了\s*===|全タスク.*完了|開発が完了しました/.test(msg.content)){
+        // タスク開始検出: --- タスク S.T/S.Total: Name --- (階層) or --- タスクN/合計: Name --- (フラット)
+        const hierTaskStart = msg.content.match(/---\s*タスク\s*(\d+)\.(\d+)\s*[/／]\s*\d+\.\d+\s*[:：]\s*(.+?)\s*---/);
+        if (hierTaskStart) {
+          onEvent({type:'task_start', data:{sec:parseInt(hierTaskStart[1]), n:parseInt(hierTaskStart[2]), name:hierTaskStart[3].trim()}});
+        } else {
+          // フラットタスク形式にもフォールバック
+          const flatPatterns = [
+            /---\s*タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：\s]+(.+?)\s*---/,
+            /タスク\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]\s*(.+)/
+          ];
+          for(const p of flatPatterns){
+            const sm = msg.content.match(p);
+            if(sm){ onEvent({type:'task_start',data:{n:parseInt(sm[1]),total:parseInt(sm[2]),name:sm[3].trim()}}); break; }
+          }
+        }
+        // タスク完了検出: [完] タスク S.T 完了 (階層) or [完] タスクN 完了 (フラット)
+        const hierTaskDone = msg.content.match(/\[完\]\s*タスク\s*(\d+)\.(\d+)\s*完了/);
+        if (hierTaskDone) {
+          onEvent({type:'task_done', data:{sec:parseInt(hierTaskDone[1]), n:parseInt(hierTaskDone[2])}});
+        } else {
+          const flatDone = msg.content.match(/\[完\]\s*タスク\s*(\d+)\s*完了/);
+          if(flatDone) onEvent({type:'task_done', data:{n:parseInt(flatDone[1])}});
+        }
+        // 開発完了検出（厳格）
+        if (/===\s*(開発完了|デバッグ完了)\s*===/.test(msg.content)) {
           onEvent({ type:'dev_complete', data:'' });
         }
       }
@@ -848,17 +968,12 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
         const br = await handsOffBreakLoop(sessId, msgs, workDir, onEvent);
         sameCount = 0; loopCount = 0;
         if (br.resolved && br.suggestion) {
-          msgs.push({ role:'user', content:`【ループ打開指示】
-${br.suggestion}
-
-別のアプローチで続行してください。` });
+          msgs.push({ role:'user', content:`【ループ打開指示】\n${br.suggestion}\n\n別のアプローチで続行してください。` });
         } else {
-          // 問題①②: ほったらかしモードでは user_input_required を発生させない
           if (!isHandsOff) {
             onEvent({ type:'user_input_required', data:'× 別の指示を入力するか「スキップ」と入力してください。' });
             break;
           } else {
-            // ほったらかし: 強制スキップして続行
             msgs.push({ role:'user', content:'このステップをスキップして次のタスクに進んでください。' });
             onEvent({ type:'system', data:'𓅭 ループを検知したためスキップして続行します。' });
           }
@@ -868,15 +983,17 @@ ${br.suggestion}
     }
 
     if (!msg.tool_calls?.length) {
+      // dev_complete済みなら即終了（noToolTurns自動継続を発火させない）
+      const isDone = /===\s*(開発完了|デバッグ完了)\s*===/.test(msg.content||'');
+      if(isDone) break;
       // devMode: 開発完了でなければ自動継続（ストール防止）
-      if(devMode && !/===\s*開発完了\s*===|全タスク.*完了|開発が完了しました/.test(msg.content||'')){
+      if(devMode){
         noToolTurns++;
         if(noToolTurns <= 3){
           onEvent({type:'system',data:'↺ 次のタスクに進みます...'});
           msgs.push({role:'user',content:'続けてください。次のタスクを実行してください。'});
           continue;
         }
-        // 3回連続テキストのみ→停止
         onEvent({type:'system',data:'⚠ AIが停滞しています。再開ファイルを保存します。'});
         onEvent({type:'timeout',data:'ストール検出'});
       }
@@ -1147,12 +1264,24 @@ function saveAgentFeedToHistory(feedData){
   }catch{}
 }
 
+// ── 内部ファイルコピー（RAG/設計図を~/.pinechat/files/に保存）──
+function copyFileInternal(srcPath, projId) {
+  if(!srcPath || !fs.existsSync(srcPath)) return null;
+  const projDir = path.join(FILES_DIR, projId);
+  if(!fs.existsSync(projDir)) fs.mkdirSync(projDir, {recursive:true});
+  const destPath = path.join(projDir, path.basename(srcPath));
+  try { fs.copyFileSync(srcPath, destPath); return destPath; } catch(e) { logWrite('file','ERROR',`copy: ${e.message}`); return null; }
+}
+function getInternalFilePath(projId, fileName) {
+  return path.join(FILES_DIR, projId, fileName);
+}
+
 module.exports = {
   getCfg, updateCfg, detectModel, detectModelsAt, detectChatModels, detectWatcherModels, searxSearch,
   runAgent, stopAgent, isAborted,
   saveResumeFile, loadResumeFile, deleteResumeFile,
   makeDevSysPrompt, buildChatSysPrompt, buildAnalysisSysPrompt, buildDebugSysPrompt, buildAgentChatSysPrompt,
-  buildBlueprintSysPrompt, buildBlueprintGenerateSysPrompt, runBlueprintChat, getBlueprintAI, detectBlueprintModels, getDesignAI,
+  buildBlueprintSysPrompt, buildBlueprintGenerateSysPrompt, buildDocumentSysPrompt, runBlueprintChat, getBlueprintAI, detectBlueprintModels, getDesignAI,
   getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs,
   getWatcherCfg, saveWatcherCfg, getAgentAI,
@@ -1162,4 +1291,5 @@ module.exports = {
   loadAgentHistory, saveAgentHistory, clearAgentHistory,
   fetchDiscordMessages, fetchTelegramMessages,
   fetchGoogleCalendarEvents, fetchICloudCalendarEvents,
+  copyFileInternal, getInternalFilePath, FILES_DIR,
 };

@@ -532,6 +532,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="mc" id="mCC" onclick="selT('chat')"><div class="mc-g">𓃰</div><div class="mc-l">チャット</div><div class="mc-d">会話・調査</div></div>
       <div class="mc" id="mCB" onclick="selT('blueprint')"><div class="mc-g">𓏛</div><div class="mc-l">設計図作成</div><div class="mc-d">対話で.md設計書を作成</div></div>
       <div class="mc" id="mCD" onclick="selT('design')"><div class="mc-g">𓃭</div><div class="mc-l">アプリ設計</div><div class="mc-d">設計図から開発</div></div>
+      <div class="mc" id="mCDoc" onclick="selT('document')"><div class="mc-g">📄</div><div class="mc-l">書類作成</div><div class="mc-d">議事録・報告書・行政書類</div></div>
     </div>
     <!-- チャット用: 名前は任意（省略で自動生成） -->
     <div id="nChatOpts" style="display:none">
@@ -557,6 +558,15 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="mf"><div class="mfd" id="fD">未選択</div><button class="mfb" onclick="pickF()">選択...</button></div>
       <div class="lbl">システムプロンプト（任意）</div>
       <textarea class="ta2" id="nSysDesign" placeholder="このプロジェクト専用の指示..."></textarea>
+    </div>
+    <!-- 書類作成用 -->
+    <div id="nDocOpts" style="display:none">
+      <div class="lbl">プロジェクト名</div>
+      <input class="inp2" id="nNmDoc" type="text" placeholder="例: 3月定例会議事録" oninput="valNew()">
+      <div class="lbl">出力先フォルダ</div>
+      <div class="mf"><div class="mfd" id="fDDoc">未選択</div><button class="mfb" onclick="pickFDoc()">選択...</button></div>
+      <div class="lbl">書類の種類（任意）</div>
+      <textarea class="ta2" id="nDocDesc" placeholder="例: 会議の議事録を作成したい / 補助金申請書を作りたい" style="min-height:60px"></textarea>
     </div>
     <div class="mft">
       <button class="bc" onclick="closeM('mN')">キャンセル</button>
@@ -883,6 +893,13 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="set-row"><span class="set-lbl">ユーザー名</span><input class="set-inp" id="sWikiUser" placeholder="認証ユーザー"></div>
       <div class="set-row"><span class="set-lbl">パスワード</span><input class="set-inp" id="sWikiPass" type="password" placeholder="認証パスワード"></div>
     </div>
+    <!-- 書類作成デフォルト情報 -->
+    <div class="set-sec">
+      <div class="set-stl">書類作成デフォルト情報</div>
+      <div class="set-row"><span class="set-lbl">作成者名</span><input class="set-inp" id="sDocAuthor" placeholder="例: 山田太郎"></div>
+      <div class="set-row"><span class="set-lbl">部署</span><input class="set-inp" id="sDocDept" placeholder="例: 営業企画部"></div>
+      <div class="set-row"><span class="set-lbl">組織名</span><input class="set-inp" id="sDocOrg" placeholder="例: 株式会社〇〇"></div>
+    </div>
     <!-- ⑤ エージェント詳細設定（ウォッチャーボタン） -->
     <div class="set-sec">
       <div class="set-stl">エージェント詳細設定</div>
@@ -1056,7 +1073,9 @@ A.onChunk(ev=>{
       if(!curEl || isMsgDetached()){ const r=mkAI(); curEl=r.el; curBb=r.bb; msgs().appendChild(curEl); }
       addTool(curEl, ev.data); dn(); break;
     case 'task_start': addTaskCard(ev.data); dn(); break;
-    case 'task_done':  updateProgress(ev.data.n, ev.data.total); dn(); break;
+    case 'task_done':  updateProgressHier(ev.data); dn(); break;
+    case 'section_start': addSectionCard(ev.data); dn(); break;
+    case 'section_done': updateSectionDone(ev.data); dn(); break;
     case 'dev_complete':
       addSN('𓋹 開発完了','ok'); updateProgress(taskTotal,taskTotal);
       // 即座にbusy解除＋停止ボタン非表示
@@ -1279,7 +1298,7 @@ async function loadPL(){
     const d=document.createElement('div');
     d.className='pi'+(cur&&cur.id===p.id?' on':'');
     d.dataset.id=p.id;
-    const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':'𓃰';
+    const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':p.type==='document'?'📄':'𓃰';
     const busyMark = (globalBusyProjId === p.id) ? '<span style="color:var(--ok);font-size:9px;margin-left:4px">● 処理中</span>' : '';
     d.innerHTML=`<span class="pi-g">${g}</span><div class="pi-info"><div class="pi-nm">${esc(p.name)}${busyMark}</div><div class="pi-mt">${fmt(p.updatedAt)}</div></div><button class="pi-del" onclick="delP(event,'${p.id}')">×</button>`;
     d.addEventListener('click',()=>openP(p.id));
@@ -1305,7 +1324,7 @@ async function openP(id){
   const p = await A.getProject(id); if(!p){ curSid=prevSid; return; }
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):
-          p.type==='blueprint'?'blueprint':'chat';
+          p.type==='blueprint'?'blueprint':p.type==='document'?'document':'chat';
 
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
@@ -1406,7 +1425,7 @@ async function delP(e,id){
 }
 
 function renderHist(ms){
-  const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
+  const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱',fetch_wiki:'𓅔'};
   ms.forEach((m,i)=>{
     if(!m || !m.role) return;
     // 明示的ホワイトリスト: user/assistant/system/tool_callのみ表示
@@ -1453,9 +1472,9 @@ function renderHist(ms){
 }
 
 // ── 新規プロジェクト ─────────────────────────────────────
-let sFBp=null; // 設計図用フォルダ
+let sFBp=null, sFDoc=null;
 function openNew(){
-  sT=null; sF=null; sFBp=null;
+  sT=null; sF=null; sFBp=null; sFDoc=null;
   document.getElementById('nNm').value='';
   document.getElementById('nNmDesign').value='';
   document.getElementById('fD').textContent='未選択';
@@ -1464,12 +1483,12 @@ function openNew(){
   document.getElementById('nNmBp').value='';
   document.getElementById('fDBp').textContent='未選択';
   document.getElementById('nBpIdea').value='';
+  document.getElementById('nNmDoc').value='';
+  document.getElementById('fDDoc').textContent='未選択';
+  document.getElementById('nDocDesc').value='';
   document.getElementById('bCr').disabled=true;
-  document.getElementById('mCC').classList.remove('s'); document.getElementById('mCD').classList.remove('s');
-  document.getElementById('mCB').classList.remove('s');
-  document.getElementById('nChatOpts').style.display='none';
-  document.getElementById('nDesignOpts').style.display='none';
-  document.getElementById('nBlueprintOpts').style.display='none';
+  ['mCC','mCD','mCB','mCDoc'].forEach(id=>document.getElementById(id).classList.remove('s'));
+  ['nChatOpts','nDesignOpts','nBlueprintOpts','nDocOpts'].forEach(id=>document.getElementById(id).style.display='none');
   openM('mN');
 }
 function selT(t){
@@ -1477,14 +1496,17 @@ function selT(t){
   document.getElementById('mCC').classList.toggle('s',t==='chat');
   document.getElementById('mCB').classList.toggle('s',t==='blueprint');
   document.getElementById('mCD').classList.toggle('s',t==='design');
+  document.getElementById('mCDoc').classList.toggle('s',t==='document');
   document.getElementById('nChatOpts').style.display      = t==='chat'      ? '' : 'none';
   document.getElementById('nBlueprintOpts').style.display  = t==='blueprint' ? '' : 'none';
   document.getElementById('nDesignOpts').style.display     = t==='design'    ? '' : 'none';
+  document.getElementById('nDocOpts').style.display        = t==='document'  ? '' : 'none';
   if(t==='chat') document.getElementById('bCr').disabled=false;
   valNew();
   setTimeout(()=>{
     const f = t==='chat'?document.getElementById('nNm'):
               t==='blueprint'?document.getElementById('nNmBp'):
+              t==='document'?document.getElementById('nNmDoc'):
               document.getElementById('nNmDesign');
     if(f)f.focus();
   },60);
@@ -1495,12 +1517,15 @@ function valNew(){
     document.getElementById('bCr').disabled=false;
   } else if(sT==='blueprint'){
     document.getElementById('bCr').disabled=!(document.getElementById('nNmBp').value.trim());
+  } else if(sT==='document'){
+    document.getElementById('bCr').disabled=!(document.getElementById('nNmDoc').value.trim());
   } else {
     document.getElementById('bCr').disabled=!(document.getElementById('nNmDesign').value.trim()&&sF);
   }
 }
 async function pickF(){ const f=await A.pickFolder(); if(f){ sF=f; document.getElementById('fD').textContent=f; valNew(); } }
 async function pickFBp(){ const f=await A.pickFolder(); if(f){ sFBp=f; document.getElementById('fDBp').textContent=f; } }
+async function pickFDoc(){ const f=await A.pickFolder(); if(f){ sFDoc=f; document.getElementById('fDDoc').textContent=f; } }
 async function doCreate(){
   if(!sT) return;
   let nm, sys, workDir;
@@ -1513,6 +1538,11 @@ async function doCreate(){
     if(!nm) return;
     sys     = '';
     workDir = sFBp || null;
+  } else if(sT==='document'){
+    nm      = document.getElementById('nNmDoc').value.trim();
+    if(!nm) return;
+    sys     = document.getElementById('nDocDesc').value.trim();
+    workDir = sFDoc || null;
   } else {
     nm      = document.getElementById('nNmDesign').value.trim();
     sys     = document.getElementById('nSysDesign').value.trim();
@@ -1523,7 +1553,7 @@ async function doCreate(){
   const tmpName = isAutoName ? '新規チャット' : nm;
   const p=await A.createProject({name:tmpName, type:sT, workDir:workDir||'', systemPrompt:sys});
   closeM('mN'); cur=p; curSid='P'+p.id;
-  curMode = sT==='design'?'dev': sT==='blueprint'?'blueprint': 'chat';
+  curMode = sT==='design'?'dev': sT==='blueprint'?'blueprint': sT==='document'?'document': 'chat';
   loadPL(); showChat();
   document.getElementById('pn').textContent=' · '+p.name;
   document.getElementById('msgs').innerHTML='';
@@ -1541,6 +1571,29 @@ async function doCreate(){
       if(cur) A.updateProject(cur.id,cur);
     } else {
       addAI('𓏛 設計図作成モードへようこそ！\n\nどんなアプリを作りたいですか？アイデアや要件を教えてください。\n対話を通じて要件を整理し、最終的に開発用の設計書(.md)を出力します。');
+    }
+  } else if(sT==='document'){
+    const desc = document.getElementById('nDocDesc').value.trim();
+    if(desc){
+      cur.messages.push({role:'user',content:desc});
+      addUserBubble(desc,0);
+      startBusy();
+      await chatInternal(desc,'document');
+      if(cur) A.updateProject(cur.id,cur);
+    } else {
+      addAI('📄 書類作成モードへようこそ！\n\nできること:\n- 会議の議事録作成\n- 報告書・提案書の作成\n- 行政書類のフォーマットに沿った作成\n- 社内書式に沿った書類作成\n- アップロードしたファイルの要約・整理\n\nどんな書類を作成しますか？ファイルがあれば添付してください。');
+    }
+  }
+  else if(sT==='document'){
+    const desc = document.getElementById('nDocDesc').value.trim();
+    if(desc){
+      cur.messages.push({role:'user',content:desc});
+      addUserBubble(desc,0);
+      startBusy();
+      await chatInternal(desc,'document');
+      if(cur) A.updateProject(cur.id,cur);
+    } else {
+      addAI('📄 書類作成モードへようこそ！\n\nできること:\n- 議事録・報告書・提案書の作成\n- 行政書類や社内フォーマットへの記入\n- アップロードされた資料からの書類作成\n- 公的書式の調査と正しいフォーマットでの作成\n\nどのような書類を作成しますか？\nファイルを添付して「この資料をもとに議事録を作成して」等と指示してください。');
     }
   }
   else addAI('𓂀 こんにちは！何でも話しかけてください。');
@@ -1720,7 +1773,7 @@ ${dDat.langs?'優先言語: '+dDat.langs+'\n':''}作業フォルダ: ${cur?cur.w
   }
 
   startBusy();
-  await chatInternalDev(prompt, dDat.langs);
+  await chatInternalDev(prompt, 'dev');
   if(cur) A.updateProject(cur.id, cur);
 }
 
@@ -1742,21 +1795,74 @@ function fmtSec(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;
   if(h>0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
 
-// ── 進捗 ─────────────────────────────────────────────────
-function addTaskCard(data){
-  taskN=data.n; if(data.total) taskTotal=data.total;
+// ── 進捗（セクション・タスク階層対応） ─────────────────────
+let secN=0, secTotal=0, secTaskN=0, secTaskTotal=0, secName='';
+
+function addSectionCard(data){
+  secN=data.n; secTotal=data.total; secName=data.name; secTaskN=0; secTaskTotal=0;
   const d=document.createElement('div'); d.className='task-card';
-  d.innerHTML=`<span class="task-num">タスク ${data.n}${taskTotal?'/'+taskTotal:''}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span></span>`;
+  d.style.cssText='border-left:3px solid var(--ok);background:var(--prog-bg)';
+  d.dataset.section=data.n;
+  d.innerHTML=`<span class="task-num" style="color:var(--ok);font-size:13px">セクション ${data.n}/${data.total}</span><span class="task-name" style="font-weight:700">${esc(data.name)}</span><span class="task-stat">実行中</span>`;
   msgs().appendChild(d); dn();
-  updateProgress(data.n-1, data.total||taskTotal);
-  // 問題⑥: チャット欄にもタスク進行状況を表示
-  const total = data.total || taskTotal;
-  const pct = total > 0 ? Math.round((data.n-1)/total*100) : 0;
-  addSN(`📋 タスク ${data.n}${total?'/'+total:''}: ${esc(data.name)}${total?' ('+pct+'%完了)':''}`, 'ok');
-  // prog-barが非表示ならここで表示
-  if(document.getElementById('prog-bar').style.display==='none'){
-    document.getElementById('prog-bar').style.display='block';
+  updateProgressBar();
+  document.getElementById('prog-bar').style.display='block';
+}
+function updateSectionDone(data){
+  secN=data.n;
+  document.querySelectorAll(`.task-card[data-section="${data.n}"]`).forEach(c=>{
+    const st=c.querySelector('.task-stat'); if(st) st.textContent='𓋹 完了';
+  });
+  updateProgressBar();
+}
+function addTaskCard(data){
+  // 階層タスク: data.sec があればセクション内タスク
+  if(data.sec){
+    secTaskN=data.n;
+    const label=`${data.sec}.${data.n}`;
+    const d=document.createElement('div'); d.className='task-card'; d.dataset.taskId=label;
+    d.innerHTML=`<span class="task-num">タスク ${label}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span></span>`;
+    msgs().appendChild(d); dn();
+    updateProgressBar();
+  } else {
+    // フラットタスク（旧形式互換）
+    taskN=data.n; if(data.total) taskTotal=data.total;
+    const d=document.createElement('div'); d.className='task-card';
+    d.innerHTML=`<span class="task-num">タスク ${data.n}${taskTotal?'/'+taskTotal:''}</span><span class="task-name">${esc(data.name)}</span><span class="task-stat">処理中... <span style="opacity:.6;font-family:Menlo,monospace">${nowTs()}</span></span>`;
+    msgs().appendChild(d); dn();
+    updateProgress(data.n-1, data.total||taskTotal);
   }
+  document.getElementById('prog-bar').style.display='block';
+}
+function updateProgressHier(data){
+  if(data.sec){
+    // 階層タスク完了
+    const label=`${data.sec}.${data.n}`;
+    document.querySelectorAll(`.task-card[data-task-id="${label}"]`).forEach(c=>{
+      const st=c.querySelector('.task-stat'); if(st) st.textContent='𓋹 完了';
+    });
+    secTaskN=data.n;
+    updateProgressBar();
+  } else {
+    // フラットタスク完了
+    updateProgress(data.n, data.total||taskTotal);
+  }
+}
+function updateProgressBar(){
+  // 階層進捗: セクション単位で計算
+  let pct = 0;
+  if(secTotal > 0){
+    const completedSecs = Math.max(0, secN - 1);
+    const secProgress = secTaskTotal > 0 ? secTaskN / secTaskTotal : 0;
+    pct = Math.round((completedSecs + secProgress) / secTotal * 100);
+  }
+  pct = Math.min(pct, 100);
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-pct').textContent=pct+'%';
+  const txt = secTotal > 0
+    ? `セクション ${secN}/${secTotal}: ${secName}${secTaskN?' — タスク '+secTaskN:''}` 
+    : '開発中...';
+  document.getElementById('prog-txt').textContent=txt;
 }
 function updateProgress(n,total){
   taskN=n; if(total) taskTotal=total;
@@ -1765,7 +1871,9 @@ function updateProgress(n,total){
   document.getElementById('prog-pct').textContent=pct+'%';
   document.getElementById('prog-txt').textContent=total>0?`タスク ${n}/${total}`:'開発中...';
   document.querySelectorAll('.task-card').forEach((c,i)=>{
-    if(i<n) c.querySelector('.task-stat').textContent='𓋹 完了';
+    if(!c.dataset.section && !c.dataset.taskId && i<n){
+      const st=c.querySelector('.task-stat'); if(st) st.textContent='𓋹 完了';
+    }
   });
 }
 
@@ -1828,8 +1936,13 @@ function updateModeUI(){
     if(tabDebug) tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
     chatOpts.style.display=cur.devDone?'flex':'none';
-    const showProg = curMode==='dev' && busy;
-    document.getElementById('prog-bar').style.display = showProg ? 'block' : (taskTotal>0 ? 'block' : 'none');
+    const showProg = (curMode==='dev'||curMode==='debug') && (busy || taskTotal>0 || secTotal>0);
+    document.getElementById('prog-bar').style.display = showProg ? 'block' : 'none';
+  } else if(cur.type==='document'){
+    bar.style.display='none'; dbg.style.display='none';
+    if(bpBanner) bpBanner.style.display='none';
+    chatOpts.style.display='flex'; // 添付・調べるボタン表示
+    document.getElementById('prog-bar').style.display='none';
   } else {
     bar.style.display='none'; dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='none';
@@ -1854,13 +1967,14 @@ function startBusy(){
   globalBusyProjId = cur ? cur.id : null;
   document.getElementById('send-btn').disabled=true;
   setStopState('active');
-  if(cur && cur.type==='design' && curMode==='dev'){
+  // design PJのdev/debugモードでは常にprog-bar表示
+  if(cur && cur.type==='design' && (curMode==='dev'||curMode==='debug')){
     document.getElementById('prog-bar').style.display='block';
-    if(!document.getElementById('prog-txt').textContent || document.getElementById('prog-txt').textContent==='準備中...'){
-      document.getElementById('prog-txt').textContent='開発中...';
-    }
+    const pt=document.getElementById('prog-txt');
+    if(!pt.textContent||pt.textContent==='準備中...') pt.textContent='開発中...';
   }
   cancelAutoRecovery();
+  loadPL(); // サイドバーの処理中マーク更新
 }
 function endBusy(){
   busy=false;
@@ -1908,7 +2022,7 @@ async function doSend(){
   addUserBubble(txt,msgIdx);
   startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):
-                  cur.type==='blueprint'?'blueprint':curMode;
+                  cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':curMode;
   await chatInternal(txt,sendMode,attachs,ds);
   if(cur) {
     // チャットPJの名前が「新規チャット」のまま → 最初のメッセージから自動生成
@@ -2037,7 +2151,7 @@ async function doRestart(){
   cur.messages=cleanHistory;
   startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):
-                  cur.type==='blueprint'?'blueprint':curMode;
+                  cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':curMode;
   if(sendMode==='dev') startDevTimer();
   await chatInternal(lastUser.content,sendMode);
   if(sendMode==='dev') stopDevTimer();
@@ -2118,7 +2232,7 @@ async function commitEdit(idx,ta){
   }
   startBusy();
   const sendMode=cur&&cur.type==='design'?(curMode==='debug'?'debug':'dev'):
-                  cur&&cur.type==='blueprint'?'blueprint':curMode;
+                  cur&&cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':curMode;
   await chatInternal(newText,sendMode);
   if(cur) A.updateProject(cur.id,cur);
 }
@@ -2162,7 +2276,7 @@ function mkAI(){
 }
 
 function addTool(par,td){
-  const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱'};
+  const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱',fetch_wiki:'𓅔'};
   const box=document.createElement('div'); box.className='tb';
   const args=td.args||{};
   const argStr=['command','path','url','query','reason'].filter(k=>args[k])
@@ -2274,6 +2388,10 @@ async function openSet(){
   document.getElementById('sDesignPort').value = c.designAiPort||'';
   document.getElementById('sDesignApiKey').value = c.designApiKey||'';
   document.getElementById('sDesignModel').value = c.designModelId||'';
+  // 書類作成デフォルト情報
+  document.getElementById('sDocAuthor').value = c.docAuthor||'';
+  document.getElementById('sDocDept').value = c.docDepartment||'';
+  document.getElementById('sDocOrg').value = c.docOrganization||'';
   openM('mS');
 }
 async function fetchChatModels(){
@@ -2349,7 +2467,10 @@ async function savSet(){
     designAiHost:document.getElementById('sDesignHost').value.trim(),
     designAiPort:parseInt(document.getElementById('sDesignPort').value)||0,
     designApiKey:document.getElementById('sDesignApiKey').value.trim(),
-    designModelId:document.getElementById('sDesignModel').value.trim()});
+    designModelId:document.getElementById('sDesignModel').value.trim(),
+    docAuthor:document.getElementById('sDocAuthor').value.trim(),
+    docDepartment:document.getElementById('sDocDept').value.trim(),
+    docOrganization:document.getElementById('sDocOrg').value.trim()});
   // ウォッチャー設定にも反映
   const wcfg=await A.getWatcherCfg();
   wcfg.agentAiHost=agentHost; wcfg.agentAiPort=agentPort; wcfg.agentModelId=agentModel;

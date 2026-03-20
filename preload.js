@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('api', {
   // 設計図
   saveBlueprintFile:   o       => ipcRenderer.invoke('save-blueprint-file', o),
   getBlueprintModels:  ()      => ipcRenderer.invoke('get-blueprint-models'),
+  copyFileInternal:    o       => ipcRenderer.invoke('copy-file-internal', o),
   // ウォッチャーエージェント
   getWatcherCfg:       ()      => ipcRenderer.invoke('get-watcher-cfg'),
   saveWatcherCfg:      d       => ipcRenderer.invoke('save-watcher-cfg', d),
