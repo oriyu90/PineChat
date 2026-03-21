@@ -153,6 +153,21 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   const sess   = agent.getSession(sessId);
   const cfg    = agent.getCfg();
 
+  // 修正7: プロジェクト専用AI設定がある場合は一時的に適用
+  let projAiApplied = false;
+  let origChatAiHost, origChatAiPort, origChatModelId;
+  if(proj && (proj.aiHost || proj.aiPort || proj.aiModel)){
+    origChatAiHost = cfg.chatAiHost;
+    origChatAiPort = cfg.chatAiPort;
+    origChatModelId = cfg.chatModelId;
+    const override = {};
+    if(proj.aiHost) override.chatAiHost = proj.aiHost;
+    if(proj.aiPort) override.chatAiPort = proj.aiPort;
+    if(proj.aiModel) override.chatModelId = proj.aiModel;
+    agent.updateCfg(override);
+    projAiApplied = true;
+  }
+
   if(sess.history.length>40) sess.history=sess.history.slice(-40);
 
   let fullMessage=message;
@@ -213,6 +228,10 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   }finally{
     activeSessions.delete(sessId);
     if(mode==='dev'&&workDir&&!wasAborted) agent.deleteResumeFile(workDir);
+    // 修正7: プロジェクト専用AI設定を復元
+    if(projAiApplied){
+      agent.updateCfg({chatAiHost:origChatAiHost||'', chatAiPort:origChatAiPort||0, chatModelId:origChatModelId||''});
+    }
   }
 
   sess.history.push({role:'assistant',content:fullText});

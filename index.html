@@ -467,7 +467,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <div id="bp-preview-bar">
           <span>𓏛 生成された設計図</span>
           <button class="bp-bar-btn" onclick="copyBpPreview()">コピー</button>
-          <button class="bp-bar-btn" onclick="saveBpToFile()">💾 .md保存</button>
+          <button class="bp-bar-btn" onclick="saveBpToFile()">𓁹 .md保存</button>
           <button class="bp-bar-btn warn" onclick="closeBpPreview()">閉じる</button>
         </div>
         <div id="bp-preview-content" class="md-rendered"></div>
@@ -502,7 +502,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <button class="acbtn run"      onclick="agentCmdRunNow()">▶ 今すぐ実行</button>
         <button class="acbtn stop"     onclick="agentCmdStop()">■ 停止</button>
         <button class="acbtn schedule" onclick="agentCmdSchedule()">⏱ スケジュール動作</button>
-        <button class="acbtn"          onclick="openWatcherSet()" style="margin-left:auto">⚙ 設定</button>
+        <button class="acbtn"          onclick="openWatcherSet()" style="margin-left:auto">𓀂 設定</button>
         <button class="acbtn"          onclick="clearAgentFeedAndHistory()" style="border-color:var(--b3)">クリア</button>
       </div>
       <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px">
@@ -532,7 +532,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="mc" id="mCC" onclick="selT('chat')"><div class="mc-g">𓃰</div><div class="mc-l">チャット</div><div class="mc-d">会話・調査</div></div>
       <div class="mc" id="mCB" onclick="selT('blueprint')"><div class="mc-g">𓏛</div><div class="mc-l">設計図作成</div><div class="mc-d">対話で.md設計書を作成</div></div>
       <div class="mc" id="mCD" onclick="selT('design')"><div class="mc-g">𓃭</div><div class="mc-l">アプリ設計</div><div class="mc-d">設計図から開発</div></div>
-      <div class="mc" id="mCDoc" onclick="selT('document')"><div class="mc-g">📄</div><div class="mc-l">書類作成</div><div class="mc-d">議事録・報告書・行政書類</div></div>
+      <div class="mc" id="mCDoc" onclick="selT('document')"><div class="mc-g">𓏞</div><div class="mc-l">書類作成</div><div class="mc-d">議事録・報告書・行政書類</div></div>
     </div>
     <!-- チャット用: 名前は任意（省略で自動生成） -->
     <div id="nChatOpts" style="display:none">
@@ -608,8 +608,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <button class="rag-add" onclick="addRag()">+ .md を追加</button>
     <div class="mft">
       <button class="bc" onclick="closeM('mD')">キャンセル</button>
-      <button class="bc" onclick="saveDesignSetup()" style="border-color:var(--ok);color:var(--ok)">💾 保存して保留</button>
-      <button class="bok" onclick="subDes()">分析開始</button>
+      <button class="bok" onclick="createDesignSetup()">作成</button>
     </div>
   </div>
 </div>
@@ -625,8 +624,8 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <textarea class="ta2" id="dRv" placeholder="変更点があれば記入。なければそのまま開始してください。" style="min-height:50px"></textarea>
     <div class="lbl" style="margin-top:8px">開発モード</div>
     <div class="mcs" style="margin-bottom:12px">
-      <div class="mc s" id="mcFresh" onclick="selDevMode('fresh')"><div class="mc-g">🆕</div><div class="mc-l">初めから</div><div class="mc-d">フォルダを初期化して開発</div></div>
-      <div class="mc" id="mcContinue" onclick="selDevMode('continue')"><div class="mc-g">📂</div><div class="mc-l">途中から</div><div class="mc-d">既存ファイルを引き継ぎ</div></div>
+      <div class="mc s" id="mcFresh" onclick="selDevMode('fresh')"><div class="mc-g">𓂁</div><div class="mc-l">初めから</div><div class="mc-d">フォルダを初期化して開発</div></div>
+      <div class="mc" id="mcContinue" onclick="selDevMode('continue')"><div class="mc-g">𓅔</div><div class="mc-l">途中から</div><div class="mc-d">既存ファイルを引き継ぎ</div></div>
     </div>
     <div class="mft">
       <button class="bc" onclick="revDes()">修正して再分析</button>
@@ -802,7 +801,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="set-row"><span class="set-lbl">SearXNG URL</span><input class="set-inp" id="sSearx" type="text" placeholder="http://localhost:8080" style="width:210px"></div>
       <div class="set-hint">SearXNG の settings.yml に formats: [html, json] の追記が必要です</div>
       <div class="set-row"><span class="set-lbl">タイムアウト (秒)</span><input class="set-inp" id="sTO" type="number" min="100" max="1000" step="50" style="width:80px"></div>
-      <div class="set-hint">100〜1000秒 (デフォルト: 300秒)</div>
+      <div class="set-hint">100〜1000秒 (デフォルト: 500秒)</div>
     </div>
     <!-- ⑤ チャット用AI選択 -->
     <div class="set-sec">
@@ -822,23 +821,11 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         </select>
       </div>
     </div>
-    <!-- ⑤ エージェント用AI選択（ウォッチャー設定を統合） -->
-    <div class="set-sec">
-      <div class="set-stl">エージェント用 AI</div>
-      <div class="set-hint" style="margin:0 0 8px">省略時はAI接続のデフォルトを使用</div>
-      <div class="set-row">
-        <span class="set-lbl">ホスト</span>
-        <input class="set-inp" id="sAgentHost" type="text" placeholder="(デフォルト)" style="width:140px">
-        <span style="font-size:12px;color:var(--t3);margin:0 4px">:</span>
-        <input class="set-inp" id="sAgentPort" type="number" min="1" max="65535" placeholder="(デフォルト)" style="width:75px">
-        <button class="mfb" onclick="fetchAgentModels()" style="margin-left:8px;font-size:11px;padding:5px 10px">モデル取得</button>
-      </div>
-      <div class="set-row">
-        <span class="set-lbl">モデル</span>
-        <select class="set-inp" id="sAgentModel" style="width:220px;cursor:pointer;background:var(--bg)">
-          <option value="">デフォルト（自動検出）</option>
-        </select>
-      </div>
+    <!-- 修正8: エージェント用AI設定はエージェント設定(mW)に統合済みのため非表示 -->
+    <div style="display:none">
+      <input id="sAgentHost" type="hidden">
+      <input id="sAgentPort" type="hidden">
+      <select id="sAgentModel"><option value=""></option></select>
     </div>
     <!-- 設計図作成AI設定 -->
     <div class="set-sec">
@@ -875,6 +862,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
         <input type="checkbox" id="sBpThinking" style="accent-color:var(--ok);cursor:pointer">
         <span style="font-size:11px;color:var(--t3);margin-left:6px">DeepSeek R1 / Claude等のThinkingモードを有効化</span>
       </div>
+      <div class="set-hint">𓅭 Thinkingはdeepseek/anthropicのみ対応。ローカルAIではOFFを推奨（エラーの原因になります）</div>
     </div>
     <!-- 設計用外部AI設定 -->
     <div class="set-sec">
@@ -917,8 +905,35 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     </div>
     <div class="set-sec" id="projSetSec" style="display:none">
       <div class="set-stl">プロジェクト設定</div>
+      <div class="set-row"><span class="set-lbl">プロジェクト名</span><input class="set-inp" id="syName" style="width:220px"></div>
+      <div class="set-row" id="syWdRow" style="display:none"><span class="set-lbl">作業フォルダ</span>
+        <span class="mfd" id="syWd" style="flex:1;min-width:0">未選択</span>
+        <button class="mfb" onclick="pickSyWd()" style="margin-left:6px;font-size:11px;padding:5px 10px">変更</button>
+      </div>
       <div class="lbl">システムプロンプト</div>
       <textarea class="ta2" id="sySys" placeholder="このプロジェクト専用の指示..."></textarea>
+      <div class="set-hint" id="syWarnHint" style="display:none;color:var(--warn)">𓅭 設計図作成/アプリ設計PJの根幹設定の変更は既存の開発結果に影響する可能性があります</div>
+      <!-- 修正7: プロジェクト毎のAI選択 -->
+      <div id="syAiSec" style="margin-top:10px">
+        <div class="lbl">プロジェクト専用AI（省略でデフォルト使用）</div>
+        <div class="set-row">
+          <span class="set-lbl">ホスト</span>
+          <input class="set-inp" id="syAiHost" type="text" placeholder="(デフォルト)" style="width:140px">
+          <span style="font-size:12px;color:var(--t3);margin:0 4px">:</span>
+          <input class="set-inp" id="syAiPort" type="number" min="1" max="65535" placeholder="(デフォルト)" style="width:75px">
+          <button class="mfb" onclick="fetchProjModels()" style="margin-left:8px;font-size:11px;padding:5px 10px">モデル取得</button>
+        </div>
+        <div class="set-row">
+          <span class="set-lbl">モデル</span>
+          <select class="set-inp" id="syAiModel" style="width:220px;cursor:pointer;background:var(--bg)">
+            <option value="">デフォルト</option>
+          </select>
+        </div>
+        <div class="set-row" id="syAiKeyRow" style="display:none">
+          <span class="set-lbl">APIキー</span>
+          <input class="set-inp" id="syAiApiKey" type="password" placeholder="外部AI使用時" style="width:240px">
+        </div>
+      </div>
     </div>
     <div class="set-sec">
       <div class="set-stl">ログ管理</div>
@@ -937,7 +952,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
 
 <!-- ③ 右クリックコンテキストメニュー -->
 <div id="ctx-menu">
-  <div class="ctx-item" onclick="ctxRename()">✏ 名前を変更</div>
+  <div class="ctx-item" onclick="ctxRename()">𓂃 名前を変更</div>
   <div class="ctx-item danger" onclick="ctxDelete()">× 削除</div>
 </div>
 <script>
@@ -1102,11 +1117,11 @@ A.onChunk(ev=>{
       // dev/debugモードでは常に自動復旧を試みる（ユーザー停止以外の中断時）
       if(cur && (curMode==='dev' || curMode==='debug')){
         if(!autoRecoveryInProgress){
-          addSN('⚠ 処理が中断されました。自動復旧を試みます...', 'warn');
+          addSN('𓅭 処理が中断されました。自動復旧を試みます...', 'warn');
           scheduleAutoRecovery();
         }
       } else {
-        addSN('⚠ 処理が中断されました', 'warn');
+        addSN('𓅭 処理が中断されました', 'warn');
         endBusy();
         globalBusyRelease(); // グローバルロック解放
       }
@@ -1133,13 +1148,13 @@ function markProjBusy(sessId, evType){
   const mtEl = document.querySelector(`.pi[data-id="${projId}"] .pi-mt`);
   if(mtEl){
     if(evType==='user_input_required'){
-      mtEl.textContent='⚠ 操作待ち'; mtEl.style.color='var(--warn)';
+      mtEl.textContent='𓅭 操作待ち'; mtEl.style.color='var(--warn)';
     } else if(finished){
       mtEl.textContent=''; mtEl.style.color='';
       removeBgBusyBanner(projId);
     } else {
       // バックグラウンドでAIが動いているのを明示
-      if(!mtEl.textContent.includes('動作中')) mtEl.textContent='🔄 動作中';
+      if(!mtEl.textContent.includes('動作中')) mtEl.textContent='𓃭 動作中';
       mtEl.style.color='var(--ok)';
     }
   }
@@ -1239,7 +1254,7 @@ async function onWakeFromSleep(){
     curBb.innerHTML = renderMd(curFull);
     curBb.classList.add('md-rendered');
   }
-  addSN('💤 スリープから復帰しました。処理を停止します...','warn');
+  addSN('𓅯 スリープから復帰しました。処理を停止します...','warn');
   if (curSid) await A.stopChat(curSid);
   if (cur && cur.workDir){
     const checkpoint = curFull ? ('スリープ復帰前の出力: '+curFull.slice(-200)) : 'スリープ中断';
@@ -1256,7 +1271,7 @@ async function onWakeFromSleep(){
   busy = false;
   document.getElementById('send-btn').disabled = false;
   setStopState('resume');
-  addSN('▶ 再開ボタンで続きから再開できます','ok');
+  addSN('𓅯 再開ボタンで続きから再開できます','ok');
 }
 
 // ── ステータス ───────────────────────────────────────────
@@ -1308,7 +1323,7 @@ async function loadPL(){
     const d=document.createElement('div');
     d.className='pi'+(cur&&cur.id===p.id?' on':'');
     d.dataset.id=p.id;
-    const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':p.type==='document'?'📄':'𓃰';
+    const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':p.type==='document'?'𓏞':'𓃰';
     const busyMark = (globalBusyProjId === p.id) ? '<span style="color:var(--ok);font-size:9px;margin-left:4px">● 処理中</span>' : '';
     d.innerHTML=`<span class="pi-g">${g}</span><div class="pi-info"><div class="pi-nm">${esc(p.name)}${busyMark}</div><div class="pi-mt">${fmt(p.updatedAt)}</div></div><button class="pi-del" onclick="delP(event,'${p.id}')">×</button>`;
     d.addEventListener('click',()=>openP(p.id));
@@ -1389,7 +1404,7 @@ async function openP(id){
   try{
     const st = await A.isAiBusy();
     if(st.busy && st.projId !== id){
-      addSN('⏳ 別のプロジェクトでAI処理中です','warn');
+      addSN('𓂋 別のプロジェクトでAI処理中です','warn');
       document.getElementById('send-btn').disabled=true;
     }
   }catch{}
@@ -1412,6 +1427,10 @@ async function openP(id){
   // 設計保留PJ: _designSetupがあり、まだ分析開始していない場合
   if(p.type==='design' && p._designSetup && (!p.messages || p.messages.length === 0)){
     showDesignStartBanner();
+  }
+  // 修正2: 処理開始待ちPJのバナー復元
+  if(p._pendingMessage && p._pendingMode){
+    showProcessStartBanner(p._pendingMode);
   }
 }
 
@@ -1472,7 +1491,9 @@ function renderHist(ms){
       tsE.textContent=m.ts?new Date(m.ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
       hdr.appendChild(ico); hdr.appendChild(nm); hdr.appendChild(tsE);
       box.appendChild(hdr);
-      const args=m.args||{};
+      // 修正4: argsがJSON文字列として保存されている場合のパース処理
+      let args=m.args||{};
+      if(typeof args === 'string'){ try{ args=JSON.parse(args); }catch{ args={}; } }
       const argKeys=['command','path','url','query','reason'].filter(k=>args[k]);
       if(argKeys.length>0){
         const td=document.createElement('div'); td.className='td2';
@@ -1559,7 +1580,7 @@ function renderDocFiles(){
   const el=document.getElementById('nDocFiles'); el.innerHTML='';
   docFiles.forEach((f,i)=>{
     const d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--t2)';
-    d.innerHTML=`📎 ${esc(f.name||f.path)} <button onclick="docFiles.splice(${i},1);renderDocFiles()" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:11px">×</button>`;
+    d.innerHTML=`𓅔 ${esc(f.name||f.path)} <button onclick="docFiles.splice(${i},1);renderDocFiles()" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:11px">×</button>`;
     el.appendChild(d);
   });
 }
@@ -1628,11 +1649,12 @@ async function doCreate(){
   else if(sT==='blueprint'){
     const idea = document.getElementById('nBpIdea').value.trim();
     if(idea){
-      cur.messages.push({role:'user',content:idea});
-      addUserBubble(idea,0);
-      startBusy();
-      await chatInternal(idea,'blueprint');
-      if(cur) A.updateProject(cur.id,cur);
+      // 修正2: すぐにAI処理を開始せず、バナーを表示
+      cur._pendingMessage = idea;
+      cur._pendingMode = 'blueprint';
+      await A.updateProject(cur.id, cur);
+      addAI('𓏛 設計図作成モードへようこそ！\n\nアイデアを受け取りました。準備ができたら下のボタンで開始してください。');
+      showProcessStartBanner('blueprint');
     } else {
       addAI('𓏛 設計図作成モードへようこそ！\n\nどんなアプリを作りたいですか？アイデアや要件を教えてください。');
     }
@@ -1644,16 +1666,46 @@ async function doCreate(){
       fileContext = '\n\n【添付ファイル】\n' + docFiles.map(f=>`--- ${f.name||'file'} ---\n${(f.content||'').slice(0,5000)}`).join('\n\n');
     }
     const fullMsg = (initMsg || 'この書類作成プロジェクトを開始してください。') + fileContext;
-    cur.messages.push({role:'user',content:fullMsg});
-    addUserBubble(initMsg || '書類作成を開始', 0);
-    startBusy();
-    await chatInternal(fullMsg,'document');
-    if(cur) A.updateProject(cur.id,cur);
+    // 修正2: すぐにAI処理を開始せず、バナーを表示
+    cur._pendingMessage = fullMsg;
+    cur._pendingMode = 'document';
+    await A.updateProject(cur.id, cur);
+    addAI('𓁹 書類作成モードへようこそ！\n\n準備ができたら下のボタンで処理を開始してください。');
+    showProcessStartBanner('document');
   }
   else addAI('𓂀 こんにちは！何でも話しかけてください。');
 }
 
 // ── 設計フロー ───────────────────────────────────────────
+// 修正2: 処理開始バナー（全モード共通）
+function showProcessStartBanner(mode){
+  const existing = document.getElementById('process-start-banner');
+  if(existing) existing.remove();
+  const labels = {
+    blueprint: {icon:'𓏛', title:'設計図作成を開始', sub:'AIが対話で要件を整理します'},
+    document:  {icon:'𓁹', title:'書類作成を開始', sub:'AIが書類の作成を支援します'},
+    design:    {icon:'𓃭', title:'分析を開始', sub:'設計図を分析して開発計画を作成します'},
+  };
+  const lbl = labels[mode] || {icon:'𓂀', title:'処理を開始', sub:'AIが処理を開始します'};
+  const banner=document.createElement('div');
+  banner.className='resume-banner'; banner.id='process-start-banner';
+  banner.innerHTML=`<span class="resume-icon">${lbl.icon}</span><div class="resume-info"><div class="resume-title">${lbl.title}</div><div class="resume-sub">${esc(lbl.sub)}</div></div><span class="resume-act">開始</span>`;
+  banner.addEventListener('click', async ()=>{
+    banner.remove();
+    if(!cur || !cur._pendingMessage) return;
+    const msg = cur._pendingMessage;
+    const pMode = cur._pendingMode || mode;
+    delete cur._pendingMessage;
+    delete cur._pendingMode;
+    cur.messages.push({role:'user',content:msg});
+    addUserBubble(msg.slice(0,200), cur.messages.length-1);
+    startBusy();
+    await chatInternal(msg, pMode);
+    if(cur) A.updateProject(cur.id, cur);
+  });
+  msgs().appendChild(banner); dn();
+}
+
 function buildLangs(){
   const box=document.getElementById('langBox'); box.innerHTML='';
   ALL_LANGS.forEach(l=>{ const d=document.createElement('div'); d.className='lg'; d.textContent=l; d.onclick=()=>togL(d,l); box.appendChild(d); });
@@ -1678,7 +1730,32 @@ async function saveDesignSetup(){
     await A.updateProject(cur.id, cur);
   }
   closeM('mD');
-  addSN('💾 設計情報を保存しました。いつでも「分析開始」できます。','ok');
+  addSN('𓁹 設計情報を保存しました。いつでも「分析開始」できます。','ok');
+  showDesignStartBanner();
+}
+// 修正3: 「作成」ボタン: 設計情報を保存してバナーを表示
+async function createDesignSetup(){
+  const mdContent=dMd?dMd.content:'', extra=document.getElementById('dSp').value.trim();
+  if(!mdContent&&!extra){ alert('設計図(.md)または補足を入力してください'); return; }
+  const spec=mdContent+(extra?'\n\n'+extra:''), langs=sL.join(', ')||'';
+  let ragCtx='';
+  if(ragFiles.length>0) ragCtx='\n\n【RAGライブラリ情報】\n'+ragFiles.map(r=>`--- ${r.path.split('/').pop()} ---\n${r.content}`).join('\n\n');
+  // ファイルコピー
+  if(fileCopyEnabled && dMd && dMd.path && cur){
+    await A.copyFileInternal({srcPath:dMd.path, projId:cur.id});
+  }
+  if(fileCopyEnabled && ragFiles.length > 0 && cur){
+    for(const r of ragFiles){
+      if(r.path) await A.copyFileInternal({srcPath:r.path, projId:cur.id});
+    }
+  }
+  // PJに設計データを保存
+  if(cur){
+    cur._designSetup = {spec:spec+ragCtx, langs, ragFiles:ragFiles.map(r=>({path:r.path})), mdPath:dMd?dMd.path:'', extra};
+    await A.updateProject(cur.id, cur);
+  }
+  closeM('mD');
+  addSN('𓁹 設計情報を保存しました。','ok');
   showDesignStartBanner();
 }
 // 保留中の設計PJに分析開始バナーを表示
@@ -1726,7 +1803,7 @@ async function subDes(){
   // グローバルAIロックチェック
   const otherBusy = await isOtherProjectBusy();
   if(otherBusy){
-    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
+    addSN('𓅭 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
     return;
   }
   const mdContent=dMd?dMd.content:'', extra=document.getElementById('dSp').value.trim();
@@ -1752,13 +1829,16 @@ ${specPreview}${langs?'\n\n優先言語: '+langs:''}
 
   let sm = '';
   let retryCount = 0;
+  startBusy(); // 修正1: analysis中もprog-bar＋停止ボタンを表示
+  document.getElementById('prog-bar').style.display='block';
+  document.getElementById('prog-txt').textContent='設計を分析中...';
   // 空応答の場合は最大2回リトライ
   while(retryCount <= 2) {
     sm = await chatInternal(prompt, 'analysis');
     if(sm && sm.length > 50) break; // 十分な長さの応答が来たら完了
     retryCount++;
     if(retryCount <= 2) {
-      addSN(`⚠ 応答が不完全でした。再試行中 (${retryCount}/2)...`, 'warn');
+      addSN(`𓅭 応答が不完全でした。再試行中 (${retryCount}/2)...`, 'warn');
       await new Promise(r => setTimeout(r, 2000));
     }
   }
@@ -1783,17 +1863,17 @@ async function revDes(){
 async function startDev(){
   const otherBusy = await isOtherProjectBusy();
   if(otherBusy){
-    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に開発を開始してください。','warn');
+    addSN('𓅭 別のプロジェクトでAI処理中です。完了後に開発を開始してください。','warn');
     return;
   }
   closeM('mC'); taskN=0; taskTotal=0;
 
   // 初めからモード: フォルダ内を削除
   if(devStartMode === 'fresh' && cur && cur.workDir){
-    if(!handsOff && !confirm(`⚠ 「初めから」モードです。\n作業フォルダ内のファイルを全て削除します。\n\n${cur.workDir}\n\nよろしいですか？`)){
+    if(!handsOff && !confirm(`𓅭 「初めから」モードです。\n作業フォルダ内のファイルを全て削除します。\n\n${cur.workDir}\n\nよろしいですか？`)){
       return;
     }
-    addSN('🗑 作業フォルダを初期化します...','ok');
+    addSN('𓂃 作業フォルダを初期化します...','ok');
   }
 
   document.getElementById('prog-bar').style.display='block';
@@ -1802,7 +1882,7 @@ async function startDev(){
   // 途中からモード: 既存ファイルをスキャンして設計図と照合
   let prompt;
   if(devStartMode === 'continue'){
-    addSN('📂 既存ファイルをスキャンして設計図と照合します...','ok');
+    addSN('𓅔 既存ファイルをスキャンして設計図と照合します...','ok');
     prompt = `【途中からの開発引き継ぎ】
 設計図:
 ${dDat.spec}
@@ -1943,7 +2023,7 @@ function selDevMode(mode){
 // 開発完了後の自動デバッグフェーズ
 async function startAutoDebugPhase(){
   if(!cur) return;
-  addSN('🔍 デバッグフェーズを開始します...','ok');
+  addSN('𓂀 デバッグフェーズを開始します...','ok');
   startBusy();
   const debugPrompt = `開発が完了しました。以下の手順でデバッグを実施してください：
 
@@ -2026,7 +2106,7 @@ function startBusy(){
   document.getElementById('send-btn').disabled=true;
   setStopState('active');
   // design PJのdev/debugモードでは常にprog-bar表示
-  if(cur && cur.type==='design' && (curMode==='dev'||curMode==='debug')){
+  if(cur && cur.type==='design'){
     document.getElementById('prog-bar').style.display='block';
     const pt=document.getElementById('prog-txt');
     if(!pt.textContent||pt.textContent==='準備中...') pt.textContent='開発中...';
@@ -2061,7 +2141,7 @@ async function doSend(){
   // グローバルAIロック: 他PJが処理中なら拒否
   const otherBusy = await isOtherProjectBusy();
   if(otherBusy){
-    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
+    addSN('𓅭 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
     return;
   }
   // 再開バナーが出ていて再開キーワードなら優先
@@ -2109,7 +2189,7 @@ async function chatInternal(msg,mode,attachments,ds){
     // AI同時実行拒否チェック
     if(result && !result.ok && result.error==='busy'){
       if(thk.parentNode) thk.remove();
-      addSN('⚠ 別のプロジェクトでAI処理中です。完了を待ってから再試行してください。','warn');
+      addSN('𓅭 別のプロジェクトでAI処理中です。完了を待ってから再試行してください。','warn');
       return '';
     }
     if(thk.parentNode) thk.remove();
@@ -2140,7 +2220,7 @@ async function handleStopBtn(){
   if(stopState === 'resume'){
     const otherBusy = await isOtherProjectBusy();
     if(otherBusy){
-      addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再開してください。','warn');
+      addSN('𓅭 別のプロジェクトでAI処理中です。完了後に再開してください。','warn');
       return;
     }
     setStopState('hidden');
@@ -2221,11 +2301,11 @@ async function doResumeFromFile(r){
   // グローバルAIロックチェック
   const otherBusy = await isOtherProjectBusy();
   if(otherBusy){
-    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再開してください。','warn');
+    addSN('𓅭 別のプロジェクトでAI処理中です。完了後に再開してください。','warn');
     return;
   }
   const banner=document.getElementById('resume-banner'); if(banner) banner.remove();
-  addSN('▶ 前回の続きから再開します...','ok');
+  addSN('𓅯 前回の続きから再開します...','ok');
   const resumeMsg=`【再開指示】前回の作業を以下のチェックポイントから再開してください:\n${r.checkpoint}\n\n作業フォルダ: ${cur.workDir}\n\n前回の中断箇所から続きを実行してください。`;
   startBusy(); startDevTimer();
   await chatInternalDev(resumeMsg,'dev');
@@ -2337,11 +2417,26 @@ function addTool(par,td){
   const icons={execute_shell:'𓅓',read_file:'𓅔',write_file:'𓅕',list_directory:'𓅔',fetch_url:'𓅱',web_search:'𓅱',fetch_wiki:'𓅔'};
   const box=document.createElement('div'); box.className='tb';
   const args=td.args||{};
-  const argStr=['command','path','url','query','reason'].filter(k=>args[k])
-    .map(k=>`<span style="color:var(--t3)">${k}:</span> ${esc(String(args[k]).slice(0,200))}`).join('<br>');
-  box.innerHTML=`<div class="th2"><span>${icons[td.name]||'·'}</span><span class="tn2">${esc(td.name)}</span><span class="tt2">${nowDateTs()}</span></div>${argStr?'<div class="td2">'+argStr+'</div>':''}`;
+  // 修正4: innerHTML不使用・DOM構築で横線バグを完全回避
+  const hdr=document.createElement('div'); hdr.className='th2';
+  const ico=document.createElement('span'); ico.textContent=icons[td.name]||'·';
+  const nm=document.createElement('span'); nm.className='tn2'; nm.textContent=td.name||'';
+  const tsE=document.createElement('span'); tsE.className='tt2'; tsE.textContent=nowDateTs();
+  hdr.appendChild(ico); hdr.appendChild(nm); hdr.appendChild(tsE);
+  box.appendChild(hdr);
+  const argKeys=['command','path','url','query','reason'].filter(k=>args[k]);
+  if(argKeys.length>0){
+    const tdEl=document.createElement('div'); tdEl.className='td2';
+    argKeys.forEach((k,idx)=>{
+      if(idx>0) tdEl.appendChild(document.createElement('br'));
+      const lbl=document.createElement('span'); lbl.style.color='var(--t3)'; lbl.textContent=k+': ';
+      tdEl.appendChild(lbl);
+      tdEl.appendChild(document.createTextNode(String(args[k]).slice(0,200)));
+    });
+    box.appendChild(tdEl);
+  }
   par.appendChild(box);
-  // 問題1: ツール実行ログをcur.messagesに保存（role:'tool_call'で区別）
+  // ツール実行ログをcur.messagesに保存（role:'tool_call'で区別）
   if(cur && cur.messages !== undefined){
     cur.messages.push({role:'tool_call', name:td.name, args:args, ts:Date.now()});
     scheduleProjectSave();
@@ -2415,7 +2510,29 @@ async function openSet(){
   document.getElementById('sLog').checked=c.logEnabled; document.getElementById('sLogDays').value=c.logMaxDays;
   document.getElementById('logArea').style.display='none';
   const ps=document.getElementById('projSetSec');
-  if(cur){ ps.style.display='block'; document.getElementById('sySys').value=cur.systemPrompt||''; } else ps.style.display='none';
+  if(cur){
+    ps.style.display='block';
+    document.getElementById('sySys').value=cur.systemPrompt||'';
+    document.getElementById('syName').value=cur.name||'';
+    // 作業フォルダ行: design/document/blueprintで表示
+    const wdRow=document.getElementById('syWdRow');
+    if(cur.type==='design'||cur.type==='document'||cur.type==='blueprint'){
+      wdRow.style.display='flex';
+      document.getElementById('syWd').textContent=cur.workDir||'未選択';
+    } else wdRow.style.display='none';
+    // 警告ヒント: design/blueprintで表示
+    const warnHint=document.getElementById('syWarnHint');
+    warnHint.style.display=(cur.type==='design'||cur.type==='blueprint')?'block':'none';
+    // 修正7: プロジェクト専用AI設定を読み込み
+    document.getElementById('syAiHost').value=cur.aiHost||'';
+    document.getElementById('syAiPort').value=cur.aiPort||'';
+    document.getElementById('syAiModel').value=cur.aiModel||'';
+    if(cur.aiApiKey) document.getElementById('syAiApiKey').value=cur.aiApiKey||'';
+    // AIキー行: 値がある場合のみ表示
+    document.getElementById('syAiKeyRow').style.display=(cur.aiApiKey)?'flex':'none';
+    // モデル選択肢を読み込み
+    if(cur.aiHost || cur.aiPort) loadProjModelSelect(cur.aiModel||'', cur.aiHost, cur.aiPort);
+  } else ps.style.display='none';
   // チャット/エージェントAI設定
   document.getElementById('sChatHost').value  = c.chatAiHost||'';
   document.getElementById('sChatPort').value  = c.chatAiPort||'';
@@ -2452,6 +2569,38 @@ async function openSet(){
   document.getElementById('sDocOrg').value = c.docOrganization||'';
   openM('mS');
 }
+// 修正7: プロジェクト専用AIモデル取得
+async function fetchProjModels(){
+  const h=document.getElementById('syAiHost').value||document.getElementById('sHost').value||'localhost';
+  const p=parseInt(document.getElementById('syAiPort').value||document.getElementById('sPort').value)||1234;
+  await loadProjModelSelect('', h, p);
+  // APIキー行を表示
+  document.getElementById('syAiKeyRow').style.display='flex';
+}
+async function loadProjModelSelect(current, host, port){
+  const h=host||'localhost';
+  const p=port||1234;
+  const sel=document.getElementById('syAiModel');
+  const prev=current||sel.value;
+  sel.innerHTML='<option value="">デフォルト</option>';
+  try{
+    const models=await A.getChatModels(h,p);
+    models.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.name||m.id; if(m.id===prev)o.selected=true; sel.appendChild(o); });
+  }catch{}
+}
+
+// 修正6: プロジェクト作業フォルダ変更
+async function pickSyWd(){
+  const f=await A.pickFolder(); if(!f) return;
+  if(cur){
+    if((cur.type==='design'||cur.type==='blueprint') && cur.messages && cur.messages.length>0){
+      if(!confirm('𓅭 重要な設定変更です。\n作業フォルダを変更すると、既存の開発結果とのリンクが切れる可能性があります。\n続行しますか？')) return;
+    }
+    cur.workDir=f;
+    document.getElementById('syWd').textContent=f;
+  }
+}
+
 async function fetchChatModels(){
   const h=document.getElementById('sChatHost').value||document.getElementById('sHost').value||'localhost';
   const p=parseInt(document.getElementById('sChatPort').value||document.getElementById('sPort').value)||1234;
@@ -2492,7 +2641,23 @@ async function savSet(){
   const to=parseInt(document.getElementById('sTO').value);
   if(!port||port<1||port>65535){ alert('有効なポートを入力してください'); return; }
   if(to<100||to>1000){ alert('タイムアウトは100〜1000秒で入力してください'); return; }
-  if(cur){ cur.systemPrompt=document.getElementById('sySys').value.trim(); await A.updateProject(cur.id,cur); }
+  if(cur){
+    const oldSys=cur.systemPrompt||'';
+    cur.systemPrompt=document.getElementById('sySys').value.trim();
+    const newName=document.getElementById('syName').value.trim();
+    if(newName && newName!==cur.name){ cur.name=newName; document.getElementById('pn').textContent=' · '+newName; }
+    // 修正6: 設計図PJでシステムプロンプト変更時に警告
+    if((cur.type==='design'||cur.type==='blueprint') && oldSys!==cur.systemPrompt && cur.messages && cur.messages.length>0){
+      addSN('𓅭 プロジェクト設定を更新しました。次回のAI処理から反映されます。','warn');
+    }
+    // 修正7: プロジェクト専用AI設定を保存
+    cur.aiHost=document.getElementById('syAiHost').value.trim()||'';
+    cur.aiPort=parseInt(document.getElementById('syAiPort').value)||0;
+    cur.aiModel=document.getElementById('syAiModel').value||'';
+    cur.aiApiKey=document.getElementById('syAiApiKey').value.trim()||'';
+    await A.updateProject(cur.id,cur);
+    loadPL();
+  }
   // ⑤ チャット/エージェントAI設定を保存
   const chatAiHost=document.getElementById('sChatHost').value.trim();
   const chatAiPort=parseInt(document.getElementById('sChatPort').value)||0;
@@ -2813,7 +2978,7 @@ function renderSearxTaskList(){
   const el = document.getElementById('wSearxTaskList'); el.innerHTML='';
   wTmpSearxTasks.forEach(task=>{
     const div = document.createElement('div'); div.className='task-item';
-    const typeLabel = task.type==='search'?'🔍 検索':'🔗 URL監視';
+    const typeLabel = task.type==='search'?'𓅱 検索':'𓅱 URL監視';
     const typeColor = task.type==='search'?'color:var(--prog-txt)':'color:var(--warn)';
     div.innerHTML=
       '<div class="task-item-hd">'+
@@ -3016,7 +3181,7 @@ const UI_STRINGS = {
     runNow: '▶ 今すぐ実行',
     stopBtn: '■ 停止',
     schedule: '⏱ スケジュール動作',
-    settingsBtn: '⚙ 設定',
+    settingsBtn: '𓀂 設定',
     clearBtn: 'クリア',
     agentPlaceholder: 'エージェントに質問... (例: 今日の予定は? / AIニュースを調べて)',
     sendBtn: '送信',
@@ -3059,7 +3224,7 @@ const UI_STRINGS = {
     agentRunNow: '▶ 今すぐ実行',
     agentStop2: '■ 停止',
     agentSchedule: '⏱ スケジュール動作',
-    agentSettings: '⚙ 設定',
+    agentSettings: '𓀂 設定',
     agentClear: 'クリア',
     agentStatus: '待機中',
     agentNextTimer: '',
@@ -3089,7 +3254,7 @@ const UI_STRINGS = {
     runNow: '▶ Run Now',
     stopBtn: '■ Stop',
     schedule: '⏱ Schedule',
-    settingsBtn: '⚙ Settings',
+    settingsBtn: '𓀂 Settings',
     clearBtn: 'Clear',
     agentPlaceholder: 'Ask agent... (e.g., What are my plans? / Search AI news)',
     sendBtn: 'Send',
@@ -3132,7 +3297,7 @@ const UI_STRINGS = {
     agentRunNow: '▶ Run Now',
     agentStop2: '■ Stop',
     agentSchedule: '⏱ Schedule',
-    agentSettings: '⚙ Settings',
+    agentSettings: '𓀂 Settings',
     agentClear: 'Clear',
     agentStatus: 'Idle',
     agentNextTimer: '',
@@ -3317,7 +3482,7 @@ function addAgentFeedItem(data) {
 
   const ts = new Date(data.ts || Date.now());
   const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG検索',calendar:'📅 カレンダー'};
+  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG検索',calendar:'𓂋 カレンダー'};
   const srcLabel  = srcLabels[data.source] || data.source;
   const labelTxt  = data.label ? ` · ${data.label}` : '';
 
@@ -3368,7 +3533,7 @@ function addAgentFeedItemFromHistory(data) {
   if(!container) return;
   const ts = new Date(data.ts || Date.now());
   const tsStr = ts.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG検索',calendar:'📅 カレンダー'};
+  const srcLabels = {discord:'Discord',telegram:'Telegram',searx:data.taskType==='url'?'URL監視':'SearXNG検索',calendar:'𓂋 カレンダー'};
   const srcLabel  = srcLabels[data.source] || data.source;
   const labelTxt  = data.label ? ` · ${data.label}` : '';
   const msgEl = document.createElement('div'); msgEl.className = 'msg ai';
@@ -3573,7 +3738,7 @@ async function doBlueprintGenerate() {
   if(!cur || busy) return;
   const otherBusy = await isOtherProjectBusy();
   if(otherBusy){
-    addSN('⚠ 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
+    addSN('𓅭 別のプロジェクトでAI処理中です。完了後に再試行してください。','warn');
     return;
   }
   if(!cur.messages) cur.messages = [];
@@ -3604,7 +3769,7 @@ async function doBlueprintGenerate() {
     // 自動保存
     if(cur.workDir){
       const r = await A.saveBlueprintFile({workDir:cur.workDir, content:bpGeneratedMd, fileName:'DESIGN.md'});
-      if(r.ok) addSN(`💾 設計図を自動保存しました: ${r.path}`,'ok');
+      if(r.ok) addSN(`𓁹 設計図を自動保存しました: ${r.path}`,'ok');
     }
     showBpPreview(bpGeneratedMd);
     // 完了後の選択肢を表示
@@ -3617,8 +3782,8 @@ async function doBlueprintGenerate() {
 function showBpCompletionChoices() {
   const wrap = document.createElement('div'); wrap.className = 'bp-chips';
   const choices = [
-    {text:'🚀 アプリ設計に引き継ぐ', cls:'gen', action:'handoff'},
-    {text:'✏ まだ機能を追加する', cls:'', action:'continue'},
+    {text:'𓃭 アプリ設計に引き継ぐ', cls:'gen', action:'handoff'},
+    {text:'𓂃 まだ機能を追加する', cls:'', action:'continue'},
   ];
   choices.forEach(c => {
     const chip = document.createElement('button'); chip.className = 'bp-chip ' + c.cls;
@@ -3679,7 +3844,7 @@ function closeBpPreview() {
 function copyBpPreview() {
   if(!bpGeneratedMd) return;
   navigator.clipboard.writeText(bpGeneratedMd).then(()=>{
-    addSN('📋 設計図をクリップボードにコピーしました','ok');
+    addSN('𓁹 設計図をクリップボードにコピーしました','ok');
   }).catch(()=>{
     addSN('× コピーに失敗しました','err');
   });
@@ -3695,11 +3860,11 @@ async function saveBpToFile() {
     if(!f) return;
     if(cur) { cur.workDir = f; await A.updateProject(cur.id, cur); }
     const r = await A.saveBlueprintFile({workDir:f, content:bpGeneratedMd, fileName:'DESIGN.md'});
-    if(r.ok) addSN(`💾 設計図を保存しました: ${r.path}`,'ok');
+    if(r.ok) addSN(`𓁹 設計図を保存しました: ${r.path}`,'ok');
     else addSN(`× 保存失敗: ${r.error}`,'err');
   } else {
     const r = await A.saveBlueprintFile({workDir, content:bpGeneratedMd, fileName:'DESIGN.md'});
-    if(r.ok) addSN(`💾 設計図を保存しました: ${r.path}`,'ok');
+    if(r.ok) addSN(`𓁹 設計図を保存しました: ${r.path}`,'ok');
     else addSN(`× 保存失敗: ${r.error}`,'err');
   }
 }
@@ -3709,7 +3874,7 @@ function addThinkingBlock(parentEl, text) {
   if(!parentEl || !text) return;
   const block = document.createElement('div'); block.className = 'thk-block';
   const hdr = document.createElement('div'); hdr.className = 'thk-hdr';
-  hdr.innerHTML = '<span>💭</span><span>Thinking...</span><span style="margin-left:auto;font-size:10px">▼</span>';
+  hdr.innerHTML = '<span>𓂀</span><span>Thinking...</span><span style="margin-left:auto;font-size:10px">▼</span>';
   hdr.addEventListener('click', ()=>{ block.classList.toggle('open'); });
   const body = document.createElement('div'); body.className = 'thk-body';
   body.textContent = text;
@@ -3803,7 +3968,7 @@ const MAX_AUTO_RECOVERY = 5; // 最大5回
 async function scheduleAutoRecovery(type) {
   if(autoRecoveryInProgress) return;
   if(autoRecoveryCount >= MAX_AUTO_RECOVERY){
-    addSN(`⚠ 自動復旧を${MAX_AUTO_RECOVERY}回試みましたが回復しませんでした。`, 'warn');
+    addSN(`𓅭 自動復旧を${MAX_AUTO_RECOVERY}回試みましたが回復しませんでした。`, 'warn');
     // 再開ファイルを保存して手動再開可能にする
     if(cur && cur.workDir){
       const checkpoint = curFull ? ('自動復旧失敗時の出力: '+curFull.slice(-200)) : '自動復旧失敗';
@@ -3812,7 +3977,7 @@ async function scheduleAutoRecovery(type) {
     endBusy();
     globalBusyRelease();
     setStopState('resume');
-    addSN('▶ 再開ボタンで手動再開できます','ok');
+    addSN('𓅯 再開ボタンで手動再開できます','ok');
     autoRecoveryCount = 0;
     return;
   }
@@ -3838,7 +4003,7 @@ async function scheduleAutoRecovery(type) {
     }, wait * 1000);
   } else {
     // timeout/error: 再起動
-    addSN(`♻ 自動再起動 (${autoRecoveryCount}/${MAX_AUTO_RECOVERY}) — ${wait}秒後...`, 'warn');
+    addSN(`𓅭 自動再起動 (${autoRecoveryCount}/${MAX_AUTO_RECOVERY}) — ${wait}秒後...`, 'warn');
     endBusy();
     autoRecoveryTimer = setTimeout(async ()=>{
       autoRecoveryInProgress = false;
@@ -3847,7 +4012,7 @@ async function scheduleAutoRecovery(type) {
       if(cur.workDir){
         const r = await A.loadResume(cur.workDir).catch(()=>null);
         if(r){
-          addSN('▶ 再開ファイルから自動復旧します...', 'ok');
+          addSN('𓅯 再開ファイルから自動復旧します...', 'ok');
           await doResumeFromFile(r);
           autoRecoveryCount = 0;
           return;

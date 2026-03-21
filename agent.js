@@ -18,7 +18,7 @@ const CFG_FILE = path.join(DATA_DIR, 'config.json');
 const DEFAULT_CFG = {
   aiHost: 'localhost', aiPort: 1234,
   searxngUrl: 'http://localhost:8080',
-  timeout: 300, logEnabled: true, logMaxDays: 7,
+  timeout: 500, logEnabled: true, logMaxDays: 7,
   handsOff: false,
   chatAiHost: '', chatAiPort: 0, chatModelId: '',
   agentAiHost: '', agentAiPort: 0, agentModelId: '',
@@ -182,14 +182,14 @@ async function runBlueprintChat(sessId, history, sysPrompt, onEvent) {
         const resp = await callBlueprintAI(history, sysPrompt);
         if(resp.thinking) onEvent({type:'thinking', data:resp.thinking});
         if(resp.text) { onEvent({type:'text', data:resp.text}); result=resp.text; }
-        if(!result) { retries++; onEvent({type:'system',data:`⚠ 応答が空でした。再試行中(${retries}/3)...`}); await new Promise(r=>setTimeout(r,5000)); continue; }
+        if(!result) { retries++; onEvent({type:'system',data:`𓅭 応答が空でした。再試行中(${retries}/3)...`}); await new Promise(r=>setTimeout(r,5000)); continue; }
         break;
       } catch(e) {
         if(ac.signal.aborted) break;
         retries++;
         if(retries>3) { onEvent({type:'text',data:`\n× 通信エラー: ${e.message}`}); onEvent({type:'timeout',data:e.message}); break; }
         const wait = retries*10;
-        onEvent({type:'system',data:`⚠ エラー(${e.message.slice(0,60)}) — ${retries}/3回 ${wait}秒後に再試行...`});
+        onEvent({type:'system',data:`𓅭 エラー(${e.message.slice(0,60)}) — ${retries}/3回 ${wait}秒後に再試行...`});
         await new Promise(r=>setTimeout(r,wait*1000));
       }
     }
@@ -291,7 +291,7 @@ ${isJa?'メール+パスワード認証':'Email+password'}
 ${isJa?'認証不要':'No auth'}
 ---/choices---
 
-${isJa?'情報が十分に集まったら、選択肢に「🔨 設計図を生成する」を含めてください。':'When ready, include "🔨 Generate Design" in choices.'}
+${isJa?'情報が十分に集まったら、選択肢に「𓃭 設計図を生成する」を含めてください。':'When ready, include "𓃭 Generate Design" in choices.'}
 
 ${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
 ${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
@@ -873,13 +873,13 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
       // 問題①②⑤: handsOffに関わらず最大5回まで自動リトライ
       if (retries <= 5) {
         const wait = Math.min(retries * 15, 60); // 15s, 30s, 45s, 60s, 60s
-        onEvent({ type:'system', data:`⚠ 通信エラー (${e.message.slice(0,60)}) — ${retries}/5回目 ${wait}秒後に自動再試行...` });
+        onEvent({ type:'system', data:`𓅭 通信エラー (${e.message.slice(0,60)}) — ${retries}/5回目 ${wait}秒後に自動再試行...` });
         await new Promise(r => setTimeout(r, wait * 1000));
         if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止' }); break; }
         // モデルを再検出してリトライ
         await detectModel();
         if (!MODEL_ID) {
-          onEvent({ type:'system', data:`⚠ AI再接続を試みています...` });
+          onEvent({ type:'system', data:`𓅭 AI再接続を試みています...` });
           await new Promise(r => setTimeout(r, 10000));
         }
         onEvent({ type:'system', data:`↺ 再試行中 (${retries}/5)...` });
@@ -899,7 +899,7 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
       msgs['_emptyRetry'] = emptyRetry;
       if (emptyRetry <= 3) {
         logWrite(sessId, 'WARN', `空の応答 - リトライ ${emptyRetry}/3`);
-        onEvent({ type:'system', data:`⚠ 応答が空でした。再試行中 (${emptyRetry}/3)...` });
+        onEvent({ type:'system', data:`𓅭 応答が空でした。再試行中 (${emptyRetry}/3)...` });
         await new Promise(r => setTimeout(r, 5000));
         if (ac.signal.aborted) { onEvent({ type:'text', data:'\n■ 停止' }); break; }
         continue;
@@ -1005,7 +1005,7 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
           msgs.push({role:'user',content:'続けてください。次のタスクを実行してください。'});
           continue;
         }
-        onEvent({type:'system',data:'⚠ AIが停滞しています。再開ファイルを保存します。'});
+        onEvent({type:'system',data:'𓅭 AIが停滞しています。再開ファイルを保存します。'});
         onEvent({type:'timeout',data:'ストール検出'});
       }
       break;
@@ -1142,7 +1142,7 @@ async function calendarTick(wcfg) {
   if(wcfg.googleCalendarEnabled)events.push(...await fetchGoogleCalendarEvents(wcfg));
   if(wcfg.iCloudCalendarEnabled)events.push(...await fetchICloudCalendarEvents(wcfg));
   if(!events.length)return;
-  const lines=events.map(e=>`📅 ${e.title}\n   開始: ${e.start}${e.end?' / 終了: '+e.end:''}${e.location?' / 場所: '+e.location:''}`).join('\n');
+  const lines=events.map(e=>`𓂋 ${e.title}\n   開始: ${e.start}${e.end?' / 終了: '+e.end:''}${e.location?' / 場所: '+e.location:''}`).join('\n');
   watcherEmit('watcher_feed',{source:'calendar',label:'カレンダー予定',summary:`今後7日間の予定 (${events.length}件)\n\n${lines}`,count:events.length,raw:false,ts:new Date().toISOString()});
 }
 
