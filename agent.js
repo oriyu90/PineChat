@@ -806,28 +806,39 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
   function trimContext() {
     let totalChars = 0;
     for(const m of msgs) totalChars += (m.content||'').length + JSON.stringify(m.tool_calls||'').length;
-    if(totalChars < 60000) return;
-    logWrite(sessId, 'INFO', 'コンテキスト制御: ' + totalChars + '文字 → トリミング');
-    // systemプロンプト(index 0)は保持。古いtoolの結果を短縮
-    for(let i = 1; i < msgs.length - 10; i++){
-      if(msgs[i].role === 'tool' && msgs[i].content && msgs[i].content.length > 500){
-        try {
-          const parsed = JSON.parse(msgs[i].content);
-          if(parsed.stdout) parsed.stdout = parsed.stdout.slice(0, 200) + '...[trimmed]';
-          if(parsed.content) parsed.content = parsed.content.slice(0, 200) + '...[trimmed]';
-          if(parsed.items) parsed.items = parsed.items.slice(0, 20);
-          msgs[i].content = JSON.stringify(parsed);
-        } catch { msgs[i].content = msgs[i].content.slice(0, 300) + '...[trimmed]'; }
+    // Stage 1: 40,000文字超 → 古いtool結果を短縮（早期圧縮）
+    if(totalChars > 40000){
+      for(let i = 1; i < msgs.length - 8; i++){
+        if(msgs[i].role === 'tool' && msgs[i].content && msgs[i].content.length > 300){
+          try {
+            const parsed = JSON.parse(msgs[i].content);
+            if(parsed.stdout) parsed.stdout = parsed.stdout.slice(0, 150) + '...[trimmed]';
+            if(parsed.content) parsed.content = parsed.content.slice(0, 150) + '...[trimmed]';
+            if(parsed.items) parsed.items = parsed.items.slice(0, 10);
+            msgs[i].content = JSON.stringify(parsed);
+          } catch { msgs[i].content = msgs[i].content.slice(0, 200) + '...[trimmed]'; }
+        }
       }
     }
-    // それでも大きい場合、古いメッセージを削除（systemは保持）
-    let newTotal = 0;
-    for(const m of msgs) newTotal += (m.content||'').length;
-    if(newTotal > 80000 && msgs.length > 20) {
-      const keep = Math.max(15, Math.floor(msgs.length * 0.4));
+    // Stage 2: 60,000文字超 → assistant応答も短縮
+    totalChars = 0;
+    for(const m of msgs) totalChars += (m.content||'').length;
+    if(totalChars > 60000){
+      logWrite(sessId, 'INFO', 'コンテキスト圧縮Stage2: ' + totalChars + '文字');
+      for(let i = 1; i < msgs.length - 6; i++){
+        if(msgs[i].role === 'assistant' && msgs[i].content && msgs[i].content.length > 800){
+          msgs[i].content = msgs[i].content.slice(0, 400) + '\n...[以降省略]';
+        }
+      }
+    }
+    // Stage 3: 80,000文字超 → 古いメッセージを削除して要約挿入
+    totalChars = 0;
+    for(const m of msgs) totalChars += (m.content||'').length;
+    if(totalChars > 80000 && msgs.length > 15) {
+      const keep = Math.max(10, Math.floor(msgs.length * 0.3));
       const removed = msgs.splice(1, msgs.length - keep - 1);
-      logWrite(sessId, 'INFO', '古いメッセージ' + removed.length + '件を削除');
-      msgs.splice(1, 0, {role:'user', content:'[前のやり取りは省略されました。続きのタスクを実行してください。]'});
+      logWrite(sessId, 'INFO', '古いメッセージ' + removed.length + '件を削除(Stage3)');
+      msgs.splice(1, 0, {role:'user', content:'[前のやり取りは省略されました。現在のタスクを続行してください。作業フォルダ内のファイルを確認して続きから進めてください。]'});
     }
   }
 

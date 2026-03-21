@@ -563,10 +563,20 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     <div id="nDocOpts" style="display:none">
       <div class="lbl">プロジェクト名</div>
       <input class="inp2" id="nNmDoc" type="text" placeholder="例: 3月定例会議事録" oninput="valNew()">
-      <div class="lbl">出力先フォルダ</div>
-      <div class="mf"><div class="mfd" id="fDDoc">未選択</div><button class="mfb" onclick="pickFDoc()">選択...</button></div>
+      <div class="lbl">出力先フォルダ（任意 — 未選択でアプリ内に自動作成）</div>
+      <div class="mf"><div class="mfd" id="fDDoc">未選択（自動）</div><button class="mfb" onclick="pickFDoc()">選択...</button></div>
       <div class="lbl">書類の種類（任意）</div>
-      <textarea class="ta2" id="nDocDesc" placeholder="例: 会議の議事録を作成したい / 補助金申請書を作りたい" style="min-height:60px"></textarea>
+      <textarea class="ta2" id="nDocDesc" placeholder="例: 会議の議事録を作成したい / 補助金申請書を作りたい" style="min-height:50px"></textarea>
+      <div class="lbl">参考ファイル（任意 — 議事録・資料等）</div>
+      <div id="nDocFiles" style="margin-bottom:8px"></div>
+      <button class="att-add-btn" onclick="addDocFile()" style="font-size:11px;padding:4px 10px">＋ ファイルを追加</button>
+    </div>
+    <!-- 全モード共通: ファイル内部コピー設定 -->
+    <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+      <div class="sw-wrap" onclick="toggleFileCopy()" style="margin:0">
+        <div class="sw-track" id="sw-file-copy"><div class="sw-thumb" style="left:18px"></div></div>
+        <span class="sw-lbl" style="font-size:11px">提出ファイルをアプリ内にコピー</span>
+      </div>
     </div>
     <div class="mft">
       <button class="bc" onclick="closeM('mN')">キャンセル</button>
@@ -1384,9 +1394,20 @@ async function openP(id){
     }
   }catch{}
   loadPL(); updateModeUI();
-  if(p.workDir&&(curMode==='dev'||curMode==='debug')){
+  // 修正5: 全モードでresume復元（再起動後も表示）
+  if(p.workDir){
     const r=await A.loadResume(p.workDir);
-    if(r) showResumeBanner(r);
+    if(r){
+      showResumeBanner(r);
+      setStopState('resume'); // 再開ボタンを確実に表示
+    }
+  }
+  // 修正7: designPJで進捗状態を復元（prog-bar表示）
+  if(p.type==='design' && p.messages && p.messages.length > 0 && !p.devDone){
+    // 一時停止中のdesignPJ: prog-barを表示
+    document.getElementById('prog-bar').style.display='block';
+    const pt=document.getElementById('prog-txt');
+    if(pt.textContent==='準備中...') pt.textContent='一時停止中';
   }
   // 設計保留PJ: _designSetupがあり、まだ分析開始していない場合
   if(p.type==='design' && p._designSetup && (!p.messages || p.messages.length === 0)){
@@ -1472,9 +1493,9 @@ function renderHist(ms){
 }
 
 // ── 新規プロジェクト ─────────────────────────────────────
-let sFBp=null, sFDoc=null;
+let sFBp=null, sFDoc=null, docFiles=[], fileCopyEnabled=true;
 function openNew(){
-  sT=null; sF=null; sFBp=null; sFDoc=null;
+  sT=null; sF=null; sFBp=null; sFDoc=null; docFiles=[];
   document.getElementById('nNm').value='';
   document.getElementById('nNmDesign').value='';
   document.getElementById('fD').textContent='未選択';
@@ -1484,9 +1505,12 @@ function openNew(){
   document.getElementById('fDBp').textContent='未選択';
   document.getElementById('nBpIdea').value='';
   document.getElementById('nNmDoc').value='';
-  document.getElementById('fDDoc').textContent='未選択';
+  document.getElementById('fDDoc').textContent='未選択（自動）';
   document.getElementById('nDocDesc').value='';
+  document.getElementById('nDocFiles').innerHTML='';
   document.getElementById('bCr').disabled=true;
+  // コピートグル初期状態
+  fileCopyEnabled=true; updateFileCopyUI();
   ['mCC','mCD','mCB','mCDoc'].forEach(id=>document.getElementById(id).classList.remove('s'));
   ['nChatOpts','nDesignOpts','nBlueprintOpts','nDocOpts'].forEach(id=>document.getElementById(id).style.display='none');
   openM('mN');
@@ -1526,6 +1550,31 @@ function valNew(){
 async function pickF(){ const f=await A.pickFolder(); if(f){ sF=f; document.getElementById('fD').textContent=f; valNew(); } }
 async function pickFBp(){ const f=await A.pickFolder(); if(f){ sFBp=f; document.getElementById('fDBp').textContent=f; } }
 async function pickFDoc(){ const f=await A.pickFolder(); if(f){ sFDoc=f; document.getElementById('fDDoc').textContent=f; } }
+// 書類作成用ファイル追加
+async function addDocFile(){
+  const f=await A.pickAnyFile(); if(!f||f.error) return;
+  docFiles.push(f); renderDocFiles();
+}
+function renderDocFiles(){
+  const el=document.getElementById('nDocFiles'); el.innerHTML='';
+  docFiles.forEach((f,i)=>{
+    const d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--t2)';
+    d.innerHTML=`📎 ${esc(f.name||f.path)} <button onclick="docFiles.splice(${i},1);renderDocFiles()" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:11px">×</button>`;
+    el.appendChild(d);
+  });
+}
+// コピートグル
+function toggleFileCopy(){
+  fileCopyEnabled=!fileCopyEnabled; updateFileCopyUI();
+}
+function updateFileCopyUI(){
+  const sw=document.getElementById('sw-file-copy');
+  if(!sw) return;
+  const thumb=sw.querySelector('.sw-thumb');
+  if(fileCopyEnabled){ sw.classList.add('on'); if(thumb) thumb.style.left='18px'; }
+  else { sw.classList.remove('on'); if(thumb) thumb.style.left='2px'; }
+}
+
 async function doCreate(){
   if(!sT) return;
   let nm, sys, workDir;
@@ -1552,6 +1601,23 @@ async function doCreate(){
   const isAutoName = sT==='chat' && !nm;
   const tmpName = isAutoName ? '新規チャット' : nm;
   const p=await A.createProject({name:tmpName, type:sT, workDir:workDir||'', systemPrompt:sys});
+
+  // 修正4: design以外でworkDir未指定なら内部フォルダを自動作成
+  if(!workDir && sT!=='design'){
+    const autoDir = await A.copyFileInternal({srcPath:'__create_proj_dir__', projId:p.id});
+    // copyFileInternalは既存ファイルコピー用だが、projDirは自動作成される
+    p.workDir = autoDir ? require('path').dirname(autoDir) : '';
+    // 実際にはFILES_DIR/projIdが作られるのでそれを使う
+    // main.js側でプロジェクトフォルダ作成IPCを使う方が安全
+  }
+
+  // 修正3: ファイルコピーが有効な場合、提出ファイルを内部にコピー
+  if(fileCopyEnabled && docFiles.length > 0){
+    for(const f of docFiles){
+      if(f.path) await A.copyFileInternal({srcPath:f.path, projId:p.id});
+    }
+  }
+
   closeM('mN'); cur=p; curSid='P'+p.id;
   curMode = sT==='design'?'dev': sT==='blueprint'?'blueprint': sT==='document'?'document': 'chat';
   loadPL(); showChat();
@@ -1560,41 +1626,29 @@ async function doCreate(){
   updateModeUI();
   if(sT==='design') setTimeout(openDes,120);
   else if(sT==='blueprint'){
-    // 設計図モード開始
     const idea = document.getElementById('nBpIdea').value.trim();
     if(idea){
-      // ユーザーのアイデアを初期メッセージとして送信
       cur.messages.push({role:'user',content:idea});
       addUserBubble(idea,0);
       startBusy();
       await chatInternal(idea,'blueprint');
       if(cur) A.updateProject(cur.id,cur);
     } else {
-      addAI('𓏛 設計図作成モードへようこそ！\n\nどんなアプリを作りたいですか？アイデアや要件を教えてください。\n対話を通じて要件を整理し、最終的に開発用の設計書(.md)を出力します。');
+      addAI('𓏛 設計図作成モードへようこそ！\n\nどんなアプリを作りたいですか？アイデアや要件を教えてください。');
     }
   } else if(sT==='document'){
-    const desc = document.getElementById('nDocDesc').value.trim();
-    if(desc){
-      cur.messages.push({role:'user',content:desc});
-      addUserBubble(desc,0);
-      startBusy();
-      await chatInternal(desc,'document');
-      if(cur) A.updateProject(cur.id,cur);
-    } else {
-      addAI('📄 書類作成モードへようこそ！\n\nできること:\n- 会議の議事録作成\n- 報告書・提案書の作成\n- 行政書類のフォーマットに沿った作成\n- 社内書式に沿った書類作成\n- アップロードしたファイルの要約・整理\n\nどんな書類を作成しますか？ファイルがあれば添付してください。');
+    // 書類作成: 添付ファイルがあればコンテキストに含める
+    let initMsg = document.getElementById('nDocDesc').value.trim();
+    let fileContext = '';
+    if(docFiles.length > 0){
+      fileContext = '\n\n【添付ファイル】\n' + docFiles.map(f=>`--- ${f.name||'file'} ---\n${(f.content||'').slice(0,5000)}`).join('\n\n');
     }
-  }
-  else if(sT==='document'){
-    const desc = document.getElementById('nDocDesc').value.trim();
-    if(desc){
-      cur.messages.push({role:'user',content:desc});
-      addUserBubble(desc,0);
-      startBusy();
-      await chatInternal(desc,'document');
-      if(cur) A.updateProject(cur.id,cur);
-    } else {
-      addAI('📄 書類作成モードへようこそ！\n\nできること:\n- 議事録・報告書・提案書の作成\n- 行政書類や社内フォーマットへの記入\n- アップロードされた資料からの書類作成\n- 公的書式の調査と正しいフォーマットでの作成\n\nどのような書類を作成しますか？\nファイルを添付して「この資料をもとに議事録を作成して」等と指示してください。');
-    }
+    const fullMsg = (initMsg || 'この書類作成プロジェクトを開始してください。') + fileContext;
+    cur.messages.push({role:'user',content:fullMsg});
+    addUserBubble(initMsg || '書類作成を開始', 0);
+    startBusy();
+    await chatInternal(fullMsg,'document');
+    if(cur) A.updateProject(cur.id,cur);
   }
   else addAI('𓂀 こんにちは！何でも話しかけてください。');
 }
@@ -1920,33 +1974,37 @@ function updateModeUI(){
   const bar=document.getElementById('mode-bar'), dbg=document.getElementById('dbg-banner');
   const chatOpts=document.getElementById('chat-opts');
   const bpBanner=document.getElementById('bp-banner');
+  const bpBtn=document.getElementById('btn-to-bp');
   if(!cur) return;
   if(cur.type==='blueprint'){
-    bar.style.display='none';
-    document.getElementById('tab-debug').style.display='none';
-    dbg.style.display='none';
+    bar.style.display='none'; dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='block';
     chatOpts.style.display='none';
+    if(bpBtn) bpBtn.style.display='none';
     document.getElementById('prog-bar').style.display='none';
   } else if(cur.type==='design'){
     if(bpBanner) bpBanner.style.display='none';
+    if(bpBtn) bpBtn.style.display='none';
     const tabDebug=document.getElementById('tab-debug');
     bar.style.display=cur.devDone?'flex':'none';
     if(tabDebug) tabDebug.style.display=cur.devDone?'':'none';
     if(tabDebug) tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
     chatOpts.style.display=cur.devDone?'flex':'none';
-    const showProg = (curMode==='dev'||curMode==='debug') && (busy || taskTotal>0 || secTotal>0);
+    // prog-bar: 開発中・タスクあり・セクションあり・一時停止中のいずれかで表示
+    const showProg = busy || taskTotal>0 || secTotal>0 || (cur.messages&&cur.messages.length>0 && !cur.devDone);
     document.getElementById('prog-bar').style.display = showProg ? 'block' : 'none';
   } else if(cur.type==='document'){
     bar.style.display='none'; dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='none';
-    chatOpts.style.display='flex'; // 添付・調べるボタン表示
+    chatOpts.style.display='flex';
+    if(bpBtn) bpBtn.style.display='none'; // 書類作成では設計図引き継ぎ非表示
     document.getElementById('prog-bar').style.display='none';
   } else {
     bar.style.display='none'; dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='none';
     chatOpts.style.display='flex';
+    if(bpBtn) bpBtn.style.display=''; // チャットでは表示
     document.getElementById('prog-bar').style.display='none';
   }
 }
