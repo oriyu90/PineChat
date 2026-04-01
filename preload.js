@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('api', {
   setHistory:          o       => ipcRenderer.invoke('set-history', o),
   editMessage:         o       => ipcRenderer.invoke('edit-message', o),
   getActiveSessions:   ()      => ipcRenderer.invoke('get-active-sessions'),
+  // 調べ物モード横槍メッセージ
+  addResearchSideMsg:  o       => ipcRenderer.invoke('add-research-side-msg', o),
   // 再開ファイル
   loadResume:          wd      => ipcRenderer.invoke('load-resume', wd),
   saveResume:          o       => ipcRenderer.invoke('save-resume', o),

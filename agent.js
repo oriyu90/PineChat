@@ -763,6 +763,146 @@ function buildDocumentSysPrompt(workDir, customSys) {
   return `${title}\n${langRule}\n\n${capsLabel}\n${caps}\n\n${rulesLabel}\n${rules}${authorLabel}\n\n${timeLabel}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}\n${folderLabel}: ${workDir||os.homedir()}${custom}`;
 }
 
+// ── 調べ物モード システムプロンプト ─────────────────────────
+// Phase 1: 対話・計画
+function buildResearchDialogueSysPrompt(workDir, customSys) {
+  const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  return `${isJa?'あなたは調査・リサーチの専門AIです。ユーザーと対話しながら調査内容を明確化します。':'You are a research specialist AI. Clarify research topics through dialogue with the user.'}
+${isJa?'必ず日本語で回答してください。':'Always respond in English.'}
+
+${isJa?'【あなたの役割】':'【Your Role】'}
+${isJa?`1. ユーザーの調べたい内容を深く理解する
+2. 不足している情報を的確な質問で補完する（1回に聞く質問は1〜2個まで）
+3. ユーザーが資料を持っている場合は提出を求める
+4. 十分な情報が集まったら調査計画を提案する
+5. 各回答の末尾に選択肢を提示する（---choices--- 形式）`
+:'1. Deeply understand what the user wants to research\n2. Ask targeted questions (max 1-2 per response)\n3. Request materials if user has any\n4. Propose research plan when ready\n5. Present choices at end of each response'}
+
+${isJa?'【選択肢の出力形式】':'【Choice format】'}
+---choices---
+${isJa?'選択肢1':'Choice 1'}
+${isJa?'選択肢2':'Choice 2'}
+---/choices---
+
+${isJa?'情報が十分に集まったら、選択肢に「𓃭 調査を開始する」を含めてください。':'When ready, include "𓃭 Start Research" in choices.'}
+
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
+}
+
+// Phase 2: 調査実行
+function buildResearchExecSysPrompt(workDir, customSys, researchPlan, imageRecog) {
+  const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  const imgNote = imageRecog ? (isJa?'\n画像認識: 有効（添付画像の内容を分析可能）':'\nImage recognition: Enabled') : '';
+  return `${isJa?'あなたは調査・リサーチ実行の専門AIエージェントです。':'You are a research execution specialist AI agent.'}
+${isJa?'必ず日本語で回答してください。':'Always respond in English.'}${imgNote}
+
+【調査計画】
+${researchPlan}
+
+${isJa?'【絶対に守るルール — 調査実行】':'【Rules — Research Execution】'}
+${isJa?`1. 最初の返答で「=== 調査項目リスト ===」として全調査項目を列挙する
+   例:
+   調査項目1: [項目名] (Nタスク)
+     1.1 [URL/情報源の特定]
+     1.2 [情報収集]
+     1.3 [整理・要約]
+
+2. 調査項目開始時に「<<< 調査 N/合計: [項目名] >>>」を出力する
+3. タスク開始時に「--- タスク S.T/S.合計: [タスク名] ---」を出力する
+4. タスク完了時に「[完] タスク S.T 完了」を出力する
+5. 調査項目完了時に「[完] 調査項目 N 完了 (N/合計)」を出力する
+6. 全項目完了時に「=== 調査完了 ===」を出力する
+
+【重要: コンテキスト管理】
+- 調査中に情報が蓄積されたら、write_fileで一時ファイルに保存する
+  - 一時ファイル: _research_temp_{項目番号}.md
+  - 進捗ファイル: _research_progress.md（現在の全体進捗）
+- 各調査項目の完了時に結果を _research_result_{項目番号}.md に保存する
+- コンテキストが長くなったら、一時ファイルに書き出してから続行する
+  （パンクする前に必ず保存。保存後は古い詳細を忘れてよい）
+
+【重複検索防止】
+- 既に検索した内容は再度検索しない
+- 進捗ファイルに検索済みクエリを記録する
+
+【懸念ログ】
+- 情報が見つからない・アクセスできないURLは _research_concerns.md に記録
+- 調査項目完了時に懸念ログを確認し、追加調査可能なものは調べる
+- 無理なものは保留ログとして _research_pending.md に移動
+
+【最終出力】
+- 調査結果を RESEARCH_RESULT.md として作業フォルダに出力する
+- ユーザーの要望に沿った形式で整理する
+
+【エラー対応】
+- URLアクセス失敗は3回まで再試行
+- 情報が全く見つからない場合はアプローチを変えて再検索
+- 同じ検索を繰り返している場合は、検索方法自体をweb_searchで調べる`
+:'1. List all research items as "=== Research Item List ==="\n2. Output progress markers for each item\n3. Manage context by writing temp files\n4. Track searched queries to prevent duplicates\n5. Log concerns and pending items\n6. Output final result as RESEARCH_RESULT.md'}
+
+7. ${isJa?'問題が発生しても自力で解決して続行する':'Resolve issues independently and continue'}
+8. ${isJa?'sudo・インストール系コマンドは実行しない':'No sudo or install commands'}
+
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
+}
+
+// Phase 3: 検証
+function buildResearchVerifySysPrompt(workDir, customSys) {
+  const custom = customSys ? `\n\n【プロジェクト指示】\n${customSys}` : '';
+  const lang = cfg.aiResponseLanguage || 'ja';
+  const isJa = lang === 'ja';
+  return `${isJa?'あなたは調査結果の検証AIです。':'You are a research verification AI.'}
+${isJa?'必ず日本語で回答してください。':'Always respond in English.'}
+
+${isJa?'【検証手順】':'【Verification Steps】'}
+${isJa?`1. 作業フォルダ内の RESEARCH_RESULT.md を読み込む
+2. _research_pending.md（保留ログ）があれば読み込み、再調査可能か検証する
+   - 調査可能なら web_search で追加調査し、結果をRESEARCH_RESULT.mdに追記
+   - 不可能ならユーザーへのフィードバックとして残す
+3. RESEARCH_RESULT.md の内容を検証:
+   - ユーザーの要望を満たしているか
+   - Markdownの表示崩れがないか
+   - 情報の正確性・整合性
+4. 問題があれば修正する
+5. 横槍メッセージ（_research_sidenotes.md）があれば内容を確認し反映する
+6. 全て完了したら「=== 検証完了 ===」を出力する
+   保留ログがある場合は内容をユーザーに報告する`
+:'1. Read RESEARCH_RESULT.md\n2. Check pending log for re-investigation\n3. Verify content quality\n4. Fix issues\n5. Check side notes\n6. Output "=== Verification Complete ===" when done'}
+
+${isJa?'現在時刻':'Time'}: ${new Date().toLocaleString(isJa?'ja-JP':'en-US')}
+${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
+}
+
+// ── 調べ物モード: 横槍メッセージキュー ────────────────────
+const researchSideMessages = new Map(); // sessId -> [{content, ts}]
+function addResearchSideMsg(sessId, msg) {
+  if(msg === '__flush__') return; // flush is handled by main.js
+  if(!researchSideMessages.has(sessId)) researchSideMessages.set(sessId, []);
+  researchSideMessages.get(sessId).push({content:msg, ts:Date.now()});
+}
+function getResearchSideMsgs(sessId) {
+  const msgs = researchSideMessages.get(sessId) || [];
+  researchSideMessages.delete(sessId);
+  return msgs;
+}
+// 横槍メッセージをファイルに書き出し（エージェントが参照できるように）
+function flushSideNotesToFile(sessId, workDir) {
+  const notes = researchSideMessages.get(sessId) || [];
+  if(!notes.length || !workDir) return;
+  const fp = path.join(workDir, '_research_sidenotes.md');
+  const content = notes.map(n => `- [${new Date(n.ts).toLocaleString('ja-JP')}] ${n.content}`).join('\n');
+  try {
+    const existing = fs.existsSync(fp) ? fs.readFileSync(fp,'utf-8') + '\n' : '';
+    fs.writeFileSync(fp, existing + content, 'utf-8');
+  } catch {}
+  researchSideMessages.delete(sessId);
+}
 
 
 function buildAgentChatSysPrompt(calContext) {
@@ -797,6 +937,8 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
   const ac = new AbortController();
   abortMap.set(sessId, ac);
   const devMode = sysPrompt.includes('タスクリスト') || sysPrompt.includes('ソースコード');
+  const researchMode = sysPrompt.includes('調査項目リスト') || sysPrompt.includes('Research Item List');
+  const autoMode = devMode || researchMode; // 自動ループモード共通
   const msgs = [{ role:'system', content:sysPrompt }, ...messages];
   let loopCount = 0, sameCount = 0, lastContent = '';
   let consecutiveErrors = 0;
@@ -915,14 +1057,15 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
       logWrite(sessId, 'AI', msg.content.slice(0, 200));
       onEvent({ type:'text', data: msg.content });
 
-      if (devMode) {
-        // セクションリスト検出
+      if (autoMode) {
+        // セクション/調査項目リスト検出
         if (!msgs._sectionsSet) {
-          if (/===\s*セクションリスト\s*===|セクション\d+[:：]/.test(msg.content)) {
-            const secMatches = msg.content.match(/セクション\s*(\d+)/g);
+          if (/===\s*(セクションリスト|調査項目リスト)\s*===|(セクション|調査項目)\d+[:：]/.test(msg.content)) {
+            const secMatches = msg.content.match(/(セクション|調査項目)\s*(\d+)/g);
             if (secMatches && secMatches.length >= 2) {
               msgs._sectionsSet = true;
-              onEvent({ type:'progress', data:`${secMatches.length}セクションの開発計画を確認` });
+              const label = researchMode ? '調査計画' : '開発計画';
+              onEvent({ type:'progress', data:`${secMatches.length}項目の${label}を確認` });
             }
           }
           // 旧形式のフラットタスクリストにも対応
@@ -932,15 +1075,15 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
             onEvent({ type:'progress', data:`タスクリスト: ${listMatch.length}件のタスクを確認` });
           }
         }
-        // セクション開始検出: <<< セクション N/Total: Name >>>
-        const secStart = msg.content.match(/<<<\s*セクション\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]\s*(.+?)\s*>>>/);
+        // セクション/調査開始検出: <<< セクション N/Total: Name >>> or <<< 調査 N/Total: Name >>>
+        const secStart = msg.content.match(/<<<\s*(セクション|調査)\s*(\d+)\s*[/／]\s*(\d+)\s*[:：]\s*(.+?)\s*>>>/);
         if (secStart) {
-          onEvent({type:'section_start', data:{n:parseInt(secStart[1]), total:parseInt(secStart[2]), name:secStart[3].trim()}});
+          onEvent({type:'section_start', data:{n:parseInt(secStart[2]), total:parseInt(secStart[3]), name:secStart[4].trim()}});
         }
-        // セクション完了検出: [完] セクション N 完了
-        const secDone = msg.content.match(/\[完\]\s*セクション\s*(\d+)\s*完了.*?(\d+)\s*[/／]\s*(\d+)/);
+        // セクション/調査項目完了検出
+        const secDone = msg.content.match(/\[完\]\s*(セクション|調査項目)\s*(\d+)\s*完了.*?(\d+)\s*[/／]\s*(\d+)/);
         if (secDone) {
-          onEvent({type:'section_done', data:{n:parseInt(secDone[1]), total:parseInt(secDone[3]||secDone[2]||0)}});
+          onEvent({type:'section_done', data:{n:parseInt(secDone[2]), total:parseInt(secDone[4]||secDone[3]||0)}});
         }
         // タスク開始検出: --- タスク S.T/S.Total: Name --- (階層) or --- タスクN/合計: Name --- (フラット)
         const hierTaskStart = msg.content.match(/---\s*タスク\s*(\d+)\.(\d+)\s*[/／]\s*\d+\.\d+\s*[:：]\s*(.+?)\s*---/);
@@ -965,9 +1108,13 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
           const flatDone = msg.content.match(/\[完\]\s*タスク\s*(\d+)\s*完了/);
           if(flatDone) onEvent({type:'task_done', data:{n:parseInt(flatDone[1])}});
         }
-        // 開発完了検出（厳格）
-        if (/===\s*(開発完了|デバッグ完了)\s*===/.test(msg.content)) {
-          onEvent({ type:'dev_complete', data:'' });
+        // 開発完了/調査完了/検証完了/調べ物完了検出（厳格）
+        if (/===\s*(開発完了|デバッグ完了|調査完了|検証完了|調べ物完了)\s*===/.test(msg.content)) {
+          onEvent({ type:'dev_complete', data: researchMode ? 'research' : '' });
+        }
+        // 調べ物モード: 調査項目完了時に横槍メッセージをファイルに書き出す
+        if(researchMode && /\[完\]\s*調査項目/.test(msg.content)){
+          flushSideNotesToFile(sessId, workDir);
         }
       }
 
@@ -994,15 +1141,19 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
     }
 
     if (!msg.tool_calls?.length) {
-      // dev_complete済みなら即終了（noToolTurns自動継続を発火させない）
-      const isDone = /===\s*(開発完了|デバッグ完了)\s*===/.test(msg.content||'');
+      // dev_complete/調査完了済みなら即終了（noToolTurns自動継続を発火させない）
+      const isDone = /===\s*(開発完了|デバッグ完了|調査完了|検証完了|調べ物完了)\s*===/.test(msg.content||'');
       if(isDone) break;
-      // devMode: 開発完了でなければ自動継続（ストール防止）
-      if(devMode){
+      // autoMode: 完了でなければ自動継続（ストール防止）
+      if(autoMode){
         noToolTurns++;
-        if(noToolTurns <= 3){
+        const maxNoTool = researchMode ? 6 : 3; // 調べ物モードは思考時間が長い
+        if(noToolTurns <= maxNoTool){
+          const continueMsg = researchMode
+            ? '続けてください。次の調査項目を実行してください。横槍メッセージがあれば _research_sidenotes.md を確認してください。'
+            : '続けてください。次のタスクを実行してください。';
           onEvent({type:'system',data:'↺ 次のタスクに進みます...'});
-          msgs.push({role:'user',content:'続けてください。次のタスクを実行してください。'});
+          msgs.push({role:'user',content:continueMsg});
           continue;
         }
         onEvent({type:'system',data:'𓅭 AIが停滞しています。再開ファイルを保存します。'});
@@ -1293,6 +1444,8 @@ module.exports = {
   saveResumeFile, loadResumeFile, deleteResumeFile,
   makeDevSysPrompt, buildChatSysPrompt, buildAnalysisSysPrompt, buildDebugSysPrompt, buildAgentChatSysPrompt,
   buildBlueprintSysPrompt, buildBlueprintGenerateSysPrompt, buildDocumentSysPrompt, runBlueprintChat, getBlueprintAI, detectBlueprintModels, getDesignAI,
+  buildResearchDialogueSysPrompt, buildResearchExecSysPrompt, buildResearchVerifySysPrompt,
+  addResearchSideMsg, getResearchSideMsgs, flushSideNotesToFile,
   getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs,
   getWatcherCfg, saveWatcherCfg, getAgentAI,

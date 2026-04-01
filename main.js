@@ -28,7 +28,7 @@ function createWindow() {
     if (!app.isQuitting) {
       e.preventDefault();
       for (const [sessId, info] of activeSessions) {
-        if (info.workDir && info.mode==='dev') {
+        if (info.workDir && (info.mode==='dev'||info.mode==='research-exec')) {
           const sess = agent.getSession(sessId);
           agent.saveResumeFile(sessId, info.workDir, sess.history,
             info.lastText ? '最後の出力: '+info.lastText.slice(-200) : 'アプリ終了', '終了');
@@ -200,6 +200,9 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
   else if(mode==='blueprint') sysPrompt=agent.buildBlueprintSysPrompt(workDir,proj?.systemPrompt);
   else if(mode==='blueprint-gen') sysPrompt=agent.buildBlueprintGenerateSysPrompt(workDir,proj?.systemPrompt);
   else if(mode==='document')  sysPrompt=agent.buildDocumentSysPrompt(workDir,proj?.systemPrompt);
+  else if(mode==='research-dialogue') sysPrompt=agent.buildResearchDialogueSysPrompt(workDir,proj?.systemPrompt);
+  else if(mode==='research-exec')     sysPrompt=agent.buildResearchExecSysPrompt(workDir,proj?.systemPrompt, message, !!(proj?.imageRecog));
+  else if(mode==='research-verify')   sysPrompt=agent.buildResearchVerifySysPrompt(workDir,proj?.systemPrompt);
   else                        sysPrompt=agent.buildChatSysPrompt(workDir,proj?.systemPrompt);
 
   let fullText='', wasAborted=false;
@@ -227,7 +230,7 @@ ipcMain.handle('start-chat', async(event,{sessId,message,projectId,mode,attachme
     }
   }finally{
     activeSessions.delete(sessId);
-    if(mode==='dev'&&workDir&&!wasAborted) agent.deleteResumeFile(workDir);
+    if((mode==='dev'||mode==='research-exec'||mode==='research-verify')&&workDir&&!wasAborted) agent.deleteResumeFile(workDir);
     // 修正7: プロジェクト専用AI設定を復元
     if(projAiApplied){
       agent.updateCfg({chatAiHost:origChatAiHost||'', chatAiPort:origChatAiPort||0, chatModelId:origChatModelId||''});
@@ -244,6 +247,18 @@ function safeChunk(event,sessId,data){
 }
 
 ipcMain.handle('stop-chat',   (_,sid)=>{ agent.stopAgent(sid); return {ok:true}; });
+// 調べ物モード: 横槍メッセージ追加
+ipcMain.handle('add-research-side-msg', (_,{sessId,message})=>{
+  if(message === '__flush__'){
+    // 横槍メッセージをファイルに書き出し
+    const info = activeSessions.get(sessId);
+    const proj = info?.projId ? agent.loadProj(info.projId) : null;
+    if(proj?.workDir) agent.flushSideNotesToFile(sessId, proj.workDir);
+  } else {
+    agent.addResearchSideMsg(sessId, message);
+  }
+  return {ok:true};
+});
 ipcMain.handle('clear-history',(_,sid)=>{ const s=agent.getSession(sid); s.history=[]; return {ok:true}; });
 ipcMain.handle('edit-message',(_,{sessId,msgIndex,newContent})=>{
   const sess=agent.getSession(sessId);

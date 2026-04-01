@@ -461,6 +461,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       </div>
       <div id="dbg-banner">𓃗 デバッグ・機能追加モード — バグ修正・テスト・機能拡張</div>
       <div id="bp-banner" style="display:none;background:#0a0610;border-bottom:1px solid #2a1848;padding:8px 18px;font-size:12px;color:#a080d0;flex-shrink:0;font-weight:600">𓏛 設計図作成モード — 対話で要件を整理し .md 設計書を生成します</div>
+      <div id="res-banner" style="display:none;background:#060a10;border-bottom:1px solid #183050;padding:8px 18px;font-size:12px;color:#60a0d0;flex-shrink:0;font-weight:600">𓅱 調べ物モード — エージェントが体系的にリサーチします</div>
       <div id="msgs"></div>
       <!-- 設計図プレビューパネル -->
       <div id="bp-preview">
@@ -480,7 +481,20 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
             <div class="sw-track" id="deep-sw"></div>
             <span class="sw-lbl">𓅱 調べる</span>
           </div>
+          <div class="sw-wrap" onclick="toggleImgRecog()" title="画像認識（AIの認識能力に依存）" id="img-recog-wrap">
+            <div class="sw-track" id="img-recog-sw"></div>
+            <span class="sw-lbl">𓁹 画像認識</span>
+          </div>
           <button class="att-add-btn" id="btn-to-bp" onclick="chatToBlueprintHandoff()" title="このチャットのアイデアを設計図作成に引き継ぐ" style="margin-left:auto;border-color:var(--ok);color:var(--ok)">𓏛 設計図作成へ</button>
+        </div>
+        <!-- 調べ物モード: 横槍メッセージ入力 -->
+        <div id="research-side-bar" style="display:none;padding:6px 18px;border-top:1px solid var(--b1);background:#0a0610">
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="side-inp" placeholder="調査中に横槍メッセージ（追加案件）..." rows="1"
+              style="flex:1;background:#0a0a0a;border:1px solid #2a1848;border-radius:6px;color:var(--t1);font-size:12px;padding:7px 11px;resize:none;min-height:34px;max-height:80px;line-height:1.5;outline:none"></textarea>
+            <button onclick="sendSideMsg()" style="background:#100e20;color:#a080d0;border:1px solid #2a1848;border-radius:6px;padding:0 12px;height:34px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">横槍送信</button>
+          </div>
+          <div style="font-size:10px;color:var(--t3);margin-top:3px">調査項目完了後にAIが読み込みます・追加案件として保存されます</div>
         </div>
         <div class="att-list" id="att-list"></div>
         <div class="ir">
@@ -533,6 +547,7 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="mc" id="mCB" onclick="selT('blueprint')"><div class="mc-g">𓏛</div><div class="mc-l">設計図作成</div><div class="mc-d">対話で.md設計書を作成</div></div>
       <div class="mc" id="mCD" onclick="selT('design')"><div class="mc-g">𓃭</div><div class="mc-l">アプリ設計</div><div class="mc-d">設計図から開発</div></div>
       <div class="mc" id="mCDoc" onclick="selT('document')"><div class="mc-g">𓏞</div><div class="mc-l">書類作成</div><div class="mc-d">議事録・報告書・行政書類</div></div>
+      <div class="mc" id="mCRes" onclick="selT('research')"><div class="mc-g">𓅱</div><div class="mc-l">調べ物</div><div class="mc-d">エージェント型リサーチ</div></div>
     </div>
     <!-- チャット用: 名前は任意（省略で自動生成） -->
     <div id="nChatOpts" style="display:none">
@@ -570,6 +585,28 @@ header{display:flex;align-items:center;gap:10px;padding:10px 18px;
       <div class="lbl">参考ファイル（任意 — 議事録・資料等）</div>
       <div id="nDocFiles" style="margin-bottom:8px"></div>
       <button class="att-add-btn" onclick="addDocFile()" style="font-size:11px;padding:4px 10px">＋ ファイルを追加</button>
+    </div>
+    <!-- 調べ物用 -->
+    <div id="nResearchOpts" style="display:none">
+      <div class="lbl">プロジェクト名</div>
+      <input class="inp2" id="nNmRes" type="text" placeholder="例: AI技術動向調査" oninput="valNew()">
+      <div class="lbl">出力先フォルダ</div>
+      <div class="mf"><div class="mfd" id="fDRes">未選択（自動）</div><button class="mfb" onclick="pickFRes()">選択...</button></div>
+      <div class="lbl">調べたいこと（任意 — 空欄でAIが対話で聞き取ります）</div>
+      <textarea class="ta2" id="nResDesc" placeholder="例: 2026年のLLM技術の最新動向をまとめたい" style="min-height:60px"></textarea>
+      <div class="lbl">参考資料（任意）</div>
+      <div id="nResFiles" style="margin-bottom:8px"></div>
+      <button class="att-add-btn" onclick="addResFile()" style="font-size:11px;padding:4px 10px">＋ ファイルを追加</button>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div class="sw-wrap" onclick="toggleResWiki()" style="margin:0">
+          <div class="sw-track" id="sw-res-wiki"></div>
+          <span class="sw-lbl" style="font-size:11px">社内Wiki参照</span>
+        </div>
+        <div class="sw-wrap" onclick="toggleResImg()" style="margin:0">
+          <div class="sw-track" id="sw-res-img"></div>
+          <span class="sw-lbl" style="font-size:11px">画像認識</span>
+        </div>
+      </div>
     </div>
     <!-- 全モード共通: ファイル内部コピー設定 -->
     <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
@@ -1102,20 +1139,40 @@ A.onChunk(ev=>{
     case 'section_start': addSectionCard(ev.data); dn(); break;
     case 'section_done': updateSectionDone(ev.data); dn(); break;
     case 'dev_complete':
-      addSN('𓋹 開発完了','ok'); updateProgress(taskTotal,taskTotal);
-      // 即座にbusy解除＋停止ボタン非表示
-      endBusy(); globalBusyRelease(); setStopState('hidden');
-      dn();
-      // 自動デバッグフェーズに移行
-      setTimeout(()=>startAutoDebugPhase(),1200);
+      if(ev.data === 'research' && cur && cur.type === 'research'){
+        // 調べ物モード: フェーズ遷移
+        if(curMode === 'research-exec'){
+          addSN('𓅱 調査完了 — 検証フェーズに移行します','ok');
+          endBusy(); globalBusyRelease(); setStopState('hidden');
+          curMode = 'research-verify';
+          if(cur){ cur._researchPhase='research-verify'; A.updateProject(cur.id,cur).catch(()=>{}); }
+          updateModeUI();
+          dn();
+          setTimeout(()=>startResearchVerify(),1200);
+        } else {
+          // 検証完了 or 調べ物完了
+          addSN('𓋹 調べ物完了','ok');
+          endBusy(); globalBusyRelease(); setStopState('hidden');
+          curMode = 'research-dialogue';
+          if(cur){ cur._researchPhase='done'; cur.researchDone=true; A.updateProject(cur.id,cur).catch(()=>{}); }
+          updateModeUI();
+          dn();
+          addAI('𓅱 調査が完了しました。結果ファイルは作業フォルダ内の RESEARCH_RESULT.md をご確認ください。\n\n追加の調査や質問があればお気軽にどうぞ。');
+        }
+      } else {
+        addSN('𓋹 開発完了','ok'); updateProgress(taskTotal,taskTotal);
+        endBusy(); globalBusyRelease(); setStopState('hidden');
+        dn();
+        setTimeout(()=>startAutoDebugPhase(),1200);
+      }
       break;
     case 'progress': addSN(ev.data,'ok'); break;
     case 'system':   addSN(ev.data); break;
     case 'paused':   addSN(ev.data,'warn'); break;
     case 'resumed':  addSN(ev.data,'ok'); break;
     case 'timeout':
-      // dev/debugモードでは常に自動復旧を試みる（ユーザー停止以外の中断時）
-      if(cur && (curMode==='dev' || curMode==='debug')){
+      // dev/debug/researchモードでは常に自動復旧を試みる
+      if(cur && (curMode==='dev' || curMode==='debug' || curMode==='research-exec')){
         if(!autoRecoveryInProgress){
           addSN('𓅭 処理が中断されました。自動復旧を試みます...', 'warn');
           scheduleAutoRecovery();
@@ -1128,7 +1185,7 @@ A.onChunk(ev=>{
       break;
     case 'user_input_required':
       // ほったらかしモードなら自動でスキップして続行
-      if(handsOff && (curMode==='dev'||curMode==='debug') && !autoRecoveryInProgress){
+      if(handsOff && (curMode==='dev'||curMode==='debug'||curMode==='research-exec') && !autoRecoveryInProgress){
         addSN('𓅭 ほったらかし: ユーザー入力が必要でしたが自動スキップします。', 'warn');
         scheduleAutoRecovery('skip');
       } else {
@@ -1221,7 +1278,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   A.onWillQuit(async()=>{
     // アプリ終了時: devモードで実際に処理中の場合のみresumeFile保存
     // agentViewOpen時はDOMの視点からbusy=falseなので保存しない
-    if (cur && curMode==='dev' && cur.workDir && busy && !agentViewOpen){
+    if (cur && (curMode==='dev'||curMode==='research-exec') && cur.workDir && busy && !agentViewOpen){
       await A.saveResume({
         sessId:curSid, workDir:cur.workDir, history:cur.messages||[],
         checkpoint:'アプリ終了による中断', state:'終了'
@@ -1241,6 +1298,17 @@ document.addEventListener('DOMContentLoaded',()=>{
     aInp.addEventListener('input',()=>{ aInp.style.height='auto'; aInp.style.height=Math.min(aInp.scrollHeight,100)+'px'; });
     aInp.addEventListener('keydown',e=>{
       if(e.key==='Enter'&&!e.shiftKey&&!agentComposing){ e.preventDefault(); sendAgentChat(); }
+    });
+  }
+  // 調べ物モード横槍入力のEnterキー
+  const sideInp = document.getElementById('side-inp');
+  if(sideInp){
+    let sideComposing=false;
+    sideInp.addEventListener('compositionstart',()=>sideComposing=true);
+    sideInp.addEventListener('compositionend',  ()=>sideComposing=false);
+    sideInp.addEventListener('input',()=>{ sideInp.style.height='auto'; sideInp.style.height=Math.min(sideInp.scrollHeight,80)+'px'; });
+    sideInp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&!e.shiftKey&&!sideComposing){ e.preventDefault(); sendSideMsg(); }
     });
   }
 });
@@ -1323,7 +1391,7 @@ async function loadPL(){
     const d=document.createElement('div');
     d.className='pi'+(cur&&cur.id===p.id?' on':'');
     d.dataset.id=p.id;
-    const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':p.type==='document'?'𓏞':'𓃰';
+    const g=p.type==='design'?'𓃭':p.type==='blueprint'?'𓏛':p.type==='document'?'𓏞':p.type==='research'?'𓅱':'𓃰';
     const busyMark = (globalBusyProjId === p.id) ? '<span style="color:var(--ok);font-size:9px;margin-left:4px">● 処理中</span>' : '';
     d.innerHTML=`<span class="pi-g">${g}</span><div class="pi-info"><div class="pi-nm">${esc(p.name)}${busyMark}</div><div class="pi-mt">${fmt(p.updatedAt)}</div></div><button class="pi-del" onclick="delP(event,'${p.id}')">×</button>`;
     d.addEventListener('click',()=>openP(p.id));
@@ -1349,10 +1417,16 @@ async function openP(id){
   const p = await A.getProject(id); if(!p){ curSid=prevSid; return; }
   cur=p; curSid='P'+id;
   curMode=p.type==='design'?(p.devDone?'debug':'dev'):
-          p.type==='blueprint'?'blueprint':p.type==='document'?'document':'chat';
+          p.type==='blueprint'?'blueprint':p.type==='document'?'document':
+          p.type==='research'?(p._researchPhase||'research-dialogue'):'chat';
 
   showChat();
   document.getElementById('pn').textContent=' · '+p.name;
+  // 画像認識状態復元
+  if(p.type==='research'||p.type==='chat'){
+    imageRecognition=!!p.imageRecognition;
+    document.getElementById('img-recog-sw').classList.toggle('on',imageRecognition);
+  }
 
   // このPJがバックグラウンドでまだAI処理中かチェック
   let projStillBusy = false;
@@ -1379,7 +1453,7 @@ async function openP(id){
     // 処理中インジケーターを再表示
     addThk();
     // dev/debugモードではprog-barも復元
-    if(curMode==='dev'||curMode==='debug'){
+    if(curMode==='dev'||curMode==='debug'||curMode==='research-exec'){
       document.getElementById('prog-bar').style.display='block';
     }
     curEl=null; curBb=null; curFull='';
@@ -1514,9 +1588,11 @@ function renderHist(ms){
 }
 
 // ── 新規プロジェクト ─────────────────────────────────────
-let sFBp=null, sFDoc=null, docFiles=[], fileCopyEnabled=true;
+let sFBp=null, sFDoc=null, sFRes=null, docFiles=[], resFiles=[], fileCopyEnabled=true;
+let resWikiEnabled=false, resImgEnabled=false, imageRecognition=false;
 function openNew(){
-  sT=null; sF=null; sFBp=null; sFDoc=null; docFiles=[];
+  sT=null; sF=null; sFBp=null; sFDoc=null; sFRes=null; docFiles=[]; resFiles=[];
+  resWikiEnabled=false; resImgEnabled=false;
   document.getElementById('nNm').value='';
   document.getElementById('nNmDesign').value='';
   document.getElementById('fD').textContent='未選択';
@@ -1529,11 +1605,16 @@ function openNew(){
   document.getElementById('fDDoc').textContent='未選択（自動）';
   document.getElementById('nDocDesc').value='';
   document.getElementById('nDocFiles').innerHTML='';
+  document.getElementById('nNmRes').value='';
+  document.getElementById('fDRes').textContent='未選択（自動）';
+  document.getElementById('nResDesc').value='';
+  document.getElementById('nResFiles').innerHTML='';
+  document.getElementById('sw-res-wiki').classList.remove('on');
+  document.getElementById('sw-res-img').classList.remove('on');
   document.getElementById('bCr').disabled=true;
-  // コピートグル初期状態
   fileCopyEnabled=true; updateFileCopyUI();
-  ['mCC','mCD','mCB','mCDoc'].forEach(id=>document.getElementById(id).classList.remove('s'));
-  ['nChatOpts','nDesignOpts','nBlueprintOpts','nDocOpts'].forEach(id=>document.getElementById(id).style.display='none');
+  ['mCC','mCD','mCB','mCDoc','mCRes'].forEach(id=>document.getElementById(id).classList.remove('s'));
+  ['nChatOpts','nDesignOpts','nBlueprintOpts','nDocOpts','nResearchOpts'].forEach(id=>document.getElementById(id).style.display='none');
   openM('mN');
 }
 function selT(t){
@@ -1542,16 +1623,19 @@ function selT(t){
   document.getElementById('mCB').classList.toggle('s',t==='blueprint');
   document.getElementById('mCD').classList.toggle('s',t==='design');
   document.getElementById('mCDoc').classList.toggle('s',t==='document');
+  document.getElementById('mCRes').classList.toggle('s',t==='research');
   document.getElementById('nChatOpts').style.display      = t==='chat'      ? '' : 'none';
   document.getElementById('nBlueprintOpts').style.display  = t==='blueprint' ? '' : 'none';
   document.getElementById('nDesignOpts').style.display     = t==='design'    ? '' : 'none';
   document.getElementById('nDocOpts').style.display        = t==='document'  ? '' : 'none';
+  document.getElementById('nResearchOpts').style.display   = t==='research'  ? '' : 'none';
   if(t==='chat') document.getElementById('bCr').disabled=false;
   valNew();
   setTimeout(()=>{
     const f = t==='chat'?document.getElementById('nNm'):
               t==='blueprint'?document.getElementById('nNmBp'):
               t==='document'?document.getElementById('nNmDoc'):
+              t==='research'?document.getElementById('nNmRes'):
               document.getElementById('nNmDesign');
     if(f)f.focus();
   },60);
@@ -1564,12 +1648,15 @@ function valNew(){
     document.getElementById('bCr').disabled=!(document.getElementById('nNmBp').value.trim());
   } else if(sT==='document'){
     document.getElementById('bCr').disabled=!(document.getElementById('nNmDoc').value.trim());
+  } else if(sT==='research'){
+    document.getElementById('bCr').disabled=!(document.getElementById('nNmRes').value.trim());
   } else {
     document.getElementById('bCr').disabled=!(document.getElementById('nNmDesign').value.trim()&&sF);
   }
 }
 async function pickF(){ const f=await A.pickFolder(); if(f){ sF=f; document.getElementById('fD').textContent=f; valNew(); } }
 async function pickFBp(){ const f=await A.pickFolder(); if(f){ sFBp=f; document.getElementById('fDBp').textContent=f; } }
+async function pickFRes(){ const f=await A.pickFolder(); if(f){ sFRes=f; document.getElementById('fDRes').textContent=f; } }
 async function pickFDoc(){ const f=await A.pickFolder(); if(f){ sFDoc=f; document.getElementById('fDDoc').textContent=f; } }
 // 書類作成用ファイル追加
 async function addDocFile(){
@@ -1583,6 +1670,56 @@ function renderDocFiles(){
     d.innerHTML=`𓅔 ${esc(f.name||f.path)} <button onclick="docFiles.splice(${i},1);renderDocFiles()" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:11px">×</button>`;
     el.appendChild(d);
   });
+}
+// 調べ物用ファイル追加
+async function addResFile(){
+  const f=await A.pickAnyFile(); if(!f||f.error) return;
+  resFiles.push(f); renderResFiles();
+}
+function renderResFiles(){
+  const el=document.getElementById('nResFiles'); el.innerHTML='';
+  resFiles.forEach((f,i)=>{
+    const d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--t2)';
+    d.innerHTML=`𓅔 ${esc(f.name||f.path)} <button onclick="resFiles.splice(${i},1);renderResFiles()" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:11px">×</button>`;
+    el.appendChild(d);
+  });
+}
+function toggleResWiki(){
+  resWikiEnabled=!resWikiEnabled;
+  document.getElementById('sw-res-wiki').classList.toggle('on',resWikiEnabled);
+}
+function toggleResImg(){
+  resImgEnabled=!resImgEnabled;
+  if(resImgEnabled && !resImgWarnShown){
+    resImgWarnShown=true;
+    alert('𓁹 画像認識について\n\n精度はAIの認識能力に大きく依存します。\nPDFの文字テキストは画像認識に関係なく読み込まれます。');
+  }
+  document.getElementById('sw-res-img').classList.toggle('on',resImgEnabled);
+}
+let resImgWarnShown=false;
+// 画像認識トグル（チャット入力横）
+function toggleImgRecog(){
+  imageRecognition=!imageRecognition;
+  if(imageRecognition && !resImgWarnShown){
+    resImgWarnShown=true;
+    alert('𓁹 画像認識について\n\n精度はAIの認識能力に大きく依存します。\nPDFの文字テキストは画像認識に関係なく読み込まれます。');
+  }
+  document.getElementById('img-recog-sw').classList.toggle('on',imageRecognition);
+  if(cur){ cur.imageRecognition=imageRecognition; A.updateProject(cur.id,cur).catch(()=>{}); }
+}
+// 調べ物モード: 横槍メッセージ送信
+async function sendSideMsg(){
+  const inp=document.getElementById('side-inp'); if(!inp) return;
+  const txt=inp.value.trim(); if(!txt) return;
+  inp.value=''; inp.style.height='auto';
+  if(!curSid) return;
+  await A.addResearchSideMsg({sessId:curSid, message:txt});
+  addSN('𓅱 横槍メッセージを追加しました: '+txt.slice(0,50)+(txt.length>50?'...':''),'ok');
+  // 横槍メッセージをcur.messagesにも保存（UI表示用）
+  if(cur && cur.messages){
+    cur.messages.push({role:'system', content:'[横槍] '+txt, cls:'ok', ts:Date.now()});
+    scheduleProjectSave();
+  }
 }
 // コピートグル
 function toggleFileCopy(){
@@ -1613,6 +1750,11 @@ async function doCreate(){
     if(!nm) return;
     sys     = document.getElementById('nDocDesc').value.trim();
     workDir = sFDoc || null;
+  } else if(sT==='research'){
+    nm      = document.getElementById('nNmRes').value.trim();
+    if(!nm) return;
+    sys     = document.getElementById('nResDesc').value.trim();
+    workDir = sFRes || null;
   } else {
     nm      = document.getElementById('nNmDesign').value.trim();
     sys     = document.getElementById('nSysDesign').value.trim();
@@ -1638,9 +1780,21 @@ async function doCreate(){
       if(f.path) await A.copyFileInternal({srcPath:f.path, projId:p.id});
     }
   }
+  // 調べ物: 参考資料コピー
+  if(fileCopyEnabled && resFiles.length > 0){
+    for(const f of resFiles){
+      if(f.path) await A.copyFileInternal({srcPath:f.path, projId:p.id});
+    }
+  }
+  // 調べ物: PJ設定保存
+  if(sT==='research'){
+    p.wikiEnabled=resWikiEnabled;
+    p.imageRecognition=resImgEnabled;
+    await A.updateProject(p.id,p);
+  }
 
   closeM('mN'); cur=p; curSid='P'+p.id;
-  curMode = sT==='design'?'dev': sT==='blueprint'?'blueprint': sT==='document'?'document': 'chat';
+  curMode = sT==='design'?'dev': sT==='blueprint'?'blueprint': sT==='document'?'document': sT==='research'?'research-dialogue': 'chat';
   loadPL(); showChat();
   document.getElementById('pn').textContent=' · '+p.name;
   document.getElementById('msgs').innerHTML='';
@@ -1673,6 +1827,26 @@ async function doCreate(){
     addAI('𓁹 書類作成モードへようこそ！\n\n準備ができたら下のボタンで処理を開始してください。');
     showProcessStartBanner('document');
   }
+  else if(sT==='research'){
+    // 調べ物モード: 対話フェーズ開始
+    const resDesc = document.getElementById('nResDesc').value.trim();
+    let fileCtx = '';
+    if(resFiles.length > 0){
+      fileCtx = '\n\n【参考資料】\n' + resFiles.map(f=>`--- ${f.name||'file'} ---\n${(f.content||'').slice(0,5000)}`).join('\n\n');
+    }
+    imageRecognition = !!cur.imageRecognition;
+    document.getElementById('img-recog-sw').classList.toggle('on',imageRecognition);
+    if(resDesc){
+      const fullMsg = resDesc + fileCtx;
+      cur.messages.push({role:'user',content:fullMsg});
+      addUserBubble(resDesc.slice(0,200), 0);
+      startBusy();
+      await chatInternal(fullMsg,'research-dialogue');
+      if(cur) A.updateProject(cur.id,cur);
+    } else {
+      addAI('𓅱 調べ物モードへようこそ！\n\n何を調べたいですか？テーマや目的を教えてください。\n資料がある場合は添付してください。');
+    }
+  }
   else addAI('𓂀 こんにちは！何でも話しかけてください。');
 }
 
@@ -1685,6 +1859,7 @@ function showProcessStartBanner(mode){
     blueprint: {icon:'𓏛', title:'設計図作成を開始', sub:'AIが対話で要件を整理します'},
     document:  {icon:'𓁹', title:'書類作成を開始', sub:'AIが書類の作成を支援します'},
     design:    {icon:'𓃭', title:'分析を開始', sub:'設計図を分析して開発計画を作成します'},
+    research:  {icon:'𓅱', title:'調査を開始', sub:'AIがエージェント型でリサーチを実行します'},
   };
   const lbl = labels[mode] || {icon:'𓂀', title:'処理を開始', sub:'AIが処理を開始します'};
   const banner=document.createElement('div');
@@ -2020,6 +2195,36 @@ function selDevMode(mode){
   document.getElementById('mcContinue').classList.toggle('s', mode==='continue');
 }
 
+// ── 調べ物モード: フェーズ遷移 ─────────────────────────
+// 「𓃭 調査を開始する」チップ or 対話完了で呼ばれる → 調査実行フェーズ
+async function startResearchExec(researchPlan){
+  if(!cur) return;
+  const otherBusy = await isOtherProjectBusy();
+  if(otherBusy){ addSN('𓅭 別のプロジェクトでAI処理中です。','warn'); return; }
+  curMode = 'research-exec';
+  if(cur){ cur._researchPhase='research-exec'; await A.updateProject(cur.id,cur); }
+  updateModeUI();
+  document.getElementById('prog-bar').style.display='block';
+  document.getElementById('prog-txt').textContent='調査準備中...';
+  startDevTimer();
+  const plan = researchPlan || (cur.messages||[]).filter(m=>m.role==='assistant').map(m=>m.content||'').join('\n').slice(-3000);
+  addSN('𓅱 調査実行フェーズを開始します','ok');
+  startBusy();
+  await chatInternalDev(`【調査実行開始】\n以下の対話で決まった内容に基づいて調査を実行してください。\n\n${plan}\n\n調査項目リストを出力してから、1つずつ実行してください。`, 'research-exec');
+  stopDevTimer();
+  if(cur) A.updateProject(cur.id,cur);
+}
+// 調査完了 → 検証フェーズ
+async function startResearchVerify(){
+  if(!cur) return;
+  addSN('𓅱 検証フェーズを開始します','ok');
+  startBusy();
+  // 横槍メッセージがあればファイルに書き出す
+  if(curSid) await A.addResearchSideMsg({sessId:curSid, message:'__flush__'}).catch(()=>{});
+  await chatInternalDev('調査が完了しました。検証を開始してください。\n\n1. RESEARCH_RESULT.md を読み込み内容を確認\n2. _research_pending.md があれば再調査可能か判断\n3. _research_sidenotes.md（横槍メッセージ）があれば反映\n4. 内容の正確性・表示崩れを検証\n5. 完了なら「=== 調べ物完了 ===」を出力', 'research-verify');
+  if(cur) A.updateProject(cur.id,cur);
+}
+
 // 開発完了後の自動デバッグフェーズ
 async function startAutoDebugPhase(){
   if(!cur) return;
@@ -2054,8 +2259,15 @@ function updateModeUI(){
   const bar=document.getElementById('mode-bar'), dbg=document.getElementById('dbg-banner');
   const chatOpts=document.getElementById('chat-opts');
   const bpBanner=document.getElementById('bp-banner');
+  const resBanner=document.getElementById('res-banner');
+  const sideBar=document.getElementById('research-side-bar');
   const bpBtn=document.getElementById('btn-to-bp');
+  const imgWrap=document.getElementById('img-recog-wrap');
   if(!cur) return;
+  // デフォルト非表示
+  if(resBanner) resBanner.style.display='none';
+  if(sideBar) sideBar.style.display='none';
+  if(imgWrap) imgWrap.style.display='none';
   if(cur.type==='blueprint'){
     bar.style.display='none'; dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='block';
@@ -2071,20 +2283,32 @@ function updateModeUI(){
     if(tabDebug) tabDebug.classList.toggle('on',curMode==='debug');
     dbg.style.display=curMode==='debug'?'block':'none';
     chatOpts.style.display=cur.devDone?'flex':'none';
-    // prog-bar: 開発中・タスクあり・セクションあり・一時停止中のいずれかで表示
     const showProg = busy || taskTotal>0 || secTotal>0 || (cur.messages&&cur.messages.length>0 && !cur.devDone);
     document.getElementById('prog-bar').style.display = showProg ? 'block' : 'none';
   } else if(cur.type==='document'){
     bar.style.display='none'; dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='none';
     chatOpts.style.display='flex';
-    if(bpBtn) bpBtn.style.display='none'; // 書類作成では設計図引き継ぎ非表示
+    if(bpBtn) bpBtn.style.display='none';
     document.getElementById('prog-bar').style.display='none';
+  } else if(cur.type==='research'){
+    bar.style.display='none'; dbg.style.display='none';
+    if(bpBanner) bpBanner.style.display='none';
+    if(resBanner) resBanner.style.display='block';
+    chatOpts.style.display='flex';
+    if(bpBtn) bpBtn.style.display='none';
+    if(imgWrap) imgWrap.style.display='flex';
+    // 調査実行中は横槍入力バー表示＋prog-bar表示
+    const isExec = curMode==='research-exec';
+    if(sideBar) sideBar.style.display = isExec ? 'block' : 'none';
+    const showProg = isExec || busy || (curMode==='research-verify');
+    document.getElementById('prog-bar').style.display = showProg ? 'block' : 'none';
   } else {
     bar.style.display='none'; dbg.style.display='none';
     if(bpBanner) bpBanner.style.display='none';
     chatOpts.style.display='flex';
-    if(bpBtn) bpBtn.style.display=''; // チャットでは表示
+    if(bpBtn) bpBtn.style.display='';
+    if(imgWrap) imgWrap.style.display='flex';
     document.getElementById('prog-bar').style.display='none';
   }
 }
@@ -2160,7 +2384,7 @@ async function doSend(){
   addUserBubble(txt,msgIdx);
   startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):
-                  cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':curMode;
+                  cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':cur.type==='research'?curMode:curMode;
   await chatInternal(txt,sendMode,attachs,ds);
   if(cur) {
     // チャットPJの名前が「新規チャット」のまま → 最初のメッセージから自動生成
@@ -2204,7 +2428,7 @@ async function chatInternal(msg,mode,attachments,ds){
     if(curSid === snapSessId){
       endBusy();
       globalBusyRelease();
-      if(curEl && curEl._bpChoiceGroups && curEl._bpChoiceGroups.length > 0 && (mode==='blueprint'||mode==='blueprint-gen')){
+      if(curEl && curEl._bpChoiceGroups && curEl._bpChoiceGroups.length > 0 && (mode==='blueprint'||mode==='blueprint-gen'||mode==='research-dialogue')){
         renderBpChips(curEl, curEl._bpChoiceGroups);
       }
       document.getElementById('inp').focus();
@@ -2289,10 +2513,10 @@ async function doRestart(){
   cur.messages=cleanHistory;
   startBusy();
   const sendMode=cur.type==='design'?(curMode==='debug'?'debug':'dev'):
-                  cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':curMode;
-  if(sendMode==='dev') startDevTimer();
+                  cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':cur.type==='research'?curMode:curMode;
+  if(sendMode==='dev'||sendMode==='research-exec') startDevTimer();
   await chatInternal(lastUser.content,sendMode);
-  if(sendMode==='dev') stopDevTimer();
+  if(sendMode==='dev'||sendMode==='research-exec') stopDevTimer();
   if(cur) A.updateProject(cur.id,cur);
 }
 
@@ -2370,7 +2594,7 @@ async function commitEdit(idx,ta){
   }
   startBusy();
   const sendMode=cur&&cur.type==='design'?(curMode==='debug'?'debug':'dev'):
-                  cur&&cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':curMode;
+                  cur&&cur.type==='blueprint'?'blueprint':cur.type==='document'?'document':cur.type==='research'?curMode:curMode;
   await chatInternal(newText,sendMode);
   if(cur) A.updateProject(cur.id,cur);
 }
@@ -3239,6 +3463,7 @@ const UI_STRINGS = {
     newProject: '新規プロジェクト', selectType: '種類を選択してください',
     chatType: 'チャット', chatDesc: '会話・調査',
     designType: 'アプリ設計', designDesc: '設計図から開発',
+    researchType: '調べ物', researchDesc: 'エージェント型リサーチ',
     // ヘッダーボタン
     settingsBtn: '𓀂 設定', clearBtn: 'クリア',
   },
@@ -3312,6 +3537,7 @@ const UI_STRINGS = {
     newProject: 'New Project', selectType: 'Select type',
     chatType: 'Chat', chatDesc: 'Conversation & research',
     designType: 'App Design', designDesc: 'Develop from blueprint',
+    researchType: 'Research', researchDesc: 'Agent-based research',
     // Header buttons
     settingsBtn: '𓀂 Settings', clearBtn: 'Clear',
   }
@@ -3374,6 +3600,8 @@ function applyUiLanguage(lang) {
   if(chatCard){ chatCard.querySelector('.mc-l').textContent=s.chatType; chatCard.querySelector('.mc-d').textContent=s.chatDesc; }
   const designCard = document.getElementById('mCD');
   if(designCard){ designCard.querySelector('.mc-l').textContent=s.designType; designCard.querySelector('.mc-d').textContent=s.designDesc; }
+  const researchCard = document.getElementById('mCRes');
+  if(researchCard && s.researchType){ researchCard.querySelector('.mc-l').textContent=s.researchType; researchCard.querySelector('.mc-d').textContent=s.researchDesc; }
 
   // ── フィード空表示 ──
   const feedEmpty = document.getElementById('agent-feed-empty');
@@ -3622,6 +3850,14 @@ function renderBpChips(parentEl, choiceGroups) {
         chipsRow.appendChild(chip);
         return;
       }
+      // 調査開始は調査実行フェーズへ
+      if(/調査を開始|start research/i.test(c)){
+        const chip = document.createElement('button'); chip.className = 'bp-chip gen';
+        chip.textContent = c;
+        chip.addEventListener('click', ()=>startResearchExec());
+        chipsRow.appendChild(chip);
+        return;
+      }
       const chip = document.createElement('button'); chip.className = 'bp-chip';
       chip.textContent = c;
       chip.addEventListener('click', ()=>{
@@ -3702,6 +3938,10 @@ function doBpChipClick(text) {
   if(busy) return;
   if(/設計図を生成|generate/i.test(text)){
     doBlueprintGenerate();
+    return;
+  }
+  if(/調査を開始|start research/i.test(text)){
+    startResearchExec();
     return;
   }
   const el = document.getElementById('inp');
@@ -3915,7 +4155,7 @@ async function fetchBpModels() {
 
 // renderHist後にblueprint選択肢を復元するフック
 function renderHistBpHook(ms) {
-  if(cur && cur.type === 'blueprint' && ms.length > 0) {
+  if(cur && (cur.type === 'blueprint' || (cur.type === 'research' && curMode === 'research-dialogue')) && ms.length > 0) {
     const lastAi = [...ms].reverse().find(m=>m.role==='assistant');
     if(lastAi && lastAi.content) {
       const {choiceGroups} = parseBpChoices(lastAi.content);
@@ -3996,9 +4236,9 @@ async function scheduleAutoRecovery(type) {
       await A.setHistory({sessId:curSid, history:(cur.messages||[]).filter(m=>m.role==='user'||m.role==='assistant')});
       const skipMsg = '前のステップが不明の場合はスキップして、次のタスクに進んでください。';
       startBusy();
-      if(curMode==='dev') startDevTimer();
+      if(curMode==='dev'||curMode==='research-exec') startDevTimer();
       await chatInternal(skipMsg, curMode);
-      if(curMode==='dev') stopDevTimer();
+      if(curMode==='dev'||curMode==='research-exec') stopDevTimer();
       if(cur) A.updateProject(cur.id, cur);
     }, wait * 1000);
   } else {
@@ -4027,9 +4267,9 @@ async function scheduleAutoRecovery(type) {
       cur.messages = cleanHistory;
       addSN('↺ 前回のメッセージで自動再起動します...', 'ok');
       startBusy();
-      if(curMode==='dev') startDevTimer();
+      if(curMode==='dev'||curMode==='research-exec') startDevTimer();
       await chatInternal(lastUser.content, curMode);
-      if(curMode==='dev') stopDevTimer();
+      if(curMode==='dev'||curMode==='research-exec') stopDevTimer();
       if(cur) A.updateProject(cur.id, cur);
       autoRecoveryCount = 0;
     }, wait * 1000);
