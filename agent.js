@@ -72,6 +72,19 @@ function deleteOldLogs() {
 }
 
 // ── HTTP ──────────────────────────────────────────────────
+// レスポンスサイズ上限: 応答不正/暴走したローカルAIサーバーが際限なく
+// データを送り続けてもプロセスメモリを圧迫しないようにする防御
+const MAX_HTTP_RESPONSE_BYTES = 20 * 1024 * 1024; // 20MB
+function collectResponse(res, onDone) {
+  let raw=''; let bytes=0; let aborted=false;
+  res.on('data', c => {
+    if(aborted) return;
+    bytes += c.length;
+    if(bytes > MAX_HTTP_RESPONSE_BYTES){ aborted=true; res.destroy(); onDone(new Error('レスポンスサイズ上限超過')); return; }
+    raw += c;
+  });
+  res.on('end', () => { if(!aborted) onDone(null, raw); });
+}
 function httpPost(host, port, p, body, tms) {
   return new Promise((resolve, reject) => {
     const bs = JSON.stringify(body);
@@ -80,8 +93,10 @@ function httpPost(host, port, p, body, tms) {
       headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(bs)},
       timeout: tms || cfg.timeout * 1000
     }, res => {
-      let raw=''; res.on('data', c => raw+=c);
-      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('JSON失敗:'+raw.slice(0,100))); } });
+      collectResponse(res, (err, raw) => {
+        if(err) { reject(err); return; }
+        try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('JSON失敗:'+raw.slice(0,100))); }
+      });
     });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error(`タイムアウト(${Math.round((tms||cfg.timeout*1000)/1000)}s)`)); });
@@ -91,8 +106,10 @@ function httpPost(host, port, p, body, tms) {
 function httpGet(host, port, p, tms=5000) {
   return new Promise((resolve, reject) => {
     const req = http.request({ hostname:host, port, path:p, method:'GET', timeout:tms }, res => {
-      let raw=''; res.on('data', c => raw+=c);
-      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('JSON失敗')); } });
+      collectResponse(res, (err, raw) => {
+        if(err) { reject(err); return; }
+        try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('JSON失敗')); }
+      });
     });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
@@ -106,8 +123,10 @@ function httpsPost(hostname, port, p, body, tms, extraHeaders) {
     const bs = JSON.stringify(body);
     const headers = Object.assign({'Content-Type':'application/json','Content-Length':Buffer.byteLength(bs)}, extraHeaders||{});
     const req = https.request({hostname, port:port||443, path:p, method:'POST', headers, timeout:tms||120000}, res => {
-      let raw=''; res.on('data', c => raw+=c);
-      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('JSON parse失敗:'+raw.slice(0,200))); } });
+      collectResponse(res, (err, raw) => {
+        if(err) { reject(err); return; }
+        try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('JSON parse失敗:'+raw.slice(0,200))); }
+      });
     });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error(`HTTPS タイムアウト(${Math.round((tms||120000)/1000)}s)`)); });
@@ -500,6 +519,26 @@ const TOOLS = [
     parameters:{ type:'object', properties:{ path:{type:'string',description:'Wiki内のファイルパス'} }, required:['path'] }}}
 ];
 
+// ── 危険シェルコマンド検出 ─────────────────────────────────
+// 注意: これはAIの暴走・単純ミスを弾くベストエフォートのガードであり、
+// セキュリティ境界(サンドボックス)ではない。execute_shellはユーザー権限で
+// フルアクセスを持つため、根本的な安全性はユーザー自身の確認に依存する。
+const DANGEROUS_SHELL_PATTERNS = [
+  /\bsudo\b/i, /\bdoas\b/i,
+  /\brm\b[^\n]*-[a-z]*r[a-z]*f|\brm\b[^\n]*-[a-z]*f[a-z]*r/i, // rm -rf / -fr (順不同オプション)
+  /\bmkfs\b/i, /\bdd\b\s+if=/i,
+  /\bchmod\b[^\n]*-r[^\n]*\s+\/(\s|$)/i, /\bchown\b[^\n]*-r[^\n]*\s+\/(\s|$)/i,
+  />\s*\/dev\/(disk|sd|nvme|rdisk)/i,
+  /\bdiskutil\b\s+(erase|reformat)/i,
+  /\b(shutdown|reboot|halt)\b/i,
+  /:\(\)\s*\{\s*:\s*\|\s*:\s*&?\s*\}\s*;\s*:/, // fork bomb
+  /\bcurl\b[^\n]*\|\s*(sudo\s+)?(bash|sh|zsh)\b/i, /\bwget\b[^\n]*\|\s*(sudo\s+)?(bash|sh|zsh)\b/i,
+  /\bkillall\b/i, /\bpkill\b\s+-9\s+-1\b/i,
+];
+function isDangerousShellCommand(cmd) {
+  return DANGEROUS_SHELL_PATTERNS.some(p => p.test(cmd));
+}
+
 // ── ツール実行 ────────────────────────────────────────────
 function resolvePath(p, workDir) {
   if (!p) throw new Error('パスなし');
@@ -548,7 +587,7 @@ async function runTool(name, args, workDir, sessId) {
   logWrite(sessId,'TOOL',`${name} ${JSON.stringify(args).slice(0,150)}`);
   switch(name) {
     case 'execute_shell': return new Promise(resolve=>{
-      if(['sudo ','rm -rf /','mkfs'].some(b=>(args.command||'').includes(b))) return resolve({error:'ブロック:'+args.command});
+      if(isDangerousShellCommand(args.command||'')) return resolve({error:'ブロック(危険なコマンドの可能性):'+args.command});
       exec(args.command,{timeout:30000,maxBuffer:5*1024*1024,shell:'/bin/bash',cwd:workDir||process.cwd(),env:{...process.env}},
         (err,out,err2)=>resolve({stdout:(out||'').slice(0,8000),stderr:(err2||'').slice(0,2000),exitCode:err?1:0}));
     });
@@ -881,10 +920,13 @@ ${isJa?'作業フォルダ':'Folder'}: ${workDir||os.homedir()}${custom}`;
 
 // ── 調べ物モード: 横槍メッセージキュー ────────────────────
 const researchSideMessages = new Map(); // sessId -> [{content, ts}]
+const MAX_SIDE_MSGS_PER_SESSION = 200;
 function addResearchSideMsg(sessId, msg) {
   if(msg === '__flush__') return; // flush is handled by main.js
   if(!researchSideMessages.has(sessId)) researchSideMessages.set(sessId, []);
-  researchSideMessages.get(sessId).push({content:msg, ts:Date.now()});
+  const arr = researchSideMessages.get(sessId);
+  arr.push({content:msg, ts:Date.now()});
+  if(arr.length > MAX_SIDE_MSGS_PER_SESSION) arr.splice(0, arr.length - MAX_SIDE_MSGS_PER_SESSION);
 }
 function getResearchSideMsgs(sessId) {
   const msgs = researchSideMessages.get(sessId) || [];
@@ -940,6 +982,9 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
   const researchMode = sysPrompt.includes('調査項目リスト') || sysPrompt.includes('Research Item List');
   const autoMode = devMode || researchMode; // 自動ループモード共通
   const msgs = [{ role:'system', content:sysPrompt }, ...messages];
+  // ターン状態はmsgs配列にプロパティを生やさず専用オブジェクトで管理する
+  // (配列コピー/JSON化される経路があると生やしたプロパティが失われるため)
+  const turnState = { emptyRetry:0, sectionsSet:false };
   let loopCount = 0, sameCount = 0, lastContent = '';
   let consecutiveErrors = 0;
   let noToolTurns = 0; // ツール呼び出しなしのターン数（ストール検出）
@@ -1037,8 +1082,8 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
     const msg = data.choices?.[0]?.message;
     // 空の応答リトライ（問題③）
     if (!msg || (!msg.content && !msg.tool_calls?.length)) {
-      const emptyRetry = (msgs['_emptyRetry'] || 0) + 1;
-      msgs['_emptyRetry'] = emptyRetry;
+      const emptyRetry = (turnState.emptyRetry || 0) + 1;
+      turnState.emptyRetry = emptyRetry;
       if (emptyRetry <= 3) {
         logWrite(sessId, 'WARN', `空の応答 - リトライ ${emptyRetry}/3`);
         onEvent({ type:'system', data:`𓅭 応答が空でした。再試行中 (${emptyRetry}/3)...` });
@@ -1050,7 +1095,7 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
       onEvent({ type:'timeout', data: '空の応答' });
       break;
     }
-    msgs['_emptyRetry'] = 0;
+    turnState.emptyRetry = 0;
     msgs.push(msg);
 
     if (msg.content) {
@@ -1059,19 +1104,19 @@ async function runAgent(sessId, messages, sysPrompt, workDir, onEvent) {
 
       if (autoMode) {
         // セクション/調査項目リスト検出
-        if (!msgs._sectionsSet) {
+        if (!turnState.sectionsSet) {
           if (/===\s*(セクションリスト|調査項目リスト)\s*===|(セクション|調査項目)\d+[:：]/.test(msg.content)) {
             const secMatches = msg.content.match(/(セクション|調査項目)\s*(\d+)/g);
             if (secMatches && secMatches.length >= 2) {
-              msgs._sectionsSet = true;
+              turnState.sectionsSet = true;
               const label = researchMode ? '調査計画' : '開発計画';
               onEvent({ type:'progress', data:`${secMatches.length}項目の${label}を確認` });
             }
           }
           // 旧形式のフラットタスクリストにも対応
           const listMatch = msg.content.match(/(?:^|\n)\s*(\d+)[.\s．]/gm);
-          if (!msgs._sectionsSet && listMatch && listMatch.length >= 2) {
-            msgs._sectionsSet = true;
+          if (!turnState.sectionsSet && listMatch && listMatch.length >= 2) {
+            turnState.sectionsSet = true;
             onEvent({ type:'progress', data:`タスクリスト: ${listMatch.length}件のタスクを確認` });
           }
         }
@@ -1194,8 +1239,11 @@ function loadProj(id){try{return JSON.parse(fs.readFileSync(projPath(id),'utf-8'
 function saveProj(p){try{fs.writeFileSync(projPath(p.id),JSON.stringify(p,null,2));}catch{}}
 
 // ── セッション管理 ────────────────────────────────────────
+// 注意: getSessionはsessIdごとにMapへ無条件追加する。プロジェクト削除等の
+// ライフサイクルイベントでdeleteSessionを呼び、長時間起動時のメモリ増加を防ぐこと。
 const sessions=new Map();
 function getSession(id){if(!sessions.has(id))sessions.set(id,{history:[]});return sessions.get(id);}
+function deleteSession(id){ sessions.delete(id); researchSideMessages.delete(id); }
 
 // ════════════════════════════════════════════════════════════
 // ── ウォッチャーエージェント v3 ──────────────────────────
@@ -1446,7 +1494,7 @@ module.exports = {
   buildBlueprintSysPrompt, buildBlueprintGenerateSysPrompt, buildDocumentSysPrompt, runBlueprintChat, getBlueprintAI, detectBlueprintModels, getDesignAI,
   buildResearchDialogueSysPrompt, buildResearchExecSysPrompt, buildResearchVerifySysPrompt,
   addResearchSideMsg, getResearchSideMsgs, flushSideNotesToFile,
-  getSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
+  getSession, deleteSession, loadIndex, saveIndex, loadProj, saveProj, projPath,
   getLogs, logWrite, deleteOldLogs,
   getWatcherCfg, saveWatcherCfg, getAgentAI,
   startWatcher, stopWatcher, stopSearxOnly, startSearxOnly, isSearxRunning,

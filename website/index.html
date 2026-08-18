@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pine Chat（パインチャット） — 自立思考型AIエージェント | ローカルLLM対応macOSアプリ</title>
+<meta name="description" content="Pine Chat（パインチャット）はローカルLLM(LM Studio等)と繋いで動く、macOS向けの自立思考型AIエージェントアプリです。自動アプリ開発・Web検索・RAG・Discord/Telegram連携に対応。開発者: 折田悠希(おりたゆうき)。GitHubでオープンソース公開中(GPL-3.0)。">
+<meta name="keywords" content="Pine Chat,パインチャット,折田悠希,おりたゆうき,github,ローカルLLM,LM Studio,AIエージェント,自律エージェント,macOSアプリ">
+<link rel="canonical" href="https://pinechat.pages.dev/">
+<link rel="alternate" hreflang="ja" href="https://pinechat.pages.dev/">
+<link rel="alternate" hreflang="en" href="https://pinechat.pages.dev/en/">
+<link rel="alternate" hreflang="zh" href="https://pinechat.pages.dev/zh/">
+<link rel="alternate" hreflang="pt" href="https://pinechat.pages.dev/pt/">
+<link rel="alternate" hreflang="x-default" href="https://pinechat.pages.dev/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Pine Chat — 自立思考型AIエージェント">
+<meta property="og:description" content="ローカルLLMと繋いで動く、macOS向けの自律コーディング・リサーチAIエージェント。">
+<meta property="og:image" content="https://pinechat.pages.dev/assets/og-image.png">
+<meta property="og:url" content="https://pinechat.pages.dev/">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@InovateofRIZI">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="/"><img src="/assets/icon-192.png" alt="Pine Chat"><span>Pine Chat</span></a>
+    <div class="navlinks">
+      <a href="#features"><span class="hide-sm">機能</span></a>
+      <a href="#how">使い方</a>
+      <a href="#requirements"><span class="hide-sm">動作環境</span></a>
+      <div class="langsw">
+        <a class="on" href="/">JA</a><a href="/en/">EN</a><a href="/zh/">中文</a><a href="/pt/">PT</a>
+      </div>
+      <a class="cta" href="https://github.com/oriyu90/PineChat/releases/latest">ダウンロード</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">𓂀 v1.0.0 · GPL-3.0 · macOS</span>
+    <h1>ローカルLLMで動く、<em>自立思考型</em>のAIエージェント。</h1>
+    <p class="lead">Pine Chatは、LM Studioなどのローカルモデルに繋いで動くmacOS向けのAIエージェントアプリです。設計図(.md)を渡すだけで、ほったらかしモードがビルド直前までアプリを自動生成します。</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="https://github.com/oriyu90/PineChat/releases/latest">𓃭 最新版をダウンロード</a>
+      <a class="btn btn-ghost" href="https://github.com/oriyu90/PineChat">GitHubでソースを見る</a>
+    </div>
+    <p class="hero-meta">オープンソース(GPL-3.0-or-later) · 開発者: 折田悠希(Yuki_Orita)</p>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">機能</p>
+      <h2>ひとつのアプリで、調べる・作る・繋がる。</h2>
+      <p>チャットだけでなく、コード生成・リサーチ・外部連携までを一つのローカルAIエージェントに任せられます。</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="ico">𓂀</div>
+        <h3>ローカルAIに自動接続</h3>
+        <p>LM Studio(ポート1234)などOpenAI互換APIに自動で接続。20Bクラス以上のモデルでの利用を推奨しています。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓅱</div>
+        <h3>Web検索 (SearXNG)</h3>
+        <p>SearXNGと連携したプライバシー重視のWeb検索に対応。Macでバックグラウンド自動起動も可能です。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓃭</div>
+        <h3>アプリ設計・自動開発</h3>
+        <p>設計図(.md)を用意すれば、「ほったらかしモード」でビルド直前まで実装を自動で進めます。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓅔</div>
+        <h3>Markdown RAG</h3>
+        <p>.md形式のファイルを辞書(RAG)として読み込み、プロジェクト固有の知識を参照させられます。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓀀</div>
+        <h3>エージェント連携</h3>
+        <p>Discord・Telegram・カレンダーと繋がるエージェント機能で、通知の要約や対話を任せられます。</p>
+      </div>
+      <div class="card">
+        <div class="ico">◆</div>
+        <h3>オープンソース</h3>
+        <p>GPL-3.0-or-licenseで公開。ソースコードはGitHubで自由に確認・改変できます。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap split">
+    <div>
+      <div class="section-head">
+        <p class="kicker">使い方</p>
+        <h2>3ステップで始められます</h2>
+      </div>
+      <ol class="steps">
+        <li>
+          <h3>ローカルLLMサーバーを起動</h3>
+          <p><a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a>などでモデルを読み込み、サーバーを起動します(標準ポート <code>1234</code>)。</p>
+        </li>
+        <li>
+          <h3>Pine Chatをインストール</h3>
+          <p>GitHubのReleasesから最新の<code>.dmg</code>をダウンロードして起動するだけです。</p>
+        </li>
+        <li>
+          <h3>そのままチャット開始</h3>
+          <p>起動時に自動でローカルAIへ接続します。プロジェクトを作成して、開発・リサーチ・雑談を始めましょう。</p>
+        </li>
+      </ol>
+    </div>
+    <div class="req-card" id="requirements">
+      <h3>動作環境</h3>
+      <ul>
+        <li><span class="dot">◆</span> macOS 14.0 以降</li>
+        <li><span class="dot">◆</span> ローカルLLMサーバー(LM Studio 等)</li>
+        <li><span class="dot">◆</span> 推奨モデルサイズ: 20Bクラス以上</li>
+        <li><span class="dot">◆</span> ソースから起動する場合は Node.js / npm</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="source">
+  <div class="wrap">
+    <div class="req-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px">
+      <div>
+        <h3 style="margin-bottom:6px">ソースから起動する場合</h3>
+        <p style="color:var(--ink-1);font-size:14px;margin:0"><code>npm install</code> の後 <code>npm start</code>、または <code>./build.sh</code> で.dmgをビルドできます。</p>
+      </div>
+      <a class="btn btn-ghost" href="https://github.com/oriyu90/PineChat">リポジトリを開く →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div class="foot-brand"><img src="/assets/icon-192.png" alt=""><span>Pine Chat © 2026 Yuki_Orita</span></div>
+    <div class="foot-links">
+      <a href="https://github.com/oriyu90/PineChat">GitHub</a>
+      <a href="https://github.com/oriyu90/PineChat/blob/main/LICENSE">License (GPL-3.0)</a>
+      <a href="https://discord.gg/x7KXhNTD8M">Discord</a>
+      <a href="https://x.com/InovateofRIZI">X</a>
+      <a href="https://oriyu90.github.io/official/">開発者公式サイト</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

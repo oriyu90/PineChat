@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pine Chat — 自主思考型 AI 代理，为本地大模型打造的 macOS 应用</title>
+<meta name="description" content="Pine Chat 是一款连接本地大语言模型(如 LM Studio)运行的 macOS AI 代理应用。支持自动应用开发、网络搜索、Markdown RAG 以及 Discord/Telegram 联动。开发者：折田悠希(Yuki Orita / Oriyu90)。已在 GitHub 以 GPL-3.0 协议开源。">
+<meta name="keywords" content="Pine Chat,折田悠希,おりたゆうき,Yuki Orita,github,本地大模型,LM Studio,AI代理,自主智能体,macOS应用">
+<link rel="canonical" href="https://pinechat.pages.dev/zh/">
+<link rel="alternate" hreflang="ja" href="https://pinechat.pages.dev/">
+<link rel="alternate" hreflang="en" href="https://pinechat.pages.dev/en/">
+<link rel="alternate" hreflang="zh" href="https://pinechat.pages.dev/zh/">
+<link rel="alternate" hreflang="pt" href="https://pinechat.pages.dev/pt/">
+<link rel="alternate" hreflang="x-default" href="https://pinechat.pages.dev/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Pine Chat — 自主思考型 AI 代理">
+<meta property="og:description" content="在本地 LLM 上运行的 macOS AI 编程与研究代理。">
+<meta property="og:image" content="https://pinechat.pages.dev/assets/og-image.png">
+<meta property="og:url" content="https://pinechat.pages.dev/zh/">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@InovateofRIZI">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="/zh/"><img src="/assets/icon-192.png" alt="Pine Chat"><span>Pine Chat</span></a>
+    <div class="navlinks">
+      <a href="#features"><span class="hide-sm">功能</span></a>
+      <a href="#how">使用方法</a>
+      <a href="#requirements"><span class="hide-sm">系统要求</span></a>
+      <div class="langsw">
+        <a href="/">JA</a><a href="/en/">EN</a><a class="on" href="/zh/">中文</a><a href="/pt/">PT</a>
+      </div>
+      <a class="cta" href="https://github.com/oriyu90/PineChat/releases/latest">下载</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">𓂀 v1.0.0 · GPL-3.0 · macOS</span>
+    <h1>基于本地大模型运行的<em>自主思考型</em> AI 代理。</h1>
+    <p class="lead">Pine Chat 是一款可连接 LM Studio 等本地模型运行的 macOS AI 代理应用。只需提供一份设计文档(.md)，"放手模式"就能自动开发应用，直至构建前的最后一步。</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="https://github.com/oriyu90/PineChat/releases/latest">𓃭 下载最新版本</a>
+      <a class="btn btn-ghost" href="https://github.com/oriyu90/PineChat">在 GitHub 查看源码</a>
+    </div>
+    <p class="hero-meta">开源协议 GPL-3.0-or-later · 开发者：折田悠希(Yuki_Orita)</p>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">功能</p>
+      <h2>调研、开发与联动，一个代理全部搞定。</h2>
+      <p>不仅是聊天窗口：编程、调研与外部联动都交给同一个本地 AI 代理处理。</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="ico">𓂀</div>
+        <h3>自动连接本地 AI</h3>
+        <p>自动连接 LM Studio(端口 1234)等兼容 OpenAI 接口的服务。建议使用 20B 级别及以上的模型。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓅱</div>
+        <h3>SearXNG 网络搜索</h3>
+        <p>通过 SearXNG 实现注重隐私的网络搜索，并可在 Mac 上以后台服务自动启动。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓃭</div>
+        <h3>应用设计与自动开发</h3>
+        <p>提供设计文档(.md)后，"放手模式"会自动完成开发，直到构建前的最后一步。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓅔</div>
+        <h3>Markdown RAG</h3>
+        <p>将 .md 文件作为知识库(RAG)加载，让代理参考项目专属的资料。</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓀀</div>
+        <h3>代理联动</h3>
+        <p>连接 Discord、Telegram 与日历，自动汇总消息并代为对话。</p>
+      </div>
+      <div class="card">
+        <div class="ico">◆</div>
+        <h3>开源软件</h3>
+        <p>以 GPL-3.0-or-later 协议发布，源码在 GitHub 上可自由查看与修改。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap split">
+    <div>
+      <div class="section-head">
+        <p class="kicker">使用方法</p>
+        <h2>三步即可开始</h2>
+      </div>
+      <ol class="steps">
+        <li>
+          <h3>启动本地 LLM 服务器</h3>
+          <p>在 <a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a> 中加载模型并启动服务器(默认端口 <code>1234</code>)。</p>
+        </li>
+        <li>
+          <h3>安装 Pine Chat</h3>
+          <p>从 GitHub Releases 下载最新的 <code>.dmg</code> 文件并打开即可。</p>
+        </li>
+        <li>
+          <h3>直接开始对话</h3>
+          <p>启动时会自动连接本地 AI。创建项目后即可开始开发、调研或闲聊。</p>
+        </li>
+      </ol>
+    </div>
+    <div class="req-card" id="requirements">
+      <h3>系统要求</h3>
+      <ul>
+        <li><span class="dot">◆</span> macOS 14.0 及以上</li>
+        <li><span class="dot">◆</span> 本地 LLM 服务器(如 LM Studio)</li>
+        <li><span class="dot">◆</span> 建议使用 20B 级别及以上模型</li>
+        <li><span class="dot">◆</span> 从源码运行需要 Node.js / npm</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="source">
+  <div class="wrap">
+    <div class="req-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px">
+      <div>
+        <h3 style="margin-bottom:6px">从源码运行</h3>
+        <p style="color:var(--ink-1);font-size:14px;margin:0">执行 <code>npm install</code> 后运行 <code>npm start</code>，或运行 <code>./build.sh</code> 构建 .dmg。</p>
+      </div>
+      <a class="btn btn-ghost" href="https://github.com/oriyu90/PineChat">打开代码仓库 →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div class="foot-brand"><img src="/assets/icon-192.png" alt=""><span>Pine Chat © 2026 Yuki_Orita</span></div>
+    <div class="foot-links">
+      <a href="https://github.com/oriyu90/PineChat">GitHub</a>
+      <a href="https://github.com/oriyu90/PineChat/blob/main/LICENSE">许可证 (GPL-3.0)</a>
+      <a href="https://discord.gg/x7KXhNTD8M">Discord</a>
+      <a href="https://x.com/InovateofRIZI">X</a>
+      <a href="https://oriyu90.github.io/official/">开发者官网</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

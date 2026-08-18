@@ -16,7 +16,7 @@ function createWindow() {
   win = new BrowserWindow({
     width:1300, height:840, minWidth:820, minHeight:600,
     title:'Pine Chat', backgroundColor:'#111111',
-    webPreferences:{ preload:path.join(__dirname,'preload.js'), contextIsolation:true, nodeIntegration:false, sandbox:false },
+    webPreferences:{ preload:path.join(__dirname,'preload.js'), contextIsolation:true, nodeIntegration:false, sandbox:true },
     show:false
   });
   win.loadFile(path.join(__dirname,'index.html'));
@@ -127,6 +127,7 @@ ipcMain.handle('delete-project',(_,id)=>{
     agent.stopAgent(sessId);
     activeSessions.delete(sessId);
   }
+  agent.deleteSession(sessId);
   // 再開ファイルも削除
   try {
     const proj = agent.loadProj(id);

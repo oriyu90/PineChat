@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pine Chat — An Autonomous AI Agent for macOS, Powered by Your Local LLM</title>
+<meta name="description" content="Pine Chat is a macOS AI agent app that runs on your local LLM (LM Studio, etc). Autonomous app development, web search, Markdown RAG, and Discord/Telegram integration. Built by Yuki Orita (Oriyu90). Open source on GitHub under GPL-3.0.">
+<meta name="keywords" content="Pine Chat,Yuki Orita,Oriyu90,github,local LLM,LM Studio,AI agent,autonomous agent,macOS app">
+<link rel="canonical" href="https://pinechat.pages.dev/en/">
+<link rel="alternate" hreflang="ja" href="https://pinechat.pages.dev/">
+<link rel="alternate" hreflang="en" href="https://pinechat.pages.dev/en/">
+<link rel="alternate" hreflang="zh" href="https://pinechat.pages.dev/zh/">
+<link rel="alternate" hreflang="pt" href="https://pinechat.pages.dev/pt/">
+<link rel="alternate" hreflang="x-default" href="https://pinechat.pages.dev/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Pine Chat — An Autonomous AI Agent">
+<meta property="og:description" content="A macOS AI coding & research agent that runs on your local LLM.">
+<meta property="og:image" content="https://pinechat.pages.dev/assets/og-image.png">
+<meta property="og:url" content="https://pinechat.pages.dev/en/">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@InovateofRIZI">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="/en/"><img src="/assets/icon-192.png" alt="Pine Chat"><span>Pine Chat</span></a>
+    <div class="navlinks">
+      <a href="#features"><span class="hide-sm">Features</span></a>
+      <a href="#how">How it works</a>
+      <a href="#requirements"><span class="hide-sm">Requirements</span></a>
+      <div class="langsw">
+        <a href="/">JA</a><a class="on" href="/en/">EN</a><a href="/zh/">中文</a><a href="/pt/">PT</a>
+      </div>
+      <a class="cta" href="https://github.com/oriyu90/PineChat/releases/latest">Download</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">𓂀 v1.0.0 · GPL-3.0 · macOS</span>
+    <h1>An <em>autonomous</em> AI agent, powered by your local LLM.</h1>
+    <p class="lead">Pine Chat is a macOS AI agent app that connects to a local model like LM Studio. Hand it a design document (.md) and hands-off mode will build the app for you, right up to the final build.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="https://github.com/oriyu90/PineChat/releases/latest">𓃭 Download latest</a>
+      <a class="btn btn-ghost" href="https://github.com/oriyu90/PineChat">View source on GitHub</a>
+    </div>
+    <p class="hero-meta">Open source (GPL-3.0-or-later) · Built by Yuki Orita</p>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Features</p>
+      <h2>Research, build, and stay connected — all in one agent.</h2>
+      <p>More than a chat window: coding, research, and outside integrations run through a single local AI agent.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="ico">𓂀</div>
+        <h3>Auto-connects to your local AI</h3>
+        <p>Connects automatically to LM Studio (port 1234) or any OpenAI-compatible API. A 20B-class model or larger is recommended.</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓅱</div>
+        <h3>Web search via SearXNG</h3>
+        <p>Privacy-respecting web search through SearXNG, which can also run as a background service on macOS.</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓃭</div>
+        <h3>App design & autonomous build</h3>
+        <p>Give it a design document (.md) and "hands-off" mode will implement the app all the way to the final build.</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓅔</div>
+        <h3>Markdown RAG</h3>
+        <p>Load .md files as a reference dictionary (RAG) so the agent can draw on project-specific knowledge.</p>
+      </div>
+      <div class="card">
+        <div class="ico">𓀀</div>
+        <h3>Agent integrations</h3>
+        <p>Connects to Discord, Telegram, and your calendar to summarize activity and hold conversations for you.</p>
+      </div>
+      <div class="card">
+        <div class="ico">◆</div>
+        <h3>Open source</h3>
+        <p>Released under GPL-3.0-or-later. Source is freely available to read and modify on GitHub.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap split">
+    <div>
+      <div class="section-head">
+        <p class="kicker">How it works</p>
+        <h2>Get started in 3 steps</h2>
+      </div>
+      <ol class="steps">
+        <li>
+          <h3>Start a local LLM server</h3>
+          <p>Load a model and start a server in <a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a> (default port <code>1234</code>).</p>
+        </li>
+        <li>
+          <h3>Install Pine Chat</h3>
+          <p>Download the latest <code>.dmg</code> from the GitHub Releases page and launch it.</p>
+        </li>
+        <li>
+          <h3>Start chatting</h3>
+          <p>It connects to your local AI automatically on launch. Create a project and start building, researching, or just chatting.</p>
+        </li>
+      </ol>
+    </div>
+    <div class="req-card" id="requirements">
+      <h3>Requirements</h3>
+      <ul>
+        <li><span class="dot">◆</span> macOS 14.0 or later</li>
+        <li><span class="dot">◆</span> A local LLM server (e.g. LM Studio)</li>
+        <li><span class="dot">◆</span> Recommended: 20B-class model or larger</li>
+        <li><span class="dot">◆</span> Node.js / npm if running from source</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="source">
+  <div class="wrap">
+    <div class="req-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px">
+      <div>
+        <h3 style="margin-bottom:6px">Running from source</h3>
+        <p style="color:var(--ink-1);font-size:14px;margin:0"><code>npm install</code> then <code>npm start</code>, or run <code>./build.sh</code> to build a .dmg.</p>
+      </div>
+      <a class="btn btn-ghost" href="https://github.com/oriyu90/PineChat">Open the repository →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div class="foot-brand"><img src="/assets/icon-192.png" alt=""><span>Pine Chat © 2026 Yuki_Orita</span></div>
+    <div class="foot-links">
+      <a href="https://github.com/oriyu90/PineChat">GitHub</a>
+      <a href="https://github.com/oriyu90/PineChat/blob/main/LICENSE">License (GPL-3.0)</a>
+      <a href="https://discord.gg/x7KXhNTD8M">Discord</a>
+      <a href="https://x.com/InovateofRIZI">X</a>
+      <a href="https://oriyu90.github.io/official/">Official site</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Pine Chat — 自立思考型AIエージェント",
   "main": "main.js",
+  "license": "GPL-3.0-or-later",
+  "author": "Yuki_Orita",
+  "repository": { "type": "git", "url": "https://github.com/oriyu90/PineChat.git" },
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --mac dmg --x64 --arm64"
