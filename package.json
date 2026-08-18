@@ -13,6 +13,7 @@
   "build": {
     "appId": "com.pinechat.app",
     "productName": "Pine Chat",
+    "artifactName": "PineChat-${version}-${arch}.${ext}",
     "directories": { "output": "dist" },
     "files": ["main.js", "agent.js", "preload.js", "index.html", "package.json"],
     "mac": {
