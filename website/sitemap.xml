@@ -2,31 +2,31 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://pinechat.pages.dev/</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://pinechat.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://pinechat.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://pinechat.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="pt" href="https://pinechat.pages.dev/pt/"/>
+    <loc>https://studio-rizi.pages.dev/projects/pine-chat/</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://studio-rizi.pages.dev/projects/pine-chat/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://studio-rizi.pages.dev/projects/pine-chat/en/"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://studio-rizi.pages.dev/projects/pine-chat/zh/"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://studio-rizi.pages.dev/projects/pine-chat/pt/"/>
   </url>
   <url>
-    <loc>https://pinechat.pages.dev/en/</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://pinechat.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://pinechat.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://pinechat.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="pt" href="https://pinechat.pages.dev/pt/"/>
+    <loc>https://studio-rizi.pages.dev/projects/pine-chat/en/</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://studio-rizi.pages.dev/projects/pine-chat/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://studio-rizi.pages.dev/projects/pine-chat/en/"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://studio-rizi.pages.dev/projects/pine-chat/zh/"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://studio-rizi.pages.dev/projects/pine-chat/pt/"/>
   </url>
   <url>
-    <loc>https://pinechat.pages.dev/zh/</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://pinechat.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://pinechat.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://pinechat.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="pt" href="https://pinechat.pages.dev/pt/"/>
+    <loc>https://studio-rizi.pages.dev/projects/pine-chat/zh/</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://studio-rizi.pages.dev/projects/pine-chat/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://studio-rizi.pages.dev/projects/pine-chat/en/"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://studio-rizi.pages.dev/projects/pine-chat/zh/"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://studio-rizi.pages.dev/projects/pine-chat/pt/"/>
   </url>
   <url>
-    <loc>https://pinechat.pages.dev/pt/</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://pinechat.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://pinechat.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://pinechat.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="pt" href="https://pinechat.pages.dev/pt/"/>
+    <loc>https://studio-rizi.pages.dev/projects/pine-chat/pt/</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://studio-rizi.pages.dev/projects/pine-chat/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://studio-rizi.pages.dev/projects/pine-chat/en/"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://studio-rizi.pages.dev/projects/pine-chat/zh/"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://studio-rizi.pages.dev/projects/pine-chat/pt/"/>
   </url>
 </urlset>

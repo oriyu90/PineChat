@@ -43,6 +43,6 @@ Copyright (C) 2026 Yuki_Orita
 ## リンク
 
 - 開発者: Yuki_Orita(折田悠希 / おりたゆうき)
-- 開発者公式サイト: https://oriyu90.github.io/official/
+- 開発者公式サイト: https://studio-rizi.pages.dev/
 - X: https://x.com/InovateofRIZI
 - Discord(バグ報告・告知): https://discord.gg/x7KXhNTD8M
